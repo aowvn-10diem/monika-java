@@ -1,0 +1,12 @@
+MIDlet-Name: Monika
+MIDlet-Vendor: AowVN
+MIDlet-Version: 0.1.0
+MIDlet-1: Monika, /icon.png, vn.aowvn.monika.MonikaMidlet
+MIDlet-Description: Cua hang ung dung Java S60 by AOW.VN
+MicroEdition-Profile: MIDP-2.0
+MicroEdition-Configuration: CLDC-1.1
+MIDlet-Jar-URL: Monika.jar
+MIDlet-Jar-Size: 21068
+Monika-Base-URL: 
+Monika-Net-Suffix: 
+Monika-Fullscreen: 0

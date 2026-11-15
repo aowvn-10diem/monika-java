@@ -1,0 +1,13 @@
+# Catalog MẪU để thử giao diện. Chưa có file cài đặt thật: cột path để trống.
+# Cột: id <TAB> cat <TAB> flags <TAB> sizeKb <TAB> price <TAB> version <TAB> name <TAB> desc <TAB> path
+# cat: 0 Tiện ích, 1 Trò chơi, 2 Mạng & liên lạc, 3 Học tập & đọc
+# flags: 1 mới, 2 có cập nhật, 4 cần mạng
+101	0	3	38	0	0.1	Lịch âm (mẫu)	Xem lịch âm dương và ngày lễ. Mục mẫu để thử giao diện.	
+102	3	0	92	0	0.1	Từ điển Anh-Việt (mẫu)	Tra từ không cần mạng. Mục mẫu để thử giao diện.	
+103	2	4	24	0	0.1	Thời tiết (mẫu)	Dự báo thời tiết theo tỉnh. Mục mẫu để thử giao diện.	
+104	2	4	31	0	0.1	Đọc báo (mẫu)	Đọc báo qua proxy rút gọn. Mục mẫu để thử giao diện.	
+105	0	2	18	0	0.2	Máy tính (mẫu)	Máy tính bỏ túi gọn nhẹ. Mục mẫu để thử giao diện.	
+201	1	1	64	0	0.1	Cờ caro (mẫu)	Chơi cờ caro với máy. Mục mẫu để thử giao diện.	
+202	1	0	47	0	0.1	Rắn săn mồi (mẫu)	Trò rắn kinh điển. Mục mẫu để thử giao diện.	
+203	1	2	83	0	0.3	Xếp hình (mẫu)	Xếp khối rơi. Mục mẫu để thử giao diện.	
+204	1	0	71	0	0.1	Cờ tướng (mẫu)	Cờ tướng một người chơi. Mục mẫu để thử giao diện.	
