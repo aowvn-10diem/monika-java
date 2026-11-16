@@ -42,7 +42,7 @@ Haiku 5.5 rẻ hơn Sonnet 5.5 khoảng 20 lần ở đầu vào, nên đẩy vi
 | 5 | Giao việc đọc nhiều, quét file, sinh hàng loạt cho subagent Haiku; Opus chỉ làm cố vấn khi bế tắc | Claude | Đúng quy tắc dự án. Subagent có cache riêng |
 | 6 | Cài context-mode đầu mỗi thread | Claude | Cài ở user scope trong container tạm nên mất khi phiên kết thúc; tài liệu nói plugin khai báo trong repo không tự nạp ở phiên cloud. Giữ bước cài ở hướng dẫn dự án. Cần khởi động lại phiên mới có hook |
 | 7 | Tắt connector và plugin không dùng cho dự án Monika (Notion, Drive, ElevenLabs, các plugin thiết kế/dữ liệu/quản lý sản phẩm...) | Sếp | Danh sách skill và hướng dẫn MCP nằm trong prefix của mọi request. Chỉ đổi giữa các phiên |
-| 8 | Cho biết đang dùng gói thuê bao hay API key | Sếp | Nếu API key: đặt `ENABLE_PROMPT_CACHING_1H=1` trong biến môi trường của environment để TTL 1 giờ (ghi đắt hơn 2x nhưng ít miss khi nghỉ). Nếu thuê bao: đã có 1 giờ |
+| 8 | ~~Cho biết gói thuê bao hay API key~~ Sếp dùng gói Claude Pro (thuê bao) nên hội thoại chính đã có TTL 1 giờ, không cần `ENABLE_PROMPT_CACHING_1H` | Xong | Subagent và việc nền vẫn mặc định 5 phút. Vượt hạn mức gói và dùng credit thì hội thoại chính rơi về 5 phút |
 | 9 | Dùng `/usage` xem dòng "Prompt cache (main)" trước và sau khi áp dụng | Sếp hoặc Claude | Cách duy nhất để có số đo thật của dự án (cần Claude Code v2.1.251 trở lên) |
 | 10 | Tắt việc nền tốn token nếu không cần: `idleCompaction`, `promptSuggestionEnabled`, `awaySummaryEnabled` | Sếp | Chỉ áp dụng cho giao diện tương tác; chưa chắc ảnh hưởng thread chạy từ ứng dụng. Chưa đưa vào repo vì chưa chắc có lợi |
 | 11 | Dùng `/clear` giữa các việc không liên quan; thread nào xong thì giải quyết, việc mới mở thread mới | Sếp, Claude | Ngữ cảnh dài bị tính cả lần đọc lại mỗi lượt |
@@ -66,8 +66,7 @@ Haiku 5.5 rẻ hơn Sonnet 5.5 khoảng 20 lần ở đầu vào, nên đẩy vi
 
 ## Câu hỏi còn mở cho sếp
 
-1. Sếp dùng gói thuê bao hay API key? Quyết định việc 8.
-2. Muốn tôi thêm bước kiểm tra ngân sách JAR vào CI sau khi PR #1 merge không (việc 4)?
+Đã trả lời: sếp dùng gói Claude Pro (việc 8 xong) và đồng ý thêm bước kiểm tra ngân sách JAR vào CI sau khi PR #1 merge (việc 4, chờ PR #1).
 
 ## Nguồn
 
