@@ -1,0 +1,23 @@
+name: Việc cần làm
+description: Giao một việc cho Claude hoặc người làm
+labels: ["task"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Mục tiêu
+      description: Một hai câu, kết quả cần đạt.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Phạm vi
+      description: File hoặc thư mục được đụng, và phần không được đụng.
+  - type: textarea
+    id: done
+    attributes:
+      label: Tiêu chí xong
+      description: Điều kiện kiểm được, ví dụ CI xanh, JAR dưới 153600 byte.
+    validations:
+      required: true
