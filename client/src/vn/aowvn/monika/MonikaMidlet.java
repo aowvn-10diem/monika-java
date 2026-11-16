@@ -28,10 +28,10 @@ import javax.microedition.midlet.MIDletStateChangeException;
  * Thuộc tính JAD tùy chọn:
  *   Monika-Base-URL   gốc máy chủ catalog, ví dụ http://m.aowvn.us (rỗng = chỉ dùng danh mục mẫu)
  *   Monika-Net-Suffix hậu tố kết nối, ví dụ ;deviceside=true cho BlackBerry
- *   Monika-Fullscreen 1 = toàn màn hình, tự vẽ phím mềm
+ *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener {
-    static final String VERSION = "0.1.0";
+    static final String VERSION = "0.1.1";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -92,7 +92,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
         }
         netSuffix = prop("Monika-Net-Suffix");
-        jadFullscreen = "1".equals(prop("Monika-Fullscreen"));
+        jadFullscreen = !"0".equals(prop("Monika-Fullscreen"));
         boolean known = store.load();
         if (known) {
             beginLoad();
@@ -423,6 +423,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
 
     private void openOptions() {
         fOptions = new List(Vi.tr("Tùy chọn"), Choice.IMPLICIT);
+        fOptions.append(Vi.tr("Mở mục đang chọn"), null);
         fOptions.append(Vi.tr("Cài đặt"), null);
         fOptions.append(Vi.tr("Thông tin máy"), null);
         fOptions.append(Vi.tr("Giới thiệu"), null);
@@ -509,7 +510,9 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
 
     public void commandAction(Command c, Displayable d) {
         if (d == home) {
-            if (c == home.cmdSearch) {
+            if (c == home.cmdOpen) {
+                home.activate();
+            } else if (c == home.cmdSearch) {
                 openSearch();
             } else if (c == home.cmdSettings) {
                 openSettings();
@@ -546,8 +549,12 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         if (d == fOptions && c == List.SELECT_COMMAND) {
             int i = fOptions.getSelectedIndex();
             if (i == 0) {
-                openSettings();
+                stack.removeAllElements();
+                showHome();
+                home.activate();
             } else if (i == 1) {
+                openSettings();
+            } else if (i == 2) {
                 showInfo();
             } else {
                 showAbout();

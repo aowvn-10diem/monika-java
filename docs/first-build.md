@@ -1,4 +1,4 @@
-# Monika client: bản dựng đầu tiên (v0.1.0)
+# Monika client: bản dựng đầu tiên (v0.1.1)
 
 Bản này là khung chạy được của app chợ trên máy Java S60, dựng theo mục 4 và 6 của kế hoạch Monika
 và theo mockup (nền tím đậm, banner Monika, menu 5 mục, phím mềm Tùy chọn / Tìm ứng dụng / Thoát).
@@ -26,7 +26,7 @@ Nó dùng **danh mục mẫu** đóng gói sẵn trong JAR, chưa có máy chủ
 ./tools/build.sh                     # ra dist/Monika.jar và dist/Monika.jad
 MIDLET_JAR_URL=http://<tên miền>/Monika.jar \
 MONIKA_BASE_URL=http://<tên miền> \
-MONIKA_FULLSCREEN=0 ./tools/build.sh # bản trỏ tới máy chủ thật
+./tools/build.sh                     # thêm các biến trên để trỏ tới máy chủ thật
 ```
 
 Cần JDK 8 trở lên, `curl`, `unzip`. Thư viện build tải từ Maven Central, kiểm SHA-256 theo `tools/libs.sha256`.
@@ -44,11 +44,12 @@ và không còn đích dưới Java 8.
 | --- | --- |
 | `Monika-Base-URL` | Gốc máy chủ catalog. Rỗng = chỉ dùng danh mục mẫu. Client gọi `<gốc>/v1/c/vi/all/0.bin` |
 | `Monika-Net-Suffix` | Hậu tố kết nối, ví dụ `;deviceside=true` cho BlackBerry |
-| `Monika-Fullscreen` | `1` = toàn màn hình, tự vẽ ba nhãn phím mềm. Mặc định `0` |
+| `Monika-Fullscreen` | Mặc định toàn màn hình, tự vẽ ba nhãn phím mềm. `0` = chế độ thường, giữ thanh trạng thái |
 
-Chế độ thường (mặc định) giữ thanh trạng thái của máy: Tùy chọn và Thoát là Command gốc của máy,
-nút "Tìm ứng dụng" vẽ ở đáy và bấm bằng phím `*`, phím `S` hoặc chạm.
-Phím số `1` đến `5` mở thẳng từng mục menu.
+Điều khiển ở màn chính: phím lên/xuống đi qua 5 mục và nút "Tìm ứng dụng" ở đáy, phím giữa (mã -5, hoặc Enter) mở mục đang chọn.
+Phím mềm trái mở "Tùy chọn" (có "Mở mục đang chọn", Cài đặt, Thông tin máy, Giới thiệu), phím mềm phải là Thoát.
+Phím `1` đến `5` mở thẳng từng mục, `*` hoặc `S` mở tìm kiếm, cảm ứng chạm vào mục hoặc nút Tìm.
+Chế độ thường (`Monika-Fullscreen: 0`) giữ thanh trạng thái của máy, lệnh Mở, Tìm ứng dụng, Cài đặt... nằm trong menu Tùy chọn gốc.
 
 ## Định dạng catalog MKA1
 

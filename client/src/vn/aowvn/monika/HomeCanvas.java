@@ -17,6 +17,8 @@ import javax.microedition.lcdui.Image;
  */
 final class HomeCanvas extends Canvas {
     static final int ITEMS = 5;
+    /** 5 mục menu cộng nút Tìm ứng dụng. */
+    static final int FOCUS = ITEMS + 1;
     static final int ACT_OPEN = 0;
     static final int ACT_OPTIONS = 1;
     static final int ACT_SEARCH = 2;
@@ -30,6 +32,7 @@ final class HomeCanvas extends Canvas {
     };
 
     private final MonikaMidlet app;
+    final Command cmdOpen;
     final Command cmdSearch;
     final Command cmdSettings;
     final Command cmdInfo;
@@ -53,6 +56,7 @@ final class HomeCanvas extends Canvas {
 
     HomeCanvas(MonikaMidlet app, boolean full) {
         this.app = app;
+        cmdOpen = new Command(Vi.tr("Mở"), Command.OK, 1);
         cmdSearch = new Command(Vi.tr("Tìm ứng dụng"), Command.SCREEN, 1);
         cmdSettings = new Command(Vi.tr("Cài đặt"), Command.SCREEN, 2);
         cmdInfo = new Command(Vi.tr("Thông tin máy"), Command.SCREEN, 3);
@@ -64,6 +68,7 @@ final class HomeCanvas extends Canvas {
     /** Bật/tắt toàn màn hình và gắn lại Command cho phù hợp. */
     void setFull(boolean f) {
         full = f;
+        removeCommand(cmdOpen);
         removeCommand(cmdSearch);
         removeCommand(cmdSettings);
         removeCommand(cmdInfo);
@@ -71,6 +76,7 @@ final class HomeCanvas extends Canvas {
         removeCommand(cmdExit);
         setFullScreenMode(f);
         if (!f) {
+            addCommand(cmdOpen);
             addCommand(cmdSearch);
             addCommand(cmdSettings);
             addCommand(cmdInfo);
@@ -79,6 +85,20 @@ final class HomeCanvas extends Canvas {
         }
         banner = null;
         repaint();
+    }
+
+    /** Mục đang chọn: 0 đến 4 là menu, ITEMS là nút Tìm ứng dụng. */
+    int selected() {
+        return sel;
+    }
+
+    /** Bấm mục đang chọn (phím giữa hoặc lệnh Mở). */
+    void activate() {
+        if (sel >= ITEMS) {
+            app.homeAction(ACT_SEARCH, sel);
+        } else {
+            app.homeAction(ACT_OPEN, sel);
+        }
     }
 
     void setBadge(int n) {
@@ -118,11 +138,12 @@ final class HomeCanvas extends Canvas {
         if (visible < 1) {
             visible = 1;
         }
-        if (sel < top) {
-            top = sel;
+        int r = Math.min(sel, ITEMS - 1);
+        if (r < top) {
+            top = r;
         }
-        if (sel >= top + visible) {
-            top = sel - visible + 1;
+        if (r >= top + visible) {
+            top = r - visible + 1;
         }
     }
 
@@ -297,7 +318,13 @@ final class HomeCanvas extends Canvas {
             pw = is + 14;
         }
         int px = (w - pw) / 2;
-        g.setColor(Theme.LINE);
+        if (sel >= ITEMS) {
+            g.setColor(Theme.SEL_B);
+            g.fillRoundRect(px, y + 2, pw - 1, barH - 5, 10, 10);
+            g.setColor(Theme.ORANGE);
+        } else {
+            g.setColor(Theme.LINE);
+        }
         g.drawRoundRect(px, y + 2, pw - 1, barH - 5, 10, 10);
         Icons.draw(g, Icons.SEARCH, px + 7, y + (barH - is) / 2, is, Theme.TEXT);
         if (mid != null) {
@@ -340,30 +367,51 @@ final class HomeCanvas extends Canvas {
                 return;
             }
         }
-        int ga = 0;
-        try {
-            ga = getGameAction(code);
-        } catch (IllegalArgumentException e) {
-            ga = 0;
+        if (isFire(code)) {
+            activate();
+            return;
         }
+        int ga = gameAction(code);
         if (ga == Canvas.UP) {
-            sel = (sel + ITEMS - 1) % ITEMS;
+            sel = (sel + FOCUS - 1) % FOCUS;
             repaint();
         } else if (ga == Canvas.DOWN) {
-            sel = (sel + 1) % ITEMS;
+            sel = (sel + 1) % FOCUS;
             repaint();
-        } else if (ga == Canvas.FIRE) {
-            app.homeAction(ACT_OPEN, sel);
         }
     }
 
-    protected void keyRepeated(int code) {
-        int ga = 0;
+    private int gameAction(int code) {
         try {
-            ga = getGameAction(code);
+            return getGameAction(code);
         } catch (IllegalArgumentException e) {
-            ga = 0;
+            return 0;
         }
+    }
+
+    /** Phím giữa của cần điều hướng: mã -5 trên S60 và S40, Enter, hoặc game action FIRE. */
+    private boolean isFire(int code) {
+        if (code == -5 || code == 10 || code == 13) {
+            return true;
+        }
+        if (gameAction(code) == Canvas.FIRE) {
+            return true;
+        }
+        try {
+            String n = getKeyName(code);
+            if (n != null) {
+                n = n.toLowerCase();
+                return n.indexOf("select") >= 0 || n.indexOf("fire") >= 0 || n.indexOf("enter") >= 0
+                    || n.equals("ok");
+            }
+        } catch (IllegalArgumentException e) {
+            // mã phím không có tên
+        }
+        return false;
+    }
+
+    protected void keyRepeated(int code) {
+        int ga = gameAction(code);
         if (ga == Canvas.UP || ga == Canvas.DOWN) {
             keyPressed(code);
         }

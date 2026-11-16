@@ -9,7 +9,7 @@
 #   MIDLET_JAR_URL     giá trị MIDlet-Jar-URL; để cài qua mạng phải là URL tuyệt đối
 #   MONIKA_BASE_URL    ghi vào JAD thành Monika-Base-URL (gốc máy chủ catalog)
 #   MONIKA_NET_SUFFIX  ghi vào JAD thành Monika-Net-Suffix (ví dụ ;deviceside=true)
-#   MONIKA_FULLSCREEN  1 = ghi Monika-Fullscreen: 1 vào JAD
+#   MONIKA_FULLSCREEN  Monika-Fullscreen trong JAD: 1 toàn màn hình (mặc định), 0 chế độ thường
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -110,7 +110,7 @@ echo "== JAD"
   echo "MIDlet-Jar-Size: $SIZE"
   echo "Monika-Base-URL: ${MONIKA_BASE_URL:-}"
   echo "Monika-Net-Suffix: ${MONIKA_NET_SUFFIX:-}"
-  echo "Monika-Fullscreen: ${MONIKA_FULLSCREEN:-0}"
+  echo "Monika-Fullscreen: ${MONIKA_FULLSCREEN:-1}"
 } > "$OUT/Monika.jad"
 
 echo "== Kiểm tra"
