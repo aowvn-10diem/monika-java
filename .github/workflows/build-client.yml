@@ -1,0 +1,53 @@
+name: build-client
+
+# Dựng Monika.jar + Monika.jad (P0-7: JAR tải được từ workflow).
+on:
+  pull_request:
+    paths:
+      - "client/**"
+      - "catalog/**"
+      - "tools/**"
+      - ".github/workflows/build-client.yml"
+  push:
+    branches: [main]
+    paths:
+      - "client/**"
+      - "catalog/**"
+      - "tools/**"
+      - ".github/workflows/build-client.yml"
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Build Monika.jar và Monika.jad
+        run: ./tools/build.sh
+      - name: Báo cáo kích thước
+        run: |
+          {
+            echo "### Monika client"
+            echo
+            echo "| File | Byte |"
+            echo "| --- | --- |"
+            echo "| Monika.jar | $(wc -c < dist/Monika.jar) |"
+            echo "| Monika.jad | $(wc -c < dist/Monika.jad) |"
+            echo
+            echo 'Ngân sách: JAR bản đầy đủ tối đa 150 KB (153600 byte).'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: monika-client
+          path: |
+            dist/Monika.jar
+            dist/Monika.jad
+          if-no-files-found: error
