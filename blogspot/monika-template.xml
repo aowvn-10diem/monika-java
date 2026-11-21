@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html b:version='2' class='v2 nojs' expr:dir='data:blog.languageDirection' xmlns='http://www.w3.org/1999/xhtml' xmlns:b='http://www.google.com/2005/gml/b' xmlns:data='http://www.google.com/2005/gml/data' xmlns:expr='http://www.google.com/2005/gml/expr'>
+<head>
+<meta content='width=device-width, initial-scale=1' name='viewport'/>
+<meta content='#2b0f4f' name='theme-color'/>
+<title><data:blog.pageTitle/></title>
+<b:include data='blog' name='all-head-content'/>
+<b:skin><![CDATA[
+/* Monika by AOW.VN - Blogspot template (wap nhe, PC rong, co cho banner)
+   Banner: web va app Java dung chung du lieu qua api.justmonika.top */
+:root{--bg:#1b0a38;--r1:#250e48;--r2:#290f4f;--hd1:#2b0f4f;--hd2:#4c1466;--or:#ff7a1a;--sel1:#cc580c;--sel2:#b44606;--bar:#140729;--pk:#dc1a70;--mu:#cdbfe8;--ln:#3a1a66}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;height:auto}
+h1,h2,h3{margin:0}
+.wrap{max-width:1080px;margin:0 auto}
+/* header */
+.hd{background:linear-gradient(135deg,var(--hd1),var(--hd2));position:relative;overflow:hidden}
+.hd-in{position:relative;z-index:1;padding:12px;display:flex;flex-direction:column;gap:10px}
+.logo{display:block;font-size:30px;font-weight:700;letter-spacing:.3px;line-height:1.1}
+.logo b{color:var(--or)}
+.tag,.by{margin:2px 0 0;font-size:12px;color:var(--mu)}
+.by b{color:var(--or)}
+.vn{background:#fff;color:#2b0f4f;font-weight:700;border-radius:3px;padding:0 4px;margin-left:3px;font-size:11px}
+.curve{position:absolute;right:0;bottom:0;width:62%;max-width:560px;height:75%;z-index:0}
+/* banner slots */
+.bn{display:block;position:relative;min-height:60px;aspect-ratio:4/1;background:rgba(0,0,0,.28);border:1px dashed #6a3ba0;border-radius:4px;overflow:hidden;color:#a58bd0;font-size:11px}
+.bn span{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px}
+.bn img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;display:block}
+.bn.on{border:0;background:none}
+.bn-item,.bn-foot{margin:12px auto;max-width:640px}
+.bn-list{margin:0 0 12px}
+.adslot .widget{margin:0 0 12px}
+/* nav */
+.nav a{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--r1);border-bottom:1px solid var(--ln)}
+.nav a:nth-child(even){background:var(--r2)}
+.nav a.on,.nav a:hover{background:linear-gradient(var(--sel1),var(--sel2));font-weight:700}
+.nav svg{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav .go{margin-left:auto;width:16px;height:16px;opacity:.85}
+.sf{display:flex;gap:6px;padding:8px 12px;background:var(--bar)}
+.sf input{flex:1;min-width:0;padding:8px 10px;border:1px solid #4a2a7a;border-radius:4px;background:#1f0b3d;color:#fff;font:inherit}
+.sf button{padding:8px 14px;border:0;border-radius:4px;background:linear-gradient(var(--sel1),var(--sel2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
+/* list */
+.st,.widget h2{padding:8px 12px;background:linear-gradient(90deg,var(--sel1),var(--sel2));font-size:14px;font-weight:700}
+.pr{display:flex;gap:10px;padding:10px 12px;background:var(--r1);border-bottom:1px solid var(--ln)}
+.pr:nth-of-type(even){background:var(--r2)}
+.pr .ic{flex:none;width:48px;height:48px;border-radius:8px;overflow:hidden;background:linear-gradient(135deg,var(--hd2),var(--sel1));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
+.pr .ic img{width:48px;height:48px;object-fit:cover;display:block}
+.pc{min-width:0;flex:1}
+.pc h2{font-size:16px;line-height:1.3}
+.pc h2 a:hover{color:var(--or)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0}
+.chips span,.chips a{font-size:11px;padding:0 6px;border-radius:8px;background:#3b1a6b;color:var(--mu)}
+.chips .v{background:var(--pk);color:#fff}
+.sn{margin:2px 0 0;font-size:13px;color:var(--mu);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dt{font-size:11px;color:#a58bd0}
+.raw{display:none}
+.pg{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;background:var(--bar);color:var(--or);font-weight:700}
+/* item */
+.it{background:var(--r1);padding:12px}
+.pt{font-size:22px;line-height:1.25}
+.pb{margin-top:10px;word-wrap:break-word;overflow-wrap:break-word}
+.pb a{color:var(--or);text-decoration:underline}
+.pb img{border-radius:4px}
+.dlbox{margin:8px 0 14px;padding:10px;background:var(--r2);border:1px solid var(--ln);border-radius:6px}
+.info{border-collapse:collapse;width:100%;margin-bottom:10px}
+.info th{width:38%;text-align:left;color:var(--mu);font-weight:400;padding:3px 0}
+.info td{padding:3px 0}
+.pb a.dlbtn{display:block;text-align:center;padding:12px;border-radius:6px;background:linear-gradient(var(--sel1),var(--sel2));color:#fff;font-weight:700;font-size:16px;text-decoration:none}
+.pb a.dlbtn:hover{filter:brightness(1.15)}
+.nojs pre.mk-meta{display:block;white-space:pre-wrap;font:12px monospace;background:#1f0b3d;padding:8px;border-radius:4px}
+pre.mk-meta{display:none}
+/* widgets, footer */
+.widget{margin:0 0 12px}
+.widget ul{list-style:none;margin:0;padding:0}
+.widget li{display:flex;justify-content:space-between;gap:8px;padding:9px 12px;background:var(--r1);border-bottom:1px solid var(--ln)}
+.widget li:nth-child(even){background:var(--r2)}
+.widget li a:hover{color:var(--or)}
+.widget li span{color:var(--mu);font-size:12px}
+.ft{background:var(--bar);margin-top:12px;padding:12px;text-align:center;color:var(--mu);font-size:12px}
+.ft a{text-decoration:underline}
+.ft .widget{margin:0}
+.ft .widget li{background:none;border:0;justify-content:center;padding:2px}
+/* tablet */
+@media (min-width:600px){
+.cols{display:grid;grid-template-columns:200px minmax(0,1fr);gap:12px;padding:12px;align-items:start}
+.side{grid-column:1/-1}
+.nav,.main,.side,.sf{border-radius:6px;overflow:hidden}
+.navbox{position:sticky;top:8px}
+}
+/* PC rong */
+@media (min-width:900px){
+.hd-in{flex-direction:row;align-items:center;justify-content:space-between;padding:18px 12px}
+.hd-in .bn-top{width:480px;flex:none}
+.cols{grid-template-columns:210px minmax(0,1fr) 300px}
+.side{grid-column:auto}
+.bn-list{aspect-ratio:6/5}
+.pc h2{font-size:17px}
+.it{padding:18px}
+.pt{font-size:26px}
+.pb a.dlbtn{display:inline-block;padding:12px 28px}
+}
+]]></b:skin>
+</head>
+<body>
+<svg aria-hidden='true' height='0' style='position:absolute' width='0' xmlns='http://www.w3.org/2000/svg'>
+<symbol id='i-app' viewBox='0 0 24 24'><rect height='7' rx='1.5' width='7' x='3' y='3'/><rect height='7' rx='1.5' width='7' x='14' y='3'/><rect height='7' rx='1.5' width='7' x='3' y='14'/><rect height='7' rx='1.5' width='7' x='14' y='14'/></symbol>
+<symbol id='i-game' viewBox='0 0 24 24'><rect height='11' rx='5' width='20' x='2' y='7'/><path d='M7 10v5M4.5 12.5h5'/><circle cx='15.5' cy='11.5' r='1'/><circle cx='18' cy='14' r='1'/></symbol>
+<symbol id='i-cat' viewBox='0 0 24 24'><path d='M12 3l9 5-9 5-9-5 9-5z'/><path d='M3 13l9 5 9-5'/></symbol>
+<symbol id='i-new' viewBox='0 0 24 24'><path d='M20 11a8 8 0 1 0-2.3 6.2'/><path d='M20 4v7h-7'/></symbol>
+<symbol id='i-go' viewBox='0 0 24 24'><path d='M9 5l7 7-7 7'/></symbol>
+</svg>
+
+<header class='hd'>
+<svg aria-hidden='true' class='curve' preserveAspectRatio='none' viewBox='0 0 400 120' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='cg' x1='0' x2='1' y1='1' y2='0'><stop offset='0' stop-color='#e0556f'/><stop offset='1' stop-color='#fb8133'/></linearGradient></defs><path d='M0 120L150 120C230 115 290 90 340 40C360 20 380 12 400 10L400 120Z' fill='url(#cg)'/></svg>
+<div class='hd-in wrap'>
+<div class='brand'>
+<a class='logo' expr:href='data:blog.homepageUrl'><b>M</b>onika</a>
+<p class='tag'>Cửa hàng ứng dụng &amp; game Java</p>
+<p class='by'>by <b>AOW</b><span class='vn'>.VN</span></p>
+</div>
+<div class='bn bn-top' data-slot='top'><span>Chỗ đặt banner (4:1, ví dụ 640×160)</span></div>
+</div>
+</header>
+<b:section class='adslot wrap' id='ad-top' maxwidgets='1' showaddelement='yes'/>
+
+<div class='cols wrap'>
+<div class='navbox'>
+<nav class='nav'>
+<a href='/search/label/App'><svg><use href='#i-app'/></svg>Ứng dụng<svg class='go'><use href='#i-go'/></svg></a>
+<a href='/search/label/Game'><svg><use href='#i-game'/></svg>Trò chơi<svg class='go'><use href='#i-go'/></svg></a>
+<a href='#cats'><svg><use href='#i-cat'/></svg>Danh mục<svg class='go'><use href='#i-go'/></svg></a>
+<a href='/'><svg><use href='#i-new'/></svg>Mới cập nhật<svg class='go'><use href='#i-go'/></svg></a>
+</nav>
+<form action='/search' class='sf' method='get'><input name='q' placeholder='Tìm app, game...' type='search'/><button type='submit'>Tìm</button></form>
+</div>
+
+<main class='main'>
+<b:section class='main-sec' id='main' showaddelement='no'>
+<b:widget id='Blog1' locked='true' title='Bài đăng trên blog' type='Blog' version='1'>
+<b:includable id='main' var='top'>
+<b:if cond='data:blog.pageType == "error_page"'>
+<div class='it'><h1 class='pt'>Không tìm thấy trang</h1><p>Trang này không tồn tại hoặc đã bị xóa. <a expr:href='data:blog.homepageUrl'>Về trang chủ</a></p></div>
+<b:else/>
+<b:if cond='data:blog.pageType != "item"'>
+<b:if cond='data:blog.pageType != "static_page"'>
+<h2 class='st'>
+<b:if cond='data:blog.searchLabel'>Danh mục: <data:blog.searchLabel/>
+<b:elseif cond='data:blog.searchQuery'/>Kết quả cho: <data:blog.searchQuery/>
+<b:else/>Mới cập nhật
+</b:if>
+</h2>
+</b:if>
+</b:if>
+<b:loop values='data:posts' var='post'>
+<b:if cond='data:blog.pageType == "item"'>
+<article class='it'>
+<h1 class='pt'><data:post.title/></h1>
+<div class='chips'>
+<b:loop values='data:post.labels' var='label'><a expr:href='data:label.url'><data:label.name/></a></b:loop>
+<span class='dt' expr:data-t='data:post.timestampValue'></span>
+</div>
+<div class='pb'><data:post.body/></div>
+<div class='bn bn-item' data-slot='item'><span>Chỗ đặt banner (4:1)</span></div>
+</article>
+<b:elseif cond='data:blog.pageType == "static_page"'/>
+<article class='it'>
+<h1 class='pt'><data:post.title/></h1>
+<div class='pb'><data:post.body/></div>
+</article>
+<b:else/>
+<article class='pr'>
+<a class='ic' expr:href='data:post.url'>M</a>
+<div class='pc'>
+<h2><a expr:href='data:post.url'><data:post.title/></a></h2>
+<div class='chips'>
+<b:loop values='data:post.labels' var='label'><span><data:label.name/></span></b:loop>
+</div>
+<p class='sn'></p>
+<span class='dt' expr:data-t='data:post.timestampValue'></span>
+</div>
+<div class='raw'><data:post.body/></div>
+</article>
+</b:if>
+</b:loop>
+<b:if cond='data:blog.pageType != "static_page"'>
+<div class='pg'>
+<b:if cond='data:newerPageUrl'><a expr:href='data:newerPageUrl'>‹ Mới hơn</a><b:else/><span></span></b:if>
+<b:if cond='data:olderPageUrl'><a expr:href='data:olderPageUrl'>Cũ hơn ›</a></b:if>
+</div>
+</b:if>
+</b:if>
+</b:includable>
+</b:widget>
+</b:section>
+<b:section class='adslot' id='ad-main' maxwidgets='1' showaddelement='yes'/>
+</main>
+
+<aside class='side'>
+<div class='bn bn-list' data-slot='list'><span>Chỗ đặt banner (PC: 300×250)</span></div>
+<b:section class='adslot' id='ad-side' maxwidgets='1' showaddelement='yes'/>
+<div id='cats'></div>
+<b:section class='side-sec' id='side' preferred='yes' showaddelement='yes'>
+<b:widget id='Label1' locked='false' title='Danh mục' type='Label' version='1'>
+<b:widget-settings>
+<b:widget-setting name='display'>LIST</b:widget-setting>
+<b:widget-setting name='selectedLabelsList'/>
+<b:widget-setting name='showType'>ALL</b:widget-setting>
+<b:widget-setting name='showFreqNumbers'>true</b:widget-setting>
+<b:widget-setting name='sorting'>ALPHA</b:widget-setting>
+</b:widget-settings>
+</b:widget>
+</b:section>
+</aside>
+</div>
+
+<footer class='ft'>
+<div class='wrap'>
+<div class='bn bn-foot' data-slot='foot'><span>Chỗ đặt banner chân trang (4:1)</span></div>
+<b:section class='adslot' id='ad-foot' maxwidgets='1' showaddelement='yes'/>
+<p>© Monika by AOW.VN · Kho ứng dụng và game Java cho điện thoại</p>
+<b:section class='foot-sec' id='footer' showaddelement='no'>
+<b:widget id='Attribution1' locked='false' title='' type='Attribution' version='1'>
+<b:widget-settings>
+<b:widget-setting name='copyright'>Monika by AOW.VN</b:widget-setting>
+</b:widget-settings>
+</b:widget>
+</b:section>
+</div>
+</footer>
+
+<script type='text/javascript'>
+//<![CDATA[
+(function(){
+var d=document,API='https://api.justmonika.top';
+d.documentElement.className=d.documentElement.className.replace('nojs','js');
+function $$(s,r){return Array.prototype.slice.call((r||d).querySelectorAll(s))}
+function el(t,c,x){var e=d.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function rm(e){if(e&&e.parentNode)e.parentNode.removeChild(e)}
+function meta(pre){
+ var t=pre.innerHTML.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div)>/gi,'\n').replace(/<[^>]+>/g,''),
+  x=el('textarea');x.innerHTML=t;t=x.value;
+ var m={};t.split(/\n/).forEach(function(l){var i=l.indexOf(':');if(i>0)m[l.slice(0,i).trim().toLowerCase()]=l.slice(i+1).trim()});
+ return m}
+function sz(k){k=parseInt(k,10);if(!k)return'';return k>=1024?(k/1024).toFixed(1)+' MB':k+' KB'}
+function pad(n){return('0'+n).slice(-2)}
+function fd(t){var x=new Date(t);return isNaN(x.getTime())?'':pad(x.getDate())+'/'+pad(x.getMonth()+1)+'/'+x.getFullYear()}
+/* ngay dang */
+$$('.dt').forEach(function(e){e.textContent=fd(e.getAttribute('data-t'))});
+/* menu dang chon */
+$$('.nav a').forEach(function(a){if(!a.hash&&a.pathname===location.pathname)a.className='on'});
+/* danh sach: chip phien ban/dung luong + mo ta ngan tu bai */
+$$('.raw').forEach(function(r){
+ var row=r.parentNode,pre=r.querySelector('pre.mk-meta'),m=pre?meta(pre):{},ch=row.querySelector('.chips');
+ if(m.ver)ch.appendChild(el('span','v','v'+m.ver));
+ if(sz(m.size))ch.appendChild(el('span','',sz(m.size)));
+ if(m.net==='1')ch.appendChild(el('span','','Cần mạng'));
+ var im=r.querySelector('img');
+ if(im){var u=im.getAttribute('src')||'';
+  if(/googleusercontent|blogspot|ggpht/i.test(u))u=u.replace(/\/(s|w)\d+(-h\d+)?(-[a-z0-9]+)*\//,'/s96-c/').replace(/=(s|w)\d+(-h\d+)?(-[a-z0-9]+)*$/,'=s96-c');
+  var ic=row.querySelector('.ic'),i2=el('img');i2.alt='';i2.width=48;i2.height=48;i2.src=u;ic.textContent='';ic.appendChild(i2)}
+ rm(pre);$$('img,script,style',r).forEach(rm);
+ var tx=(m.desc||r.textContent||'').replace(/\s+/g,' ').trim();
+ row.querySelector('.sn').textContent=tx.length>110?tx.slice(0,108)+'…':tx;
+ rm(r)});
+/* trang bai: bang thong tin + nut tai */
+$$('.pb pre.mk-meta').forEach(function(pre){
+ var m=meta(pre),box=el('div','dlbox'),tb=el('table','info');
+ [['Danh mục',m.cat],['Phiên bản',m.ver],['Dung lượng',sz(m.size)],['Cần mạng',m.net==='1'?'Có':''],['Giá',m.price&&m.price!=='0'?m.price:'']].forEach(function(p){
+  if(!p[1])return;var tr=el('tr');tr.appendChild(el('th','',p[0]));tr.appendChild(el('td','',p[1]));tb.appendChild(tr)});
+ box.appendChild(tb);
+ if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','▼ Tải về (JAR)');a.href=m.jar;a.rel='nofollow noopener';box.appendChild(a)}
+ pre.parentNode.insertBefore(box,pre);rm(pre)});
+/* banner: lay tu API chung voi app Java */
+var slots=$$('.bn[data-slot]');
+if(slots.length&&window.fetch){
+ fetch(API+'/v1/banners.json').then(function(r){return r.json()}).then(function(L){
+  slots.forEach(function(s){
+   var sl=s.getAttribute('data-slot'),c=L.filter(function(x){return x.slot===sl});
+   if(!c.length)return;
+   var b=c[Math.floor(Math.random()*c.length)],img=el('img');
+   img.alt=b.alt||'';img.src=b.src||(API+b.img2);img.loading='lazy';
+   var h=el(b.href?'a':'div');if(b.href){h.href=b.href;h.rel='nofollow'}
+   h.style.cssText='position:absolute;left:0;top:0;right:0;bottom:0;display:block';
+   h.appendChild(img);rm(s.querySelector('span'));s.appendChild(h);s.className+=' on'});
+ }).catch(function(){})}
+})();
+//]]>
+</script>
+</body>
+</html>
