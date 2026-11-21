@@ -6,6 +6,7 @@
 #
 # Biến môi trường tùy chọn:
 #   OUT                thư mục xuất (mặc định dist/)
+#   (MONIKA_BASE_URL, MONIKA_NET_SUFFIX, MONIKA_FULLSCREEN cũng được ghi vào MANIFEST của JAR)
 #   MIDLET_JAR_URL     giá trị MIDlet-Jar-URL; để cài qua mạng phải là URL tuyệt đối
 #   MONIKA_BASE_URL    ghi vào JAD thành Monika-Base-URL (gốc máy chủ catalog)
 #   MONIKA_NET_SUFFIX  ghi vào JAD thành Monika-Net-Suffix (ví dụ ;deviceside=true)
@@ -85,7 +86,12 @@ MIDlet-1: Monika, /icon.png, vn.aowvn.monika.MonikaMidlet
 MIDlet-Description: Cua hang ung dung Java S60 by AOW.VN
 MicroEdition-Profile: MIDP-2.0
 MicroEdition-Configuration: CLDC-1.1
+MIDlet-Permissions: javax.microedition.io.Connector.http
+Monika-Fullscreen: ${MONIKA_FULLSCREEN:-1}
 MF
+# Thuộc tính nằm trong MANIFEST của JAR để chỉ cần một file .jar (không cần .jad) vẫn biết máy chủ
+[ -z "${MONIKA_BASE_URL:-}" ] || echo "Monika-Base-URL: $MONIKA_BASE_URL" >> "$BUILD/MANIFEST.MF"
+[ -z "${MONIKA_NET_SUFFIX:-}" ] || echo "Monika-Net-Suffix: $MONIKA_NET_SUFFIX" >> "$BUILD/MANIFEST.MF"
 
 jar cfm "$BUILD/stage.jar" "$BUILD/MANIFEST.MF" -C "$BUILD/classes" . -C "$BUILD/res" .
 
