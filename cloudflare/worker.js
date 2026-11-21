@@ -204,7 +204,7 @@ async function buildJad(env, it, origin) {
 
 // ---------- images ----------
 function resizeGoogle(u, w, h) {
-  if (!/(googleusercontent|ggpht)\.com|blogger\.com\/img/i.test(u)) return u;
+  if (!/(googleusercontent|ggpht)\.com|blogger\.com\/img/i.test(u)) return u.replace("{w}", w);
   const spec = `w${w}-h${h}-c-rp`;
   if (/=[swh]\d[^/]*$/i.test(u)) return u.replace(/=[swh]\d[^/]*$/i, "=" + spec);
   if (/\/[swh]\d+(-[a-z0-9-]*)?\/[^/]+$/i.test(u)) return u.replace(/\/[swh]\d+(-[a-z0-9-]*)?\/([^/]+)$/i, `/${spec}/$2`);
@@ -310,7 +310,7 @@ async function bannersJson(env, slot) {
     else if (/^(hot|new|dl)$/i.test(l)) href = "/search/label/" + encodeURIComponent(l);
     else if (/^(app|game)$/i.test(l)) href = "/search/label/" + encodeURIComponent(l[0].toUpperCase() + l.slice(1).toLowerCase());
     else if (/^cat:/i.test(l)) href = "/search/label/" + encodeURIComponent(l.slice(4).trim());
-    out.push({ id: b.n, slot: b.slot, alt: b.alt, href, src: b.img, img: `/v1/b/${b.n}-320.png`, img2: `/v1/b/${b.n}-640.png` });
+    out.push({ id: b.n, slot: b.slot, alt: b.alt, href, src: String(b.img).replace("{w}", "640"), img: `/v1/b/${b.n}-320.png`, img2: `/v1/b/${b.n}-640.png` });
   }
   return new Response(JSON.stringify(out), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60", "access-control-allow-origin": "*" } });
 }
