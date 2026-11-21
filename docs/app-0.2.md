@@ -32,5 +32,5 @@ JAR kèm `MIDlet-Permissions: javax.microedition.io.Connector.http`.
 - Build sạch bằng ECJ + ProGuard, JAR 39 KB (ngân sách 150 KB).
 - MicroEmulator 2.0.4 với `tools/mock_api.py`: trang chủ + banner, Ứng dụng, Trò chơi phân trang, Cập nhật 3 tab, Danh mục, Tìm kiếm, Yêu thích, trang chi tiết, link banner `l:` và `g:`, ở 240x320, 320x240, 176x208, 128x160, 360x640.
 - Mất mạng: dùng cache cho trang đã xem, báo "Không vào được mạng (E12)" và thử lại cho trang chưa xem.
-- API thật `http://api.justmonika.top` trả đúng định dạng (hiện chưa có bài nên danh sách trống).
+- API thật `http://api.justmonika.top` với 5 mục demo: trang chủ, banner thật, danh sách, chi tiết, bấm Tải về gọi `platformRequest` tới JAD đúng URL (emulator chỉ hiện hộp thoại xác nhận, không cài được); JAD và JAR tải về khớp kích thước.
 - **Chưa thử trên máy thật.** Emulator không thử được `platformRequest` cài JAD, hộp thoại quyền mạng của JAR không ký, phím mềm E72/E52.
