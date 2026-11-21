@@ -1,18 +1,17 @@
 package vn.aowvn.monika;
 
-import java.io.IOException;
 import java.util.Vector;
 import javax.microedition.io.ConnectionNotFoundException;
 import javax.microedition.lcdui.Alert;
 import javax.microedition.lcdui.AlertType;
-import javax.microedition.lcdui.ChoiceGroup;
 import javax.microedition.lcdui.Choice;
+import javax.microedition.lcdui.ChoiceGroup;
 import javax.microedition.lcdui.Command;
 import javax.microedition.lcdui.CommandListener;
 import javax.microedition.lcdui.Display;
 import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Form;
-import javax.microedition.lcdui.Gauge;
+import javax.microedition.lcdui.Image;
 import javax.microedition.lcdui.List;
 import javax.microedition.lcdui.StringItem;
 import javax.microedition.lcdui.TextBox;
@@ -21,17 +20,18 @@ import javax.microedition.midlet.MIDlet;
 import javax.microedition.midlet.MIDletStateChangeException;
 
 /**
- * Monika: cửa hàng ứng dụng Java S60 by AOW.VN.
- * MIDP 2.0 / CLDC 1.1. Màn hình chính vẽ bằng Canvas, các màn hình còn lại dùng
- * LCDUI cấp cao (List, Form, TextBox) để máy tự lo phím mềm và cảm ứng.
+ * Monika: cửa hàng ứng dụng Java S60 by AOW.VN, dùng chung giao diện và dữ liệu với web
+ * (m.justmonika.top) qua API Cloudflare.
+ * MIDP 2.0 / CLDC 1.1. Màn chính, danh sách và chi tiết vẽ bằng Canvas theo giao diện web;
+ * tìm kiếm, cài đặt, thông tin dùng LCDUI cấp cao để máy tự lo bàn phím.
  *
- * Thuộc tính JAD tùy chọn:
- *   Monika-Base-URL   gốc máy chủ catalog, ví dụ http://m.aowvn.us (rỗng = chỉ dùng danh mục mẫu)
+ * Thuộc tính tùy chọn (JAD hoặc MANIFEST của JAR):
+ *   Monika-Base-URL   gốc máy chủ API, ví dụ http://api.justmonika.top (rỗng = chỉ dùng danh mục mẫu)
  *   Monika-Net-Suffix hậu tố kết nối, ví dụ ;deviceside=true cho BlackBerry
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
-public final class MonikaMidlet extends MIDlet implements CommandListener {
-    static final String VERSION = "0.1.1";
+public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
+    static final String VERSION = "0.2.0";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -39,20 +39,26 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
     private static final int LIST_UPDATES = 3;
     private static final int LIST_FAVS = 4;
 
+    private static final int MAX_PROMOS = 3;
+
     private Display display;
     private final Store store = new Store();
-    private Catalog catalog;
+    private final Repo repo = new Repo(store);
     private HomeCanvas home;
+    private Home hdata = new Home();
     private boolean started;
 
-    private String baseUrl = "";
+    private String jadBase = "";
     private String netSuffix = "";
     private boolean jadFullscreen;
     private String ua = "Monika";
 
-    private long loadMs;
-    private String loadSource = "";
-    private boolean loadDone;
+    private boolean homeAlerted;
+    private String updateUrl = "";
+    private String updateVer = "";
+    private Image[] promoImgs = new Image[0];
+    private String[] promoLinksAll = new String[0];
+    private int promoPending;
 
     private final Vector stack = new Vector();
 
@@ -60,24 +66,29 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
     private Form fFont;
     private Command cFontYes;
     private Command cFontNo;
-    private Form fLoad;
-    private Command cSkip;
     private List fOptions;
-    private List fList;
-    private Vector listItems = new Vector();
-    private List fCats;
-    private Form fDetail;
-    private AppInfo cur;
-    private Command cInstall;
-    private Command cFav;
     private TextBox fSearch;
     private Command cFind;
     private Form fSettings;
     private ChoiceGroup cgFont;
     private ChoiceGroup cgOpts;
+    private TextField tfServer;
     private Command cSave;
     private Form fInfo;
     private Form fAbout;
+
+    /** Tag yêu cầu danh sách: gắn với canvas và trang đang chờ. */
+    private static final class ListReq {
+        ListCanvas lc;
+    }
+
+    /** Tag yêu cầu ảnh banner. */
+    private static final class ImgReq {
+        int slot;
+        int gen;
+    }
+
+    private int promoGen;
 
     // ---------- vòng đời MIDlet ----------
 
@@ -87,15 +98,12 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         }
         started = true;
         display = Display.getDisplay(this);
-        baseUrl = prop("Monika-Base-URL");
-        while (baseUrl.endsWith("/")) {
-            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-        }
+        jadBase = prop("Monika-Base-URL");
         netSuffix = prop("Monika-Net-Suffix");
         jadFullscreen = !"0".equals(prop("Monika-Fullscreen"));
         boolean known = store.load();
         if (known) {
-            beginLoad();
+            begin();
         } else {
             showFontTest();
         }
@@ -119,6 +127,14 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         notifyDestroyed();
     }
 
+    private boolean isFull() {
+        return store.fullscreen == 1 || (store.fullscreen == 0 && jadFullscreen);
+    }
+
+    private void configureRepo() {
+        repo.configure(store.server.length() > 0 ? store.server : jadBase, netSuffix, ua);
+    }
+
     // ---------- điều hướng ----------
 
     private void show(Displayable d) {
@@ -131,7 +147,14 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         display.setCurrent(d);
     }
 
+    private void leave(Displayable d) {
+        if (d instanceof ListCanvas) {
+            repo.cancel(((ListCanvas) d).pending);
+        }
+    }
+
     private void back() {
+        leave(display.getCurrent());
         int n = stack.size();
         if (n > 0) {
             Displayable d = (Displayable) stack.elementAt(n - 1);
@@ -143,21 +166,23 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
     }
 
     private void showHome() {
+        leave(display.getCurrent());
         stack.removeAllElements();
         if (home == null) {
             home = newHome();
         }
-        if (catalog != null) {
-            home.setBadge(catalog.updateCount());
-        }
+        home.setBadge(hdata.newCount);
         display.setCurrent(home);
     }
 
     private HomeCanvas newHome() {
-        boolean full = store.fullscreen == 1 || (store.fullscreen == 0 && jadFullscreen);
-        HomeCanvas h = new HomeCanvas(this, full);
+        HomeCanvas h = new HomeCanvas(this, isFull());
         h.setCommandListener(this);
         ua = Net.userAgent(h.getWidth(), h.getHeight());
+        configureRepo();
+        if (promoImgs.length > 0) {
+            h.setPromos(promoImgs, promoLinksAll);
+        }
         return h;
     }
 
@@ -183,162 +208,368 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         display.setCurrent(fFont);
     }
 
-    // ---------- nạp catalog ----------
+    // ---------- khởi động và trang chủ ----------
 
-    private void beginLoad() {
-        if (home == null) {
-            home = newHome();
+    /** Hiện trang chủ ngay (không chờ mạng), rồi nạp dữ liệu nền. */
+    private void begin() {
+        home = newHome();
+        if (!repo.online()) {
+            hdata = Home.fromCatalog(repo.embedded());
         }
-        if (baseUrl.length() == 0) {
-            loadEmbedded("danh mục mẫu trong máy");
-            showHome();
-            return;
-        }
-        fLoad = new Form(Vi.tr("Đang tải danh mục"));
-        fLoad.append(new Gauge(null, false, Gauge.INDEFINITE, Gauge.CONTINUOUS_RUNNING));
-        fLoad.append(Vi.tr("Đang kết nối...\n"));
-        cSkip = new Command(Vi.tr("Dùng bản có sẵn"), Command.CANCEL, 1);
-        fLoad.addCommand(cSkip);
-        fLoad.setCommandListener(this);
-        loadDone = false;
-        display.setCurrent(fLoad);
-        new Thread(new Loader()).start();
+        showHome();
+        loadHome();
     }
 
-    private void loadEmbedded(String source) {
-        try {
-            catalog = Catalog.loadEmbedded();
-        } catch (IOException e) {
-            catalog = new Catalog();
-        }
-        loadSource = source;
-        loadMs = 0;
+    private void loadHome() {
+        repo.home(this, this);
     }
 
-    private synchronized void finishLoad(Catalog c, String source, long ms, String warn) {
-        if (loadDone) {
-            return;
-        }
-        loadDone = true;
-        catalog = c;
-        loadSource = source;
-        loadMs = ms;
-        if (home != null) {
-            home.setBadge(catalog.updateCount());
-        }
-        if (warn != null) {
-            alert("Thông báo", warn, home);
-        } else {
-            showHome();
-        }
-    }
-
-    /** Luồng nạp catalog từ mạng; lỗi thì rơi về cache rồi danh mục mẫu. */
-    private final class Loader implements Runnable {
-        public void run() {
-            long t0 = System.currentTimeMillis();
-            try {
-                byte[] b = Net.get(baseUrl + "/v1/c/vi/all/0.bin", netSuffix, ua, 64 * 1024);
-                Catalog c = Catalog.parse(b);
-                store.cachePut(b);
-                finishLoad(c, "mạng", System.currentTimeMillis() - t0, null);
+    /** Kết quả từ luồng nền của {@link Repo}. */
+    public void done(Object tag, Object result, String err) {
+        if (tag == this) {
+            onHome(result, err);
+        } else if (tag instanceof ListReq) {
+            ListReq r = (ListReq) tag;
+            ListCanvas lc = r.lc;
+            if (lc.pending != r) {
                 return;
-            } catch (IOException e) {
-                String code = e.getMessage() == null ? "E12" : e.getMessage();
-                String msg = "Không vào được mạng (" + code + "). ";
-                byte[] cached = store.cacheGet();
-                if (cached != null) {
-                    try {
-                        finishLoad(Catalog.parse(cached), "cache", 0, msg + "Đang dùng danh mục đã lưu.");
-                        return;
-                    } catch (IOException ignore) {
-                        // cache hỏng, rơi xuống bản mẫu
-                    }
-                }
-                try {
-                    finishLoad(Catalog.loadEmbedded(), "danh mục mẫu trong máy", 0,
-                        msg + "Đang dùng danh mục mẫu.");
-                } catch (IOException e2) {
-                    finishLoad(new Catalog(), "trống", 0, msg);
-                }
+            }
+            if (err != null) {
+                lc.setError(err);
+            } else {
+                fillList(lc, (Page) result);
+            }
+        } else if (tag instanceof ImgReq) {
+            onBanner((ImgReq) tag, result);
+        }
+    }
+
+    private void onHome(Object result, String err) {
+        if (err != null) {
+            if (!homeAlerted && display.getCurrent() == home) {
+                homeAlerted = true;
+                alert("Thông báo", "Không vào được mạng (" + err + "). Bấm Tùy chọn > Thông tin máy để xem máy chủ.",
+                    home);
+            }
+            return;
+        }
+        hdata = (Home) result;
+        if (home != null) {
+            home.setBadge(hdata.newCount);
+        }
+        if (hdata.latestJar.length() > 0 && newer(hdata.latest, VERSION)) {
+            updateUrl = hdata.latestJar;
+            updateVer = hdata.latest;
+        } else {
+            updateUrl = "";
+        }
+        loadPromos();
+    }
+
+    private void loadPromos() {
+        int n = Math.min(MAX_PROMOS, hdata.banId.length);
+        promoGen++;
+        promoImgs = new Image[0];
+        promoLinksAll = new String[0];
+        if (n == 0 || !repo.online()) {
+            if (home != null) {
+                home.setPromos(promoImgs, promoLinksAll);
+            }
+            return;
+        }
+        int w = home != null ? home.getWidth() : 240;
+        String size = w >= 300 ? "320" : "240";
+        promoPending = n;
+        tmpImgs = new Image[n];
+        for (int i = 0; i < n; i++) {
+            ImgReq r = new ImgReq();
+            r.slot = i;
+            r.gen = promoGen;
+            repo.image("/v1/b/" + hdata.banId[i] + "-" + size + ".png", r, this);
+        }
+    }
+
+    private Image[] tmpImgs;
+
+    private synchronized void onBanner(ImgReq r, Object result) {
+        if (r.gen != promoGen) {
+            return;
+        }
+        if (result != null) {
+            byte[] b = (byte[]) result;
+            try {
+                tmpImgs[r.slot] = Image.createImage(b, 0, b.length);
+            } catch (RuntimeException e) {
+                // ảnh hỏng: bỏ slot này
             }
         }
+        promoPending--;
+        if (promoPending > 0) {
+            return;
+        }
+        int cnt = 0;
+        for (int i = 0; i < tmpImgs.length; i++) {
+            if (tmpImgs[i] != null) {
+                cnt++;
+            }
+        }
+        Image[] imgs = new Image[cnt];
+        String[] links = new String[cnt];
+        int k = 0;
+        for (int i = 0; i < tmpImgs.length; i++) {
+            if (tmpImgs[i] != null) {
+                imgs[k] = tmpImgs[i];
+                links[k] = hdata.banLink[i];
+                k++;
+            }
+        }
+        promoImgs = imgs;
+        promoLinksAll = links;
+        if (home != null) {
+            home.setPromos(imgs, links);
+        }
+    }
+
+    /** So sánh phiên bản dạng 1.2.3: true nếu a mới hơn b. */
+    static boolean newer(String a, String b) {
+        int i = 0;
+        int j = 0;
+        while (i < a.length() || j < b.length()) {
+            int x = 0;
+            while (i < a.length() && a.charAt(i) != '.') {
+                char c = a.charAt(i++);
+                if (c >= '0' && c <= '9') {
+                    x = x * 10 + (c - '0');
+                }
+            }
+            i++;
+            int y = 0;
+            while (j < b.length() && b.charAt(j) != '.') {
+                char c = b.charAt(j++);
+                if (c >= '0' && c <= '9') {
+                    y = y * 10 + (c - '0');
+                }
+            }
+            j++;
+            if (x != y) {
+                return x > y;
+            }
+        }
+        return false;
     }
 
     // ---------- hành động từ màn hình chính ----------
 
     void homeAction(int act, int sel) {
-        if (catalog == null) {
-            return;
-        }
         if (act == HomeCanvas.ACT_EXIT) {
             exit();
         } else if (act == HomeCanvas.ACT_SEARCH) {
             openSearch();
         } else if (act == HomeCanvas.ACT_OPTIONS) {
             openOptions();
+        } else if (act == HomeCanvas.ACT_PROMO) {
+            followLink(home.promoLink());
         } else if (act == HomeCanvas.ACT_OPEN) {
             switch (sel) {
                 case LIST_APPS:
-                    showList("Ứng dụng", catalog.apps());
+                    openList("Ứng dụng", "app", null, null);
                     break;
                 case LIST_GAMES:
-                    showList("Trò chơi", catalog.games());
+                    openList("Trò chơi", "game", null, null);
                     break;
                 case LIST_CATS:
                     openCategories();
                     break;
                 case LIST_UPDATES:
-                    showList("Cập nhật", catalog.updates());
+                    openList("Cập nhật", "new", new String[] {"Mới", "Hot", "Tải nhiều"},
+                        new String[] {"new", "hot", "dl"});
                     break;
                 default:
-                    showList("Yêu thích", catalog.favorites(store));
+                    openFavorites();
                     break;
             }
+        }
+    }
+
+    /** Link banner: l:khóa (mở danh sách), g:id (mở một app). */
+    private void followLink(String link) {
+        if (link == null || link.length() < 3) {
+            return;
+        }
+        String v = link.substring(2);
+        if (link.startsWith("l:")) {
+            openList(v.equals("hot") ? "Hot" : v.equals("new") ? "Cập nhật" : "Danh sách", v, null, null);
+        } else if (link.startsWith("g:")) {
+            ListCanvas lc = newList("Ứng dụng", 0);
+            lc.openOnly = true;
+            loadList(lc, "i" + v, 0);
+            show(lc);
         }
     }
 
     // ---------- danh sách ----------
 
-    private void showList(String title, Vector items) {
-        if (items.size() == 0) {
-            alert("Thông báo", "Chưa có mục nào.", display.getCurrent());
+    private ListCanvas newList(String title, int kind) {
+        ListCanvas lc = new ListCanvas(this, isFull(), title, kind);
+        lc.setCommandListener(this);
+        return lc;
+    }
+
+    private void openList(String title, String key, String[] tabLabels, String[] tabKeys) {
+        ListCanvas lc = newList(title, 0);
+        lc.tabLabels = tabLabels;
+        lc.tabKeys = tabKeys;
+        loadList(lc, key, 0);
+        show(lc);
+    }
+
+    private void loadList(ListCanvas lc, String key, int page) {
+        lc.key = key;
+        ListReq r = new ListReq();
+        r.lc = lc;
+        lc.pending = r;
+        lc.setLoading();
+        repo.list(key, page, r, this);
+    }
+
+    private void fillList(ListCanvas lc, Page p) {
+        int n = p.items.size();
+        if (lc.openOnly) {
+            // banner trỏ tới một app: vào thẳng trang chi tiết
+            if (n > 0) {
+                AppInfo a = (AppInfo) p.items.elementAt(0);
+                DetailCanvas d = newDetail(a);
+                display.setCurrent(d);
+            } else {
+                lc.setData(new String[0], new String[0], new int[0], new int[0], 0, 0, Page.SIZE);
+            }
             return;
         }
-        listItems = items;
-        fList = new List(Vi.tr(title) + " (" + items.size() + ")", Choice.IMPLICIT);
-        for (int i = 0; i < items.size(); i++) {
-            AppInfo a = (AppInfo) items.elementAt(i);
-            StringBuffer sb = new StringBuffer();
-            if (store.isFavorite(a.id)) {
-                sb.append("* ");
-            }
-            sb.append(a.name);
-            if (a.has(AppInfo.F_UPDATE)) {
-                sb.append(" (cập nhật)");
-            } else if (a.has(AppInfo.F_NEW)) {
-                sb.append(" (mới)");
-            }
-            fList.append(Vi.tr(sb.toString()), null);
+        lc.items = p.items;
+        String[] names = new String[n];
+        String[] subs = new String[n];
+        int[] flags = new int[n];
+        int[] badges = new int[n];
+        for (int i = 0; i < n; i++) {
+            AppInfo a = (AppInfo) p.items.elementAt(i);
+            names[i] = (store.isFavorite(a.id) ? "* " : "") + a.name;
+            subs[i] = a.sizeKb + " KB · v" + a.version + " · "
+                + (a.isFree() ? "Miễn phí" : money(a.price));
+            flags[i] = a.flags;
         }
-        fList.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
-        fList.setCommandListener(this);
-        show(fList);
+        lc.setData(names, subs, flags, badges, p.page, p.total, Page.SIZE);
+    }
+
+    void listOpen(ListCanvas lc, int k) {
+        if (lc.kind == 1) {
+            openList(hdata.nameOfCat(lc.ids[k]).length() > 0 ? hdata.nameOfCat(lc.ids[k])
+                : Catalog.CATEGORIES[Math.min(k, Catalog.CATEGORIES.length - 1)], "c" + lc.ids[k], null, null);
+        } else if (k >= 0 && k < lc.items.size()) {
+            DetailCanvas d = newDetail((AppInfo) lc.items.elementAt(k));
+            show(d);
+        }
+    }
+
+    void listPage(ListCanvas lc, int delta) {
+        int target = lc.page + delta;
+        if (target < 0) {
+            return;
+        }
+        ListReq r = new ListReq();
+        r.lc = lc;
+        lc.pending = r;
+        lc.setLoading();
+        repo.list(lc.key, target, r, this);
+    }
+
+    void listTab(ListCanvas lc, int tab) {
+        repo.cancel(lc.pending);
+        lc.tab = tab;
+        loadList(lc, lc.tabKeys[tab], 0);
+    }
+
+    void listRetry(ListCanvas lc) {
+        if (lc.kind == 1) {
+            openCategoriesInto(lc);
+        } else {
+            loadList(lc, lc.key, lc.page);
+        }
+    }
+
+    void listBack() {
+        back();
+    }
+
+    void listSearch() {
+        openSearch();
     }
 
     private void openCategories() {
-        fCats = new List(Vi.tr("Danh mục"), Choice.IMPLICIT);
-        for (int i = 0; i < Catalog.CATEGORIES.length; i++) {
-            fCats.append(Vi.tr(Catalog.CATEGORIES[i]) + " (" + catalog.byCategory(i).size() + ")", null);
+        ListCanvas lc = newList("Danh mục", 1);
+        openCategoriesInto(lc);
+        show(lc);
+    }
+
+    private void openCategoriesInto(ListCanvas lc) {
+        if (hdata.catId.length == 0) {
+            // chưa có dữ liệu trang chủ: nạp lại rồi dựng danh sách
+            lc.setLoading();
+            final ListCanvas target = lc;
+            repo.home(target.token, new Repo.Callback() {
+                public void done(Object tag, Object result, String err) {
+                    if (err != null) {
+                        target.setError(err);
+                        return;
+                    }
+                    onHome(result, null);
+                    fillCats(target);
+                }
+            });
+            return;
         }
-        fCats.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
-        fCats.setCommandListener(this);
-        show(fCats);
+        fillCats(lc);
+    }
+
+    private void fillCats(ListCanvas lc) {
+        int n = hdata.catId.length;
+        String[] names = new String[n];
+        String[] subs = new String[n];
+        int[] flags = new int[n];
+        int[] badges = new int[n];
+        lc.ids = hdata.catId;
+        for (int i = 0; i < n; i++) {
+            names[i] = hdata.catName[i];
+            badges[i] = hdata.catCount[i];
+        }
+        lc.setData(names, subs, flags, badges, 0, n, 0);
+    }
+
+    private void openFavorites() {
+        Vector v = store.favorites();
+        if (v.size() == 0) {
+            alert("Thông báo", "Chưa có mục yêu thích nào.", home);
+            return;
+        }
+        ListCanvas lc = newList("Yêu thích", 2);
+        lc.items = v;
+        int n = v.size();
+        String[] names = new String[n];
+        String[] subs = new String[n];
+        int[] flags = new int[n];
+        int[] badges = new int[n];
+        for (int i = 0; i < n; i++) {
+            AppInfo a = (AppInfo) v.elementAt(i);
+            names[i] = a.name;
+            subs[i] = a.sizeKb + " KB · v" + a.version;
+            flags[i] = a.flags;
+        }
+        lc.setData(names, subs, flags, badges, 0, n, 0);
+        show(lc);
     }
 
     // ---------- chi tiết ----------
 
-    private static String money(int vnd) {
+    static String money(int vnd) {
         String s = Integer.toString(vnd);
         StringBuffer sb = new StringBuffer();
         for (int i = 0; i < s.length(); i++) {
@@ -350,53 +581,43 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         return sb.append("đ").toString();
     }
 
-    private void showDetail(AppInfo a) {
-        cur = a;
-        fDetail = new Form(Vi.tr(a.name));
-        fDetail.append(new StringItem(null, Vi.tr(a.desc) + "\n"));
-        fDetail.append(new StringItem(Vi.tr("Phiên bản: "), a.version + "\n"));
-        fDetail.append(new StringItem(Vi.tr("Dung lượng: "), a.sizeKb + " KB\n"));
-        fDetail.append(new StringItem(Vi.tr("Giá: "),
-            Vi.tr(a.isFree() ? "Miễn phí" : money(a.price)) + "\n"));
-        if (a.has(AppInfo.F_NEEDNET)) {
-            fDetail.append(new StringItem(null, Vi.tr("Cần kết nối mạng khi chạy.\n")));
+    private DetailCanvas newDetail(AppInfo a) {
+        String cat = hdata.nameOfCat(a.cat);
+        if (cat.length() == 0 && a.cat >= 0 && a.cat < Catalog.CATEGORIES.length) {
+            cat = Catalog.CATEGORIES[a.cat];
         }
-        cInstall = null;
-        if (a.path.length() > 0 && a.isFree()) {
-            cInstall = new Command(Vi.tr("Cài đặt"), Command.OK, 1);
-            fDetail.addCommand(cInstall);
-        } else if (a.path.length() == 0) {
-            fDetail.append(new StringItem(null, Vi.tr("Mục mẫu: chưa có file cài đặt.\n")));
-        } else {
-            fDetail.append(new StringItem(null, Vi.tr("App trả phí: tính năng mua sẽ có ở bản sau.\n")));
+        boolean can = a.path.length() > 0 && a.isFree() && (a.path.startsWith("http") || repo.online());
+        String note = null;
+        if (a.path.length() == 0) {
+            note = Vi.tr("Mục mẫu: chưa có file cài đặt.");
+        } else if (!a.isFree()) {
+            note = Vi.tr("App trả phí: tính năng mua sẽ có ở bản sau.");
+        } else if (!can) {
+            note = Vi.tr("Chưa cấu hình máy chủ, chưa tải được.");
         }
-        cFav = new Command(Vi.tr(store.isFavorite(a.id) ? "Bỏ yêu thích" : "Yêu thích"),
-            Command.ITEM, 2);
-        fDetail.addCommand(cFav);
-        fDetail.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
-        fDetail.setCommandListener(this);
-        show(fDetail);
+        DetailCanvas d = new DetailCanvas(this, isFull(), a, cat, store.isFavorite(a.id), can, note);
+        d.setCommandListener(this);
+        return d;
     }
 
-    private void install(AppInfo a) {
-        String url = a.path;
-        if (!url.startsWith("http")) {
-            if (baseUrl.length() == 0) {
-                alert("Thông báo", "Chưa cấu hình máy chủ (bản thử), chưa cài được.", fDetail);
-                return;
-            }
-            url = baseUrl + a.path;
-        }
+    void detailInstall(DetailCanvas d) {
+        AppInfo a = d.info;
+        String url = repo.url(a.path);
         store.save();
+        d.setStatus(Vi.tr("Đang mở trình tải..."));
         try {
             if (platformRequest(url)) {
                 // máy yêu cầu thoát app trước khi cài
                 exit();
             }
         } catch (ConnectionNotFoundException e) {
-            alert("Thông báo", "Máy không mở được liên kết. Gõ địa chỉ này vào trình duyệt: " + url,
-                fDetail);
+            d.setStatus("");
+            alert("Thông báo", "Máy không mở được liên kết. Gõ địa chỉ này vào trình duyệt: " + url, d);
         }
+    }
+
+    void detailFav(DetailCanvas d) {
+        d.setFav(store.toggleFavorite(d.info));
     }
 
     // ---------- tìm kiếm ----------
@@ -411,12 +632,14 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
     }
 
     private void doSearch() {
-        Vector r = catalog.search(fSearch.getString());
-        if (r.size() == 0) {
-            alert("Thông báo", "Không tìm thấy.", fSearch);
-        } else {
-            showList("Kết quả", r);
+        String key = Vi.key(fSearch.getString()).trim();
+        if (Repo.enc(key).length() == 0) {
+            alert("Thông báo", "Nhập từ khóa để tìm.", fSearch);
+            return;
         }
+        ListCanvas lc = newList("Tìm: " + fSearch.getString(), 0);
+        loadList(lc, "s:" + key, 0);
+        show(lc);
     }
 
     // ---------- tùy chọn, cài đặt, thông tin ----------
@@ -427,6 +650,9 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         fOptions.append(Vi.tr("Cài đặt"), null);
         fOptions.append(Vi.tr("Thông tin máy"), null);
         fOptions.append(Vi.tr("Giới thiệu"), null);
+        if (updateUrl.length() > 0) {
+            fOptions.append(Vi.tr("Cập nhật Monika " + updateVer), null);
+        }
         fOptions.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
         fOptions.setCommandListener(this);
         show(fOptions);
@@ -441,18 +667,16 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         fSettings.append(cgFont);
         cgOpts = new ChoiceGroup(Vi.tr("Khác"), Choice.MULTIPLE);
         cgOpts.append(Vi.tr("Toàn màn hình (tự vẽ phím mềm)"), null);
-        cgOpts.append(Vi.tr("Xóa danh mục đã lưu"), null);
-        cgOpts.setSelectedIndex(0, home != null && homeIsFull());
+        cgOpts.append(Vi.tr("Xóa dữ liệu đã lưu"), null);
+        cgOpts.setSelectedIndex(0, isFull());
         fSettings.append(cgOpts);
+        tfServer = new TextField(Vi.tr("Máy chủ (để trống = mặc định)"), store.server, 80, TextField.URL);
+        fSettings.append(tfServer);
         cSave = new Command(Vi.tr("Lưu"), Command.OK, 1);
         fSettings.addCommand(cSave);
         fSettings.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 2));
         fSettings.setCommandListener(this);
         show(fSettings);
-    }
-
-    private boolean homeIsFull() {
-        return store.fullscreen == 1 || (store.fullscreen == 0 && jadFullscreen);
     }
 
     private void saveSettings() {
@@ -461,15 +685,15 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         if (cgOpts.isSelected(1)) {
             store.cacheClear();
         }
+        store.server = tfServer.getString().trim();
         store.save();
         home = newHome();
-        if (catalog != null) {
-            home.setBadge(catalog.updateCount());
-        }
+        hdata = repo.online() ? new Home() : Home.fromCatalog(repo.embedded());
         stack.removeAllElements();
         Alert a = new Alert(Vi.tr("Cài đặt"), Vi.tr("Đã lưu."), null, AlertType.INFO);
         a.setTimeout(1500);
         display.setCurrent(a, home);
+        loadHome();
     }
 
     private void showInfo() {
@@ -483,9 +707,8 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         fInfo.append(line("Màn hình", home.getWidth() + "x" + home.getHeight()
             + (display.isColor() ? ", " + display.numColors() + " màu" : ", đơn sắc")));
         fInfo.append(line("Mã thiết bị", store.deviceId));
-        fInfo.append(line("Danh mục", loadSource + (loadMs > 0 ? " (" + loadMs + " ms)" : "")));
-        fInfo.append(line("Số mục", catalog == null ? "0" : Integer.toString(catalog.size())));
-        fInfo.append(line("Máy chủ", baseUrl.length() == 0 ? "(chưa cấu hình)" : baseUrl));
+        fInfo.append(line("Dữ liệu", repo.source + (repo.stale ? " (mạng lỗi)" : "")));
+        fInfo.append(line("Máy chủ", repo.online() ? repo.base() : "(chưa cấu hình)"));
         fInfo.append(line("Monika", VERSION));
         fInfo.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
         fInfo.setCommandListener(this);
@@ -500,10 +723,20 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
         fAbout = new Form(Vi.tr("Giới thiệu"));
         fAbout.append(new StringItem(null, "Monika " + VERSION + "\n"));
         fAbout.append(new StringItem(null,
-            Vi.tr("Cửa hàng ứng dụng Java S60 by AOW.VN.\nBản dựng đầu tiên, dùng danh mục mẫu.\n")));
+            Vi.tr("Cửa hàng ứng dụng Java S60 by AOW.VN.\nDữ liệu đồng bộ với web m.justmonika.top.\n")));
         fAbout.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
         fAbout.setCommandListener(this);
         show(fAbout);
+    }
+
+    private void installUpdate() {
+        try {
+            if (platformRequest(repo.url(updateUrl))) {
+                exit();
+            }
+        } catch (ConnectionNotFoundException e) {
+            alert("Thông báo", "Máy không mở được liên kết cập nhật.", home);
+        }
     }
 
     // ---------- nhận lệnh ----------
@@ -529,16 +762,30 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
             Vi.mode = c == cFontNo ? Vi.MODE_PLAIN : Vi.MODE_ACCENT;
             store.save();
             fFont = null;
-            beginLoad();
+            begin();
             return;
         }
-        if (d == fLoad) {
-            if (c == cSkip) {
-                loadEmbedded("danh mục mẫu trong máy");
-                synchronized (this) {
-                    loadDone = true;
-                }
-                showHome();
+        if (d instanceof ListCanvas) {
+            ListCanvas lc = (ListCanvas) d;
+            if (c == lc.cmdOpen) {
+                lc.openSelected();
+            } else if (c == lc.cmdSearch) {
+                openSearch();
+            } else {
+                back();
+            }
+            return;
+        }
+        if (d instanceof DetailCanvas) {
+            DetailCanvas dc = (DetailCanvas) d;
+            if (c == dc.cmdInstall) {
+                detailInstall(dc);
+            } else if (c == dc.cmdFav) {
+                detailFav(dc);
+            } else if (c == dc.cmdSearch) {
+                openSearch();
+            } else {
+                back();
             }
             return;
         }
@@ -556,41 +803,15 @@ public final class MonikaMidlet extends MIDlet implements CommandListener {
                 openSettings();
             } else if (i == 2) {
                 showInfo();
-            } else {
+            } else if (i == 3) {
                 showAbout();
-            }
-        } else if (d == fList && c == List.SELECT_COMMAND) {
-            int i = fList.getSelectedIndex();
-            if (i >= 0 && i < listItems.size()) {
-                showDetail((AppInfo) listItems.elementAt(i));
-            }
-        } else if (d == fCats && c == List.SELECT_COMMAND) {
-            int i = fCats.getSelectedIndex();
-            if (i >= 0) {
-                showList(Catalog.CATEGORIES[i], catalog.byCategory(i));
-            }
-        } else if (d == fDetail) {
-            if (c == cInstall) {
-                install(cur);
-            } else if (c == cFav) {
-                store.toggleFavorite(cur.id);
-                showDetailRefresh();
+            } else {
+                installUpdate();
             }
         } else if (d == fSearch && c == cFind) {
             doSearch();
         } else if (d == fSettings && c == cSave) {
             saveSettings();
         }
-    }
-
-    /** Dựng lại trang chi tiết sau khi đổi yêu thích, không đẩy thêm vào ngăn xếp. */
-    private void showDetailRefresh() {
-        int n = stack.size();
-        if (n > 0) {
-            Displayable prev = (Displayable) stack.elementAt(n - 1);
-            stack.removeElementAt(n - 1);
-            display.setCurrent(prev);
-        }
-        showDetail(cur);
     }
 }

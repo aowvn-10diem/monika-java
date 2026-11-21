@@ -1,5 +1,7 @@
 package vn.aowvn.monika;
 
+import java.util.Timer;
+import java.util.TimerTask;
 import javax.microedition.lcdui.Canvas;
 import javax.microedition.lcdui.Command;
 import javax.microedition.lcdui.Font;
@@ -7,7 +9,7 @@ import javax.microedition.lcdui.Graphics;
 import javax.microedition.lcdui.Image;
 
 /**
- * Màn hình chính theo mockup: banner Monika, 5 mục menu (Ứng dụng, Trò chơi,
+ * Màn hình chính theo mockup: headImg Monika, 5 mục menu (Ứng dụng, Trò chơi,
  * Danh mục, Cập nhật kèm huy hiệu, Yêu thích) và thanh phím mềm
  * Tùy chọn / Tìm ứng dụng / Thoát.
  *
@@ -15,7 +17,7 @@ import javax.microedition.lcdui.Image;
  * - Thường (mặc định): giữ thanh trạng thái của máy; menu Tùy chọn và Thoát là Command gốc.
  * - Toàn màn hình: tự vẽ cả ba nhãn phím mềm và tự nhận mã phím mềm.
  */
-final class HomeCanvas extends Canvas {
+final class HomeCanvas extends BaseCanvas {
     static final int ITEMS = 5;
     /** 5 mục menu cộng nút Tìm ứng dụng. */
     static final int FOCUS = ITEMS + 1;
@@ -23,6 +25,9 @@ final class HomeCanvas extends Canvas {
     static final int ACT_OPTIONS = 1;
     static final int ACT_SEARCH = 2;
     static final int ACT_EXIT = 3;
+    static final int ACT_PROMO = 4;
+    /** Vị trí focus của banner quảng cáo (sau mục Tìm ứng dụng). */
+    static final int PROMO = ITEMS + 1;
 
     private static final String[] LABELS = {
         "Ứng dụng", "Trò chơi", "Danh mục", "Cập nhật", "Yêu thích"
@@ -49,10 +54,17 @@ final class HomeCanvas extends Canvas {
     private int rowH;
     private int barH;
     private int visible;
+    private int promoH;
 
-    private Image banner;
-    private int bannerW;
-    private int bannerH;
+    // banner quảng cáo lấy từ API (slot chung với web)
+    private Image[] promos = new Image[0];
+    private String[] promoLinks = new String[0];
+    private int promoIdx;
+    private Timer timer;
+
+    private Image headImg;
+    private int headW;
+    private int headH;
 
     HomeCanvas(MonikaMidlet app, boolean full) {
         this.app = app;
@@ -83,7 +95,7 @@ final class HomeCanvas extends Canvas {
             addCommand(cmdAbout);
             addCommand(cmdExit);
         }
-        banner = null;
+        headImg = null;
         repaint();
     }
 
@@ -94,7 +106,9 @@ final class HomeCanvas extends Canvas {
 
     /** Bấm mục đang chọn (phím giữa hoặc lệnh Mở). */
     void activate() {
-        if (sel >= ITEMS) {
+        if (sel == PROMO) {
+            app.homeAction(ACT_PROMO, sel);
+        } else if (sel >= ITEMS) {
             app.homeAction(ACT_SEARCH, sel);
         } else {
             app.homeAction(ACT_OPEN, sel);
@@ -107,31 +121,33 @@ final class HomeCanvas extends Canvas {
     }
 
     protected void sizeChanged(int w, int h) {
-        banner = null;
+        headImg = null;
     }
 
     // ---------- bố cục ----------
 
     private void layout(int w, int h) {
+        promoH = promos.length > 0 && h >= 240 ? Math.min(promos[promoIdx].getHeight(), h / 5) : 0;
+        int hh = h - promoH;
         Font f = Theme.body();
         Font fs = Theme.small();
         barH = fs.getHeight() + 10;
         rowH = Math.max(f.getHeight() + 8, 20);
-        hdr = h - barH - ITEMS * rowH;
+        hdr = hh - barH - ITEMS * rowH;
         if (hdr < 36) {
             rowH = f.getHeight() + 4;
-            hdr = h - barH - ITEMS * rowH;
+            hdr = hh - barH - ITEMS * rowH;
         }
-        int cap = h * 42 / 100;
+        int cap = hh * 42 / 100;
         if (hdr > cap) {
             // máy cao: chia phần dư cho hàng menu
-            rowH = Math.min((h - barH - cap) / ITEMS, Math.max(f.getHeight() + 18, h / 12));
-            hdr = h - barH - ITEMS * rowH;
+            rowH = Math.min((hh - barH - cap) / ITEMS, Math.max(f.getHeight() + 18, hh / 12));
+            hdr = hh - barH - ITEMS * rowH;
         }
         if (hdr < 26) {
-            hdr = Math.min(26, h / 3);
+            hdr = Math.min(26, hh / 3);
         }
-        visible = (h - hdr - barH) / rowH;
+        visible = (hh - hdr - barH) / rowH;
         if (visible > ITEMS) {
             visible = ITEMS;
         }
@@ -158,8 +174,11 @@ final class HomeCanvas extends Canvas {
         layout(w, h);
 
         Theme.vgradient(g, 0, 0, w, h, Theme.BG_TOP, Theme.BG_BOT);
-        paintBanner(g, w);
-        int y = hdr;
+        paintHead(g, w);
+        if (promoH > 0) {
+            paintPromo(g, w, hdr);
+        }
+        int y = hdr + promoH;
         for (int i = top; i < top + visible && i < ITEMS; i++) {
             paintRow(g, i, y, w);
             y += rowH;
@@ -167,13 +186,72 @@ final class HomeCanvas extends Canvas {
         paintBar(g, w, h);
     }
 
-    private void paintBanner(Graphics g, int w) {
-        if (banner == null || bannerW != w || bannerH != hdr) {
-            banner = buildBanner(w, hdr);
-            bannerW = w;
-            bannerH = hdr;
+    private void paintPromo(Graphics g, int w, int y) {
+        Image im = promos[promoIdx];
+        g.setClip(0, y, w, promoH);
+        g.drawImage(im, (w - im.getWidth()) / 2, y, Graphics.TOP | Graphics.LEFT);
+        g.setClip(0, 0, w, getHeight());
+        if (sel == PROMO) {
+            g.setColor(Theme.ORANGE);
+            g.drawRect(0, y, w - 1, promoH - 1);
+            g.drawRect(1, y + 1, w - 3, promoH - 3);
         }
-        g.drawImage(banner, 0, 0, Graphics.TOP | Graphics.LEFT);
+    }
+
+    /** Đặt banner (ảnh đã tải) và link tương ứng; mảng rỗng = ẩn slot. */
+    void setPromos(Image[] imgs, String[] links) {
+        promos = imgs;
+        promoLinks = links;
+        promoIdx = 0;
+        if (sel == PROMO && imgs.length == 0) {
+            sel = 0;
+        }
+        startTimer();
+        repaint();
+    }
+
+    String promoLink() {
+        return promos.length > 0 ? promoLinks[promoIdx] : "";
+    }
+
+    private int focusCount() {
+        return promoH > 0 ? PROMO + 1 : FOCUS;
+    }
+
+    private void startTimer() {
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
+        if (promos.length > 1 && isShown()) {
+            timer = new Timer();
+            timer.schedule(new TimerTask() {
+                public void run() {
+                    promoIdx = (promoIdx + 1) % promos.length;
+                    repaint();
+                }
+            }, 6000L, 6000L);
+        }
+    }
+
+    protected void showNotify() {
+        startTimer();
+    }
+
+    protected void hideNotify() {
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
+    }
+
+    private void paintHead(Graphics g, int w) {
+        if (headImg == null || headW != w || headH != hdr) {
+            headImg = buildHead(w, hdr);
+            headW = w;
+            headH = hdr;
+        }
+        g.drawImage(headImg, 0, 0, Graphics.TOP | Graphics.LEFT);
 
         boolean big = hdr >= 56;
         Font lf = Theme.logo(big);
@@ -216,8 +294,8 @@ final class HomeCanvas extends Canvas {
         }
     }
 
-    /** Nền banner: gradient tím sang hồng, thêm sóng cam hồng góc phải. */
-    private static Image buildBanner(int w, int h) {
+    /** Nền headImg: gradient tím sang hồng, thêm sóng cam hồng góc phải. */
+    private static Image buildHead(int w, int h) {
         Image img = Image.createImage(w, h);
         Graphics g = img.getGraphics();
         for (int x = 0; x < w; x++) {
@@ -242,7 +320,7 @@ final class HomeCanvas extends Canvas {
                 g.drawLine(x, y, x, y);
             }
         }
-        // ngăn cách dưới banner
+        // ngăn cách dưới headImg
         g.setColor(Theme.LINE);
         g.drawLine(0, h - 1, w - 1, h - 1);
         return img;
@@ -318,7 +396,7 @@ final class HomeCanvas extends Canvas {
             pw = is + 14;
         }
         int px = (w - pw) / 2;
-        if (sel >= ITEMS) {
+        if (sel == ITEMS) {
             g.setColor(Theme.SEL_B);
             g.fillRoundRect(px, y + 2, pw - 1, barH - 5, 10, 10);
             g.setColor(Theme.ORANGE);
@@ -352,17 +430,21 @@ final class HomeCanvas extends Canvas {
             app.homeAction(ACT_OPEN, sel);
             return;
         }
+        if (code == Canvas.KEY_NUM0 && promoH > 0) {
+            app.homeAction(ACT_PROMO, PROMO);
+            return;
+        }
         if (code == Canvas.KEY_STAR || code == 's' || code == 'S') {
             app.homeAction(ACT_SEARCH, sel);
             return;
         }
         if (full) {
             int soft = softKey(code);
-            if (soft == 1) {
+            if (soft == SOFT_LEFT) {
                 app.homeAction(ACT_OPTIONS, sel);
                 return;
             }
-            if (soft == 2) {
+            if (soft == SOFT_RIGHT) {
                 app.homeAction(ACT_EXIT, sel);
                 return;
             }
@@ -373,41 +455,12 @@ final class HomeCanvas extends Canvas {
         }
         int ga = gameAction(code);
         if (ga == Canvas.UP) {
-            sel = (sel + FOCUS - 1) % FOCUS;
+            sel = (sel + focusCount() - 1) % focusCount();
             repaint();
         } else if (ga == Canvas.DOWN) {
-            sel = (sel + 1) % FOCUS;
+            sel = (sel + 1) % focusCount();
             repaint();
         }
-    }
-
-    private int gameAction(int code) {
-        try {
-            return getGameAction(code);
-        } catch (IllegalArgumentException e) {
-            return 0;
-        }
-    }
-
-    /** Phím giữa của cần điều hướng: mã -5 trên S60 và S40, Enter, hoặc game action FIRE. */
-    private boolean isFire(int code) {
-        if (code == -5 || code == 10 || code == 13) {
-            return true;
-        }
-        if (gameAction(code) == Canvas.FIRE) {
-            return true;
-        }
-        try {
-            String n = getKeyName(code);
-            if (n != null) {
-                n = n.toLowerCase();
-                return n.indexOf("select") >= 0 || n.indexOf("fire") >= 0 || n.indexOf("enter") >= 0
-                    || n.equals("ok");
-            }
-        } catch (IllegalArgumentException e) {
-            // mã phím không có tên
-        }
-        return false;
     }
 
     protected void keyRepeated(int code) {
@@ -415,33 +468,6 @@ final class HomeCanvas extends Canvas {
         if (ga == Canvas.UP || ga == Canvas.DOWN) {
             keyPressed(code);
         }
-    }
-
-    /** 1 = phím mềm trái, 2 = phím mềm phải, 0 = không phải. */
-    private int softKey(int code) {
-        try {
-            String n = getKeyName(code);
-            if (n != null) {
-                n = n.toLowerCase();
-                if (n.indexOf("soft") >= 0) {
-                    if (n.indexOf('1') >= 0 || n.indexOf("left") >= 0) {
-                        return 1;
-                    }
-                    if (n.indexOf('2') >= 0 || n.indexOf("right") >= 0) {
-                        return 2;
-                    }
-                }
-            }
-        } catch (IllegalArgumentException e) {
-            // mã phím không có tên
-        }
-        if (code == -6 || code == -21 || code == 21) {
-            return 1;
-        }
-        if (code == -7 || code == -22 || code == 22) {
-            return 2;
-        }
-        return 0;
     }
 
     // ---------- cảm ứng ----------
@@ -460,8 +486,14 @@ final class HomeCanvas extends Canvas {
             }
             return;
         }
-        if (y >= hdr) {
-            int i = top + (y - hdr) / rowH;
+        if (promoH > 0 && y >= hdr && y < hdr + promoH) {
+            sel = PROMO;
+            repaint();
+            app.homeAction(ACT_PROMO, PROMO);
+            return;
+        }
+        if (y >= hdr + promoH) {
+            int i = top + (y - hdr - promoH) / rowH;
             if (i >= 0 && i < ITEMS) {
                 sel = i;
                 repaint();

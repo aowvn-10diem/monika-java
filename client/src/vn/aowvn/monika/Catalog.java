@@ -129,16 +129,7 @@ final class Catalog {
             int n = in.readUnsignedShort();
             Catalog c = new Catalog();
             for (int i = 0; i < n; i++) {
-                AppInfo a = new AppInfo();
-                a.id = in.readInt();
-                a.cat = in.readUnsignedByte();
-                a.flags = in.readUnsignedByte();
-                a.sizeKb = in.readUnsignedShort();
-                a.price = in.readInt();
-                a.version = in.readUTF();
-                a.name = in.readUTF();
-                a.desc = in.readUTF();
-                a.path = in.readUTF();
+                AppInfo a = AppInfo.read(in);
                 c.items.addElement(a);
             }
             return c;

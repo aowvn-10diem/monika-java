@@ -14,6 +14,8 @@ final class Theme {
     static final int DIM = 0xB9A9D6;
     static final int LINE = 0x42306A;
     static final int PINK = 0xFF3D8B;
+    /** Hồng đậm cho nền huy hiệu có chữ trắng (đủ tương phản). */
+    static final int PINK_D = 0xDC1A70;
     static final int ORANGE = 0xFF7A1A;
 
     private Theme() {
