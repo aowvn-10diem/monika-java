@@ -1,6 +1,9 @@
 // Monika API (Cloudflare Worker + D1). Contract: memory "monika-api-contract".
 // Nguồn dữ liệu: feed Blogger (BLOG_URL). Cron quét từng trang 40 bài, xóa mục mất khỏi blog sau mỗi vòng quét.
 
+import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
+import { serveFile } from "./store.js";
+
 const PAGE = 15;
 const FEED_PAGE = 40;
 const DAY = 86400000;
@@ -73,6 +76,7 @@ function parseEntry(e) {
   const descr = htmlToText(body).replace(/\s+/g, " ").trim();
   return {
     src, type, title, alt, img, cat, meta,
+    fileK: (/^[0-9a-f]{10}$/i.test(meta.file || "") ? meta.file : ((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(meta.jar || "") || [])[1] || "")).toLowerCase(),
     ver: meta.ver || meta.version || "", size: num(meta.size), price: num(meta.price),
     jar: directJar(meta.jar || ""), descr: meta.desc || descr,
     flags: (meta.net === "1" || /^(y|yes|true)$/i.test(meta.net || "") ? 4 : 0) | (meta.hot === "1" ? 8 : 0),
@@ -121,20 +125,25 @@ async function syncStep(env) {
     }
     if (p.cat) st.push(db.prepare("INSERT OR IGNORE INTO cats(name) VALUES(?)").bind(p.cat));
     st.push(db.prepare(
-      `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep)
-       VALUES(?,?,?,?,(SELECT n FROM cats WHERE name=?),?,?,?,?,?,?,?,?,?,?)
+      `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,file_h)
+       VALUES(?,?,?,?,(SELECT n FROM cats WHERE name=?),?,COALESCE(NULLIF(?,0),(SELECT MAX(1,(size+512)/1024) FROM files WHERE k=?),0),?,?,?,?,?,?,?,?,(SELECT k FROM files WHERE k=?))
        ON CONFLICT(src) DO UPDATE SET type=excluded.type,title=excluded.title,norm=excluded.norm,cat_n=excluded.cat_n,ver=excluded.ver,
          size_kb=CASE WHEN excluded.size_kb>0 THEN excluded.size_kb ELSE items.size_kb END,
          price=excluded.price,descr=excluded.descr,url=excluded.url,flags=excluded.flags,published=excluded.published,updated=excluded.updated,sweep=excluded.sweep,
+         file_h=excluded.file_h,
          jad_text=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.jad_text END,
          jar_size=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.jar_size END,
+         ic32=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.ic32 END,
+         ic64=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.ic64 END,
+         icon_state=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.icon_state END,
          jar=excluded.jar`
-    ).bind(p.src, p.type, p.title, norm(p.title), p.cat || null, p.ver, p.size, p.price, p.jar, clip(p.descr, 300), p.alt, p.flags, p.published, p.updated, sweep));
+    ).bind(p.src, p.type, p.title, norm(p.title), p.cat || null, p.ver, p.size, p.fileK || "", p.price, p.jar, clip(p.descr, 300), p.alt, p.flags, p.published, p.updated, sweep, p.fileK || ""));
   }
   const done = entries.length < FEED_PAGE;
   if (done) {
     if (!(cursor === 1 && entries.length === 0)) {
       st.push(db.prepare("DELETE FROM items WHERE sweep < ?").bind(sweep));
+      st.push(db.prepare("DELETE FROM items WHERE src LIKE 'up-%' AND file_h IN (SELECT file_h FROM items WHERE src NOT LIKE 'up-%' AND file_h IS NOT NULL)"));
       st.push(db.prepare("DELETE FROM banners WHERE sweep < ?").bind(sweep));
       st.push(db.prepare("DELETE FROM cats WHERE n NOT IN (SELECT cat_n FROM items WHERE cat_n IS NOT NULL)"));
       st.push(setMetaStmt(db, "sweep", sweep + 1));
@@ -148,58 +157,9 @@ async function syncStep(env) {
   return { cursor, entries: entries.length, parsed: n, done };
 }
 
-// ---------- zip / manifest -> JAD ----------
-async function inflateRaw(data) {
-  const s = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(s).arrayBuffer());
-}
-async function readManifest(buf) {
-  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  let e = -1;
-  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65600); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
-  if (e < 0) throw new Error("not a zip");
-  let n = dv.getUint16(e + 10, true), p = dv.getUint32(e + 16, true);
-  const dec = new TextDecoder();
-  for (let k = 0; k < n; k++) {
-    if (dv.getUint32(p, true) !== 0x02014b50) break;
-    const method = dv.getUint16(p + 10, true), csz = dv.getUint32(p + 20, true);
-    const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
-    const lho = dv.getUint32(p + 42, true);
-    const name = dec.decode(buf.subarray(p + 46, p + 46 + nl));
-    if (name.toUpperCase() === "META-INF/MANIFEST.MF") {
-      const lnl = dv.getUint16(lho + 26, true), lel = dv.getUint16(lho + 28, true);
-      const raw = buf.subarray(lho + 30 + lnl + lel, lho + 30 + lnl + lel + csz);
-      const out = method === 0 ? raw : await inflateRaw(raw);
-      return dec.decode(out);
-    }
-    p += 46 + nl + el + cl;
-  }
-  throw new Error("no manifest");
-}
-const DROP = /^(manifest-version|created-by|ant-version|main-class|class-path|sealed|name|build-jdk|built-by|midlet-jar-url|midlet-jar-size|midlet-install-notify|midlet-delete-confirm)$/i;
-function manifestToJad(mf, jarUrl, size) {
-  const lines = [];
-  for (const raw of mf.replace(/\r\n?/g, "\n").split("\n")) {
-    if (raw.startsWith(" ") && lines.length) lines[lines.length - 1] += raw.slice(1);
-    else lines.push(raw);
-  }
-  const out = [];
-  for (const l of lines) {
-    const i = l.indexOf(":");
-    if (i <= 0) continue;
-    if (DROP.test(l.slice(0, i).trim())) continue;
-    out.push(l.slice(0, i).trim() + ": " + l.slice(i + 1).trim());
-  }
-  out.push("MIDlet-Jar-URL: " + jarUrl, "MIDlet-Jar-Size: " + size);
-  return out.join("\r\n") + "\r\n";
-}
+// ---------- JAD cho JAR ở link ngoài ----------
 async function buildJad(env, it, origin) {
-  const r = await fetch(it.jar, { headers: { "user-agent": "MonikaSync/1" } });
-  if (!r.ok) throw new Error("jar " + r.status + " " + (await r.text()).slice(0, 100));
-  const buf = new Uint8Array(await r.arrayBuffer());
-  const jad = manifestToJad(await readManifest(buf), `${origin}/v1/j/${it.n}.jar`, buf.length);
-  await env.DB.prepare("UPDATE items SET jad_text=?, jar_size=?, size_kb=? WHERE n=?").bind(jad, buf.length, Math.max(1, Math.round(buf.length / 1024)), it.n).run();
-  return jad;
+  return ingestExternal(env, it, origin);
 }
 
 // ---------- images ----------
@@ -217,6 +177,7 @@ const flagsOf = (r, now) => {
   if (now - r.published < NEW_DAYS * DAY) f |= 1;
   else if (now - r.updated < NEW_DAYS * DAY && r.updated - r.published > DAY) f |= 2;
   if (r.hot) f |= 8;
+  if (r.hasic) f |= 16; // có icon: app gọi /v1/ic/{id}-32.png
   return f;
 };
 const bin = (u8, ttl = 60) => new Response(u8, { headers: { "content-type": "application/octet-stream", "cache-control": `public, max-age=${ttl}`, "access-control-allow-origin": "*" } });
@@ -254,7 +215,9 @@ async function list(env, where, binds, page, order) {
   const db = env.DB, now = Date.now();
   const total = (await db.prepare(`SELECT COUNT(*) c FROM items i WHERE i.type IN ('game','app') AND ${where}`).bind(...binds).first()).c;
   const rows = (await db.prepare(
-    `SELECT i.*, COALESCE(i.cat_n,0) cat, (i.dl >= 50) hot FROM items i WHERE i.type IN ('game','app') AND ${where} ORDER BY ${order} LIMIT ${PAGE} OFFSET ${page * PAGE}`
+    `SELECT i.n,i.flags,i.size_kb,i.price,i.ver,i.title,i.descr,i.published,i.updated,COALESCE(i.cat_n,0) cat,(i.dl >= 50) hot,
+       (i.ic32 IS NOT NULL OR f.ic32 IS NOT NULL) hasic
+     FROM items i LEFT JOIN files f ON f.k=i.file_h WHERE i.type IN ('game','app') AND ${where} ORDER BY ${order} LIMIT ${PAGE} OFFSET ${page * PAGE}`
   ).bind(...binds).all()).results;
   const o = new Out().i32(0x4d4b4c31).u8(1).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
   for (const r of rows) {
@@ -280,16 +243,20 @@ async function banner(env, id, w) {
 }
 
 async function download(env, ctx, req, n, ext) {
-  const it = await env.DB.prepare("SELECT * FROM items WHERE n=?").bind(n).first();
-  if (!it || !it.jar) return text("not found", 404);
+  const it = await env.DB.prepare("SELECT n,jar,jad_text,file_h FROM items WHERE n=?").bind(n).first();
+  if (!it || (!it.jar && !it.file_h)) return text("not found", 404);
   const origin = `http://${env.API_HOST}`;
   if (ext === "jad") {
-    let jad = it.jad_text;
+    let jad = it.file_h ? await fileJad(env, n, origin) : it.jad_text;
     if (!jad) {
-      try { jad = await buildJad(env, it, origin); } catch (e) { return text("jad error: " + e.message, 502); }
+      try { jad = await buildJad(env, { ...it, title: "" }, origin); } catch (e) { return text("jad error: " + e.message, 502); }
     }
     ctx.waitUntil(env.DB.prepare("UPDATE items SET dl=dl+1 WHERE n=?").bind(n).run());
     return new Response(jad, { headers: { "content-type": "text/vnd.sun.j2me.app-descriptor; charset=utf-8", "cache-control": "no-cache" } });
+  }
+  if (it.file_h) {
+    const f = await itemFile(env, n);
+    if (f) return serveFile(env, req, f, `monika-${n}.jar`);
   }
   const h = {};
   const rg = req.headers.get("range"); if (rg) h.range = rg;
@@ -340,6 +307,14 @@ export default {
       }
       if ((m = /^\/v1\/b\/(\d+)-(\d+)\.png$/.exec(p))) return await banner(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 60), 1000));
       if ((m = /^\/v1\/j\/(\d+)\.(jad|jar)$/.exec(p))) return await download(env, ctx, req, parseInt(m[1], 10), m[2]);
+      if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
+      if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+      if (p === "/v1/up" && req.method === "POST") return await handleUpload(env, ctx, req, u);
+      if (p.startsWith("/v1/admin/")) return await admin(env, req, u);
+      if ((m = /^\/v1\/f\/([^/]+)$/.exec(p))) return await fileDownload(env, req, decodeURIComponent(m[1]));
+      if ((m = /^\/v1\/ic\/(\d+)-(32|64)\.png$/.exec(p))) return await iconOfItem(env, parseInt(m[1], 10), parseInt(m[2], 10));
+      if ((m = /^\/v1\/fi\/([0-9a-f]{10})-(32|64)\.png$/.exec(p))) return await iconOfFile(env, m[1], parseInt(m[2], 10));
+      if (p === "/v1/icons.json") return await iconsJson(env);
       if (p === "/v1/banners.json") return await bannersJson(env, (u.searchParams.get("slot") || "").toLowerCase());
       if (p === "/v1/sync" && env.SYNC_TOKEN && u.searchParams.get("t") === env.SYNC_TOKEN) {
         return text(JSON.stringify(await syncStep(env)));
@@ -351,5 +326,6 @@ export default {
   },
   async scheduled(ev, env, ctx) {
     ctx.waitUntil(syncStep(env));
+    ctx.waitUntil(backfillIcons(env));
   },
 };
