@@ -31,7 +31,7 @@ desc: Mô tả ngắn hiện trong app (không bắt buộc)
 | `price` | giá, bỏ trống là miễn phí |
 | `desc` | mô tả ngắn cho app, bỏ trống thì cắt từ nội dung bài |
 
-Ảnh đầu tiên trong bài là icon nhỏ ở danh sách web. App không tải ảnh game.
+Ảnh đầu tiên trong bài là icon nhỏ ở danh sách web (bài đăng bằng trang up file thì icon tự trích từ JAR, xem mục 6). App hiện icon ở danh sách khi bài có icon.
 
 ## 2. Bài banner
 
@@ -77,3 +77,16 @@ jar: https://link-jar-monika
 3. Settings → Posts: số bài hiện trên trang chính = 15. Settings → Blog feeds (Site feed) = **Full**.
 4. Settings → Custom domain: `m.justmonika.top`. DNS đã có bản ghi `m` → `ghs.google.com`. Blogspot sẽ đưa thêm một bản ghi CNAME xác minh riêng, gửi tôi hoặc tự thêm vào Cloudflare (để DNS only, đám mây xám).
 5. Tạo hai Page nếu muốn (Giới thiệu, Liên hệ), template tự hiển thị trang tĩnh.
+
+## 6. Đăng bằng trang up file (khuyên dùng)
+
+Mở `https://api.justmonika.top/up`, nhập token một lần (trình duyệt nhớ), kéo thả một hoặc nhiều file `.jar`. Máy chủ tự làm:
+
+1. Đọc `META-INF/MANIFEST.MF` lấy tên game, hãng, phiên bản; trích icon trong JAR (khai báo `MIDlet-Icon` hoặc trường icon của `MIDlet-1`), thu về 32px và 64px.
+2. Tính SHA-256 để **chống trùng**: file đã có thì không lưu lại, trả về bản cũ.
+3. Lưu file theo thứ tự **R2 (chính, giới hạn mềm 9,5GB) → GitHub (dự phòng, tự đổi tên `ten-game-phienban-<hash10>.jar`) → KV (tạm)**. Link tải luôn là `https://api.justmonika.top/v1/f/<tên>.jar`, đổi nơi lưu không đổi link.
+4. Tạo sẵn mục trong app (hiện ngay, có icon) và trả về khối HTML + nhãn để dán vào bài Blogspot. Khi bài Blogspot được đăng, mục tạm tự biến mất, bài thay thế.
+
+Dòng `file: <hash10>` trong `mk-meta` là khóa nối bài với file và icon. Web và app lấy icon qua `/v1/fi/<hash10>-64.png`, `/v1/ic/<id>-32.png`; bài không có `file:` vẫn được thử khớp icon theo link `jar`.
+
+Biến môi trường Worker liên quan: `UP_TOKEN` (bắt buộc), `R2` (binding), `GH_TOKEN` + `GH_REPO` (GitHub dự phòng; `GH_BRANCH` mặc định `files`, `GH_DIR` mặc định `jars`), `R2_LIMIT`, `GH_LIMIT`, `KV_LIMIT`.

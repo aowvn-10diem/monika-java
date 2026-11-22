@@ -35,6 +35,8 @@ for i in range(len(APP_NAMES)):
                       desc="Ứng dụng %s chạy trên Java S60." % APP_NAMES[i]))
 for it in ITEMS:
     it["path"] = "/v1/j/%d.jad" % it["id"]
+    if it["id"] % 2 == 0:
+        it["flags"] |= 16  # có icon: GET /v1/ic/<id>-32.png
 
 
 def item_bytes(it):
@@ -125,6 +127,10 @@ class H(BaseHTTPRequestHandler):
             bid, size = p[6:-4].split("-")
             w = int(size)
             body = png(w, 60, (60, 20, 100) if bid == "1" else (200, 70, 30), (255, 130, 40))
+            ctype = "image/png"
+        elif p.startswith("/v1/ic/") and p.endswith("-32.png"):
+            iid = int(p[7:-7])
+            body = png(32, 32, (40 + iid * 7 % 180, 60 + iid * 13 % 160, 90 + iid * 29 % 140), (255, 200, 60))
             ctype = "image/png"
         elif p.startswith("/v1/j/") and p.endswith(".jad"):
             iid = p[6:-4]
