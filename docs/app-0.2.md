@@ -14,6 +14,7 @@ Thay đổi so với 0.1.1 (xem `docs/first-build.md` cho phần nền):
 | Cache RMS cho trang chủ và trang đầu mỗi danh sách, mất mạng vẫn mở được phần đã xem | Có |
 | Ô "Máy chủ" trong Cài đặt để đổi API khi đổi tên miền | Có |
 | Nhắc cập nhật khi `latestVersion` mới hơn (mục trong Tùy chọn) | Có |
+| Icon game ở danh sách (cờ 16, tải `/v1/ic/<id>-32.png` qua hàng đợi ảnh sau khi danh sách hiện, giữ 40 icon trong RAM, thu nhỏ theo cỡ dòng, chưa có thì ô chữ cái đầu) | Có. Đã dựng JAR 40 KB; chưa chạy emulator cho phần icon |
 | Banner trong trang danh sách và chi tiết | Không (giữ màn nhỏ gọn, chỉ trang chủ) |
 | Màn Mua, QR, ký JAR, bản lite 64 KB | Chưa làm |
 

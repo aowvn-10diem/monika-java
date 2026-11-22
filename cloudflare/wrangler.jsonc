@@ -1,0 +1,13 @@
+{
+  // Cấu hình tham khảo cho `wrangler deploy` / `wrangler dev`. Bản đang chạy được triển khai qua API (xem README).
+  "name": "monika-api",
+  "main": "worker.js",
+  "compatibility_date": "2025-09-01",
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": { "API_HOST": "api.justmonika.top", "BLOG_URL": "https://m.justmonika.top",
+            "GH_REPO": "aowvn-10diem/monika-java", "GH_BRANCH": "files", "GH_DIR": "jars" },
+  "d1_databases": [{ "binding": "DB", "database_name": "monika", "database_id": "bc819f19-65b8-4528-938b-2e17833ba180" }],
+  "r2_buckets": [{ "binding": "R2", "bucket_name": "monika-files" }]
+  // "kv_namespaces": [{ "binding": "FILES", "id": "<id>" }]
+  // Secret: SYNC_TOKEN, UP_TOKEN, GH_TOKEN (tùy chọn, quyền Contents: write)
+}

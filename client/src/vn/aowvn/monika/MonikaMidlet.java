@@ -1,5 +1,6 @@
 package vn.aowvn.monika;
 
+import java.util.Hashtable;
 import java.util.Vector;
 import javax.microedition.io.ConnectionNotFoundException;
 import javax.microedition.lcdui.Alert;
@@ -88,7 +89,17 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         int gen;
     }
 
+    /** Tag yêu cầu icon: mục k của danh sách lc. */
+    private static final class IconReq {
+        ListCanvas lc;
+        int k;
+        int id;
+    }
+
     private int promoGen;
+    private static final int ICON_CACHE = 40;
+    private final Hashtable iconCache = new Hashtable();
+    private final Vector iconOrder = new Vector();
 
     // ---------- vòng đời MIDlet ----------
 
@@ -241,6 +252,55 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             }
         } else if (tag instanceof ImgReq) {
             onBanner((ImgReq) tag, result);
+        } else if (tag instanceof IconReq) {
+            onIcon((IconReq) tag, result);
+        }
+    }
+
+    /** Tải icon cho các mục có cờ F_ICON; mục đã có trong bộ nhớ thì gán ngay. */
+    private void loadIcons(ListCanvas lc) {
+        repo.cancel(lc);
+        if (!repo.online()) {
+            return;
+        }
+        int n = lc.items.size();
+        for (int k = 0; k < n; k++) {
+            AppInfo a = (AppInfo) lc.items.elementAt(k);
+            if (!a.has(AppInfo.F_ICON)) {
+                continue;
+            }
+            Image im = (Image) iconCache.get(new Integer(a.id));
+            if (im != null) {
+                lc.setIcon(k, im);
+                continue;
+            }
+            IconReq r = new IconReq();
+            r.lc = lc;
+            r.k = k;
+            r.id = a.id;
+            repo.image("/v1/ic/" + a.id + "-32.png", r, lc, this);
+        }
+    }
+
+    private void onIcon(IconReq r, Object result) {
+        if (result == null) {
+            return;
+        }
+        byte[] b = (byte[]) result;
+        try {
+            Image im = Image.createImage(b, 0, b.length);
+            Integer key = new Integer(r.id);
+            synchronized (iconCache) {
+                if (iconCache.size() >= ICON_CACHE && iconOrder.size() > 0) {
+                    iconCache.remove(iconOrder.elementAt(0));
+                    iconOrder.removeElementAt(0);
+                }
+                iconCache.put(key, im);
+                iconOrder.addElement(key);
+            }
+            r.lc.setIcon(r.k, im);
+        } catch (RuntimeException e) {
+            // icon hỏng: giữ ô chữ cái
         }
     }
 
@@ -425,6 +485,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     private void loadList(ListCanvas lc, String key, int page) {
         lc.key = key;
+        repo.cancel(lc);
         ListReq r = new ListReq();
         r.lc = lc;
         lc.pending = r;
@@ -458,6 +519,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             flags[i] = a.flags;
         }
         lc.setData(names, subs, flags, badges, p.page, p.total, Page.SIZE);
+        loadIcons(lc);
     }
 
     void listOpen(ListCanvas lc, int k) {
@@ -564,6 +626,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             flags[i] = a.flags;
         }
         lc.setData(names, subs, flags, badges, 0, n, 0);
+        loadIcons(lc);
         show(lc);
     }
 

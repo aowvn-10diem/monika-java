@@ -6,6 +6,7 @@ import javax.microedition.lcdui.Canvas;
 import javax.microedition.lcdui.Command;
 import javax.microedition.lcdui.Font;
 import javax.microedition.lcdui.Graphics;
+import javax.microedition.lcdui.Image;
 
 /**
  * Danh sách có phân trang vẽ theo ngôn ngữ giao diện web: thanh tiêu đề tím, tab Mới / Hot / Tải nhiều,
@@ -48,6 +49,12 @@ final class ListCanvas extends BaseCanvas {
     private String[] subs = new String[0];
     private int[] flags = new int[0];
     private int[] badges = new int[0];
+    /** Icon game (32x32 từ máy chủ), thu nhỏ theo cỡ dòng khi vẽ. */
+    private Image[] icons = new Image[0];
+    private Image[] scaled = new Image[0];
+    private int[] scaledPx = new int[0];
+    private boolean showIcons;
+    private int iconPx;
     private boolean hasPrev;
     private boolean hasNext;
     private int sel;
@@ -98,6 +105,18 @@ final class ListCanvas extends BaseCanvas {
         this.subs = subs;
         this.flags = flags;
         this.badges = badges;
+        icons = new Image[names.length];
+        scaled = new Image[names.length];
+        scaledPx = new int[names.length];
+        showIcons = false;
+        if (kind != 1) {
+            for (int i = 0; i < flags.length; i++) {
+                if ((flags[i] & AppInfo.F_ICON) != 0) {
+                    showIcons = true;
+                    break;
+                }
+            }
+        }
         this.page = page;
         this.pages = perPage <= 0 || total <= 0 ? 1 : (total + perPage - 1) / perPage;
         hasPrev = page > 0;
@@ -109,6 +128,15 @@ final class ListCanvas extends BaseCanvas {
         }
         top = 0;
         repaint();
+    }
+
+    /** Nhận icon đã tải của mục k (thread an toàn: chỉ gán tham chiếu rồi vẽ lại). */
+    void setIcon(int k, Image img) {
+        if (k >= 0 && k < icons.length) {
+            icons[k] = img;
+            scaled[k] = null;
+            repaint();
+        }
     }
 
     int itemCount() {
@@ -163,6 +191,10 @@ final class ListCanvas extends BaseCanvas {
         two = h >= 200;
         rowH = two ? f.getHeight() + fs.getHeight() + 8 : f.getHeight() + 6;
         visible = Math.max(1, (h - y0 - barH) / rowH);
+        iconPx = showIcons && w >= 150 ? Math.min(32, rowH - 4) : 0;
+        if (iconPx < 14) {
+            iconPx = 0;
+        }
         int n = rowCount();
         if (sel >= n) {
             sel = Math.max(0, n - 1);
@@ -313,6 +345,10 @@ final class ListCanvas extends BaseCanvas {
             g.drawString(n, x, cy - f.getHeight() / 2, Graphics.TOP | Graphics.LEFT);
         }
         x += f.stringWidth("9") + 6;
+        if (iconPx > 0) {
+            paintIcon(g, k, x, cy - iconPx / 2, f);
+            x += iconPx + 6;
+        }
         // chevron bên phải
         int cx = w - 10;
         g.setColor(Theme.TEXT);
@@ -344,6 +380,72 @@ final class ListCanvas extends BaseCanvas {
             g.drawString(fit(f, Vi.tr(names[k]), right - x), x, cy - f.getHeight() / 2,
                 Graphics.TOP | Graphics.LEFT);
         }
+    }
+
+    /** Icon game; chưa có thì vẽ ô chữ cái đầu cho dòng không bị lệch. */
+    private void paintIcon(Graphics g, int k, int x, int y, Font f) {
+        Image im = icons[k];
+        if (im != null) {
+            if (im.getWidth() != iconPx || im.getHeight() != iconPx) {
+                if (scaled[k] == null || scaledPx[k] != iconPx) {
+                    scaled[k] = scale(im, iconPx);
+                    scaledPx[k] = iconPx;
+                }
+                im = scaled[k];
+            }
+            g.drawImage(im, x, y, Graphics.TOP | Graphics.LEFT);
+            return;
+        }
+        g.setColor(Theme.BAR_BG);
+        g.fillRoundRect(x, y, iconPx, iconPx, 8, 8);
+        String n = names[k];
+        if (n != null && n.length() > 0) {
+            int c = 0;
+            while (c < n.length() - 1 && !(Character.isDigit(n.charAt(c)) || Character.isUpperCase(n.charAt(c)) || Character.isLowerCase(n.charAt(c)))) {
+                c++;
+            }
+            g.setFont(f);
+            g.setColor(Theme.ORANGE);
+            g.drawString(n.substring(c, c + 1).toUpperCase(), x + iconPx / 2, y + (iconPx - f.getHeight()) / 2,
+                Graphics.TOP | Graphics.HCENTER);
+        }
+    }
+
+    /** Thu về px x px bằng trung bình diện tích (alpha nhân trước); phóng to thì lấy mẫu gần nhất. */
+    static Image scale(Image src, int px) {
+        int sw = src.getWidth();
+        int sh = src.getHeight();
+        int[] in = new int[sw * sh];
+        src.getRGB(in, 0, sw, 0, 0, sw, sh);
+        int[] out = new int[px * px];
+        for (int y = 0; y < px; y++) {
+            int y0 = y * sh / px;
+            int y1 = Math.max(y0 + 1, (y + 1) * sh / px);
+            for (int x = 0; x < px; x++) {
+                int x0 = x * sw / px;
+                int x1 = Math.max(x0 + 1, (x + 1) * sw / px);
+                int r = 0;
+                int g = 0;
+                int b = 0;
+                int a = 0;
+                int n = 0;
+                for (int yy = y0; yy < y1 && yy < sh; yy++) {
+                    for (int xx = x0; xx < x1 && xx < sw; xx++) {
+                        int p = in[yy * sw + xx];
+                        int al = (p >>> 24) & 255;
+                        r += ((p >> 16) & 255) * al;
+                        g += ((p >> 8) & 255) * al;
+                        b += (p & 255) * al;
+                        a += al;
+                        n++;
+                    }
+                }
+                if (a > 0 && n > 0) {
+                    out[y * px + x] = ((a / n) << 24) | ((r / a) << 16) | ((g / a) << 8) | (b / a);
+                }
+            }
+        }
+        return Image.createRGBImage(out, px, px, true);
     }
 
     private void paintBar(Graphics g, int w, int h) {

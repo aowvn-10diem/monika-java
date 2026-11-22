@@ -52,6 +52,6 @@ count lần: int id, ubyte cat, ubyte flags, ushort sizeKb, int price (0 = miễ
            UTF version, UTF name, UTF desc (tối đa 120 ký tự), UTF jadPath
 ```
 
-`flags`: 1 mới, 2 có cập nhật, 4 cần mạng khi chạy, 8 hot. `jadPath` là đường dẫn tương đối (ví dụ `/v1/j/123.jad`) hoặc URL http tuyệt đối. Nút Tải về của app gọi `platformRequest(<host> + jadPath)`, trình duyệt máy tải JAD rồi JAR và cài.
+`flags`: 1 mới, 2 có cập nhật, 4 cần mạng khi chạy, 8 hot, 16 có icon (tải `GET /v1/ic/<id>-32.png`, PNG 32x32 trích từ JAR; máy cũ bỏ qua bit này vẫn chạy đúng). `jadPath` là đường dẫn tương đối (ví dụ `/v1/j/123.jad`) hoặc URL http tuyệt đối. Nút Tải về của app gọi `platformRequest(<host> + jadPath)`, trình duyệt máy tải JAD rồi JAR và cài.
 
 Thử không cần Cloudflare: `python3 tools/mock_api.py 8081`, dựng app với `MONIKA_BASE_URL=http://127.0.0.1:8081 ./tools/build.sh`.

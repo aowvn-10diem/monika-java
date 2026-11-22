@@ -10,6 +10,8 @@ final class AppInfo {
     static final int F_UPDATE = 2;
     static final int F_NEEDNET = 4;
     static final int F_HOT = 8;
+    /** Có icon: lấy ở /v1/ic/&lt;id&gt;-32.png. */
+    static final int F_ICON = 16;
 
     static final int CAT_GAME = 1;
 

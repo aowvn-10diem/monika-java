@@ -1,0 +1,9 @@
+{
+  "name": "monika-api-test",
+  "main": "../worker.js",
+  "compatibility_date": "2025-09-01",
+  "vars": { "API_HOST": "localhost:8787", "BLOG_URL": "http://127.0.0.1:8000", "SYNC_TOKEN": "st", "UP_TOKEN": "testtoken", "R2_LIMIT": "100000" },
+  "d1_databases": [{ "binding": "DB", "database_name": "monika", "database_id": "00000000-0000-0000-0000-000000000000" }],
+  "r2_buckets": [{ "binding": "R2", "bucket_name": "monika-files" }],
+  "kv_namespaces": [{ "binding": "FILES", "id": "kvtest" }]
+}

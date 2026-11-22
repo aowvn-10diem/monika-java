@@ -23,6 +23,7 @@ final class Repo implements Runnable {
         String key;
         int page;
         Object tag;
+        Object group;
         Callback cb;
         boolean cancelled;
     }
@@ -86,38 +87,56 @@ final class Repo implements Runnable {
     // ---------- yêu cầu ----------
 
     void home(Object tag, Callback cb) {
-        enqueue(K_HOME, "", 0, tag, cb);
+        enqueue(K_HOME, "", 0, tag, null, cb);
     }
 
     /** key: app, game, new, hot, dl, c&lt;id&gt;, i&lt;id&gt; hoặc "s:&lt;từ khóa&gt;". */
     void list(String key, int page, Object tag, Callback cb) {
-        enqueue(K_LIST, key, page, tag, cb);
+        enqueue(K_LIST, key, page, tag, null, cb);
     }
 
     void image(String path, Object tag, Callback cb) {
-        enqueue(K_IMAGE, path, 0, tag, cb);
+        enqueue(K_IMAGE, path, 0, tag, null, cb);
+    }
+
+    /** Ảnh thuộc một nhóm (vd. icon của một danh sách): hủy cả nhóm bằng {@link #cancel}. */
+    void image(String path, Object tag, Object group, Callback cb) {
+        enqueue(K_IMAGE, path, 0, tag, group, cb);
     }
 
     void cancel(Object tag) {
         synchronized (queue) {
             for (int i = 0; i < queue.size(); i++) {
                 Req r = (Req) queue.elementAt(i);
-                if (r.tag == tag) {
+                if (r.tag == tag || r.group == tag) {
                     r.cancelled = true;
                 }
             }
         }
     }
 
-    private void enqueue(int kind, String key, int page, Object tag, Callback cb) {
+    private void enqueue(int kind, String key, int page, Object tag, Object group, Callback cb) {
         Req r = new Req();
         r.kind = kind;
         r.key = key;
         r.page = page;
         r.tag = tag;
+        r.group = group;
         r.cb = cb;
         synchronized (queue) {
-            queue.addElement(r);
+            if (kind == K_IMAGE) {
+                queue.addElement(r);
+            } else {
+                // yêu cầu của người dùng đi trước ảnh đang chờ (icon, banner)
+                int at = queue.size();
+                for (int i = 0; i < queue.size(); i++) {
+                    if (((Req) queue.elementAt(i)).kind == K_IMAGE) {
+                        at = i;
+                        break;
+                    }
+                }
+                queue.insertElementAt(r, at);
+            }
             if (worker == null) {
                 worker = new Thread(this);
                 worker.start();
