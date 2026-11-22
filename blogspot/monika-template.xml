@@ -65,6 +65,7 @@ h1,h2,h3{margin:0}
 .pb a{color:var(--or);text-decoration:underline}
 .pb img{border-radius:4px}
 .dlbox{margin:8px 0 14px;padding:10px;background:var(--r2);border:1px solid var(--ln);border-radius:6px}
+.gic{float:right;margin:0 0 6px 10px;border-radius:12px;image-rendering:pixelated;background:#3b1a6b}
 .info{border-collapse:collapse;width:100%;margin-bottom:10px}
 .info th{width:38%;text-align:left;color:var(--mu);font-weight:400;padding:3px 0}
 .info td{padding:3px 0}
@@ -251,25 +252,35 @@ function fd(t){var x=new Date(t);return isNaN(x.getTime())?'':pad(x.getDate())+'
 $$('.dt').forEach(function(e){e.textContent=fd(e.getAttribute('data-t'))});
 /* menu dang chon */
 $$('.nav a').forEach(function(a){if(!a.hash&&a.pathname===location.pathname)a.className='on'});
+function fileKey(m){return m.file&&/^[0-9a-f]{10}$/i.test(m.file)?m.file.toLowerCase():((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(m.jar||'')||[])[1]||'').toLowerCase()}
+function setIc(ic,u){var i2=el('img');i2.alt='';i2.width=48;i2.height=48;i2.onerror=function(){rm(i2);ic.textContent=ic.getAttribute('data-l')||'M'};i2.src=u;ic.setAttribute('data-l',ic.textContent);ic.textContent='';ic.appendChild(i2)}
+var need=[];
 /* danh sach: chip phien ban/dung luong + mo ta ngan tu bai */
 $$('.raw').forEach(function(r){
  var row=r.parentNode,pre=r.querySelector('pre.mk-meta'),m=pre?meta(pre):{},ch=row.querySelector('.chips');
  if(m.ver)ch.appendChild(el('span','v','v'+m.ver));
  if(sz(m.size))ch.appendChild(el('span','',sz(m.size)));
  if(m.net==='1')ch.appendChild(el('span','','Cần mạng'));
- var im=r.querySelector('img');
- if(im){var u=im.getAttribute('src')||'';
+ var im=r.querySelector('img'),fk=fileKey(m),ic=row.querySelector('.ic');
+ if(fk)setIc(ic,API+'/v1/fi/'+fk+'-64.png');
+ else if(im){var u=im.getAttribute('src')||'';
   if(/googleusercontent|blogspot|ggpht/i.test(u))u=u.replace(/\/(s|w)\d+(-h\d+)?(-[a-z0-9]+)*\//,'/s96-c/').replace(/=(s|w)\d+(-h\d+)?(-[a-z0-9]+)*$/,'=s96-c');
-  var ic=row.querySelector('.ic'),i2=el('img');i2.alt='';i2.width=48;i2.height=48;i2.src=u;ic.textContent='';ic.appendChild(i2)}
+  setIc(ic,u)}
+ else need.push(ic);
  rm(pre);$$('img,script,style',r).forEach(rm);
  var tx=(m.desc||r.textContent||'').replace(/\s+/g,' ').trim();
  row.querySelector('.sn').textContent=tx.length>110?tx.slice(0,108)+'…':tx;
  rm(r)});
+/* bai khong co anh/meta file: lay icon trich tu JAR qua API (theo duong dan bai) */
+if(need.length&&window.fetch){fetch(API+'/v1/icons.json').then(function(r){return r.json()}).then(function(M){
+ need.forEach(function(ic){var u=M[ic.pathname];if(u)setIc(ic,API+u)})}).catch(function(){})}
 /* trang bai: bang thong tin + nut tai */
 $$('.pb pre.mk-meta').forEach(function(pre){
  var m=meta(pre),box=el('div','dlbox'),tb=el('table','info');
  [['Danh mục',m.cat],['Phiên bản',m.ver],['Dung lượng',sz(m.size)],['Cần mạng',m.net==='1'?'Có':''],['Giá',m.price&&m.price!=='0'?m.price:'']].forEach(function(p){
   if(!p[1])return;var tr=el('tr');tr.appendChild(el('th','',p[0]));tr.appendChild(el('td','',p[1]));tb.appendChild(tr)});
+ var fk=fileKey(m);
+ if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){rm(gi)};box.appendChild(gi)}
  box.appendChild(tb);
  if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','▼ Tải về (JAR)');a.href=m.jar;a.rel='nofollow noopener';box.appendChild(a)}
  pre.parentNode.insertBefore(box,pre);rm(pre)});
