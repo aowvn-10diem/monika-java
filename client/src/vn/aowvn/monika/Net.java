@@ -88,6 +88,32 @@ final class Net {
         throw last;
     }
 
+    /** Một lần thử kết nối để chẩn đoán: trả về "OK mã (ms)" hoặc tên lỗi, không thử lại. */
+    static String probe(String url, String ua) {
+        long t = System.currentTimeMillis();
+        HttpConnection c = null;
+        try {
+            c = (HttpConnection) Connector.open(url);
+            c.setRequestProperty("User-Agent", ua);
+            int rc = c.getResponseCode();
+            return "OK " + rc + " (" + (System.currentTimeMillis() - t) + " ms)";
+        } catch (IOException e) {
+            diag(e, url);
+            return "LOI " + lastDiag.substring(0, lastDiag.indexOf(" @") < 0 ? lastDiag.length() : lastDiag.indexOf(" @"))
+                + " (" + (System.currentTimeMillis() - t) + " ms)";
+        } catch (SecurityException e) {
+            return "LOI bi chan quyen mang (E20)";
+        } finally {
+            if (c != null) {
+                try {
+                    c.close();
+                } catch (IOException ignore) {
+                    // bỏ qua
+                }
+            }
+        }
+    }
+
     private static void diag(Throwable e, String url) {
         String n = e.getClass().getName();
         int dot = n.lastIndexOf('.');

@@ -26,7 +26,7 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.5.0";
+    static final String VERSION = "0.5.1";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -76,6 +76,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     private static final int P_ABOUT = 5;
     private static final int P_ALERT = 6;
     private static final int P_EDIT = 7;
+    private static final int P_NET = 8;
 
     /** Ô nhập gốc của máy, chỉ dùng khi chạm vào ô nhập (máy cảm ứng, bàn phím ảo). */
     private TextBox nbox;
@@ -375,7 +376,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         if (err != null) {
             if (!homeAlerted && display.getCurrent() == home) {
                 homeAlerted = true;
-                alert("Thông báo", "Không vào được mạng (" + err + "). Chi tiết: " + Net.lastDiag + ". Mã -1 của máy thường là chưa có điểm truy cập cho app: thử vào cài đặt của app trong Quản lý ứng dụng, đặt điểm truy cập là WLAN hoặc Hỏi mỗi lần.",
+                alert("Thông báo", "Không vào được mạng (" + err + "). Chi tiết: " + Net.lastDiag + ". Vào Tùy chọn, chọn Kiểm tra mạng để biết lỗi do điểm truy cập hay tên miền.",
                     home);
             }
             return;
@@ -861,8 +862,9 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         p.addItem(Vi.tr("3. Cài đặt"));
         p.addItem(Vi.tr("4. Thông tin máy"));
         p.addItem(Vi.tr("5. Giới thiệu"));
+        p.addItem(Vi.tr("6. Kiểm tra mạng"));
         if (updateUrl.length() > 0) {
-            p.addItem(Vi.tr("6. Cập nhật Monika " + updateVer));
+            p.addItem(Vi.tr("7. Cập nhật Monika " + updateVer));
         }
         show(p);
     }
@@ -978,6 +980,14 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
                     back();
                 }
                 break;
+            case P_NET:
+                if (act == Panel.A_LEFT) {
+                    back();
+                    openNetTest();
+                } else {
+                    back();
+                }
+                break;
             default:
                 // thông tin, giới thiệu: phím mềm phải hoặc phím giữa quay lại
                 back();
@@ -999,9 +1009,53 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             showInfo();
         } else if (i == 4) {
             showAbout();
-        } else if (hasUpdate && i == 5) {
+        } else if (i == 5) {
+            openNetTest();
+        } else if (hasUpdate && i == 6) {
             installUpdate();
         }
+    }
+
+    private static final String[] NET_URLS = {
+        "http://api.justmonika.top/",
+        "http://api.justmonika.top:80/",
+        "http://104.21.79.142/",
+        "http://example.com/"
+    };
+
+    /** Chẩn đoán mạng: thử vài địa chỉ khác nhau, hiện kết quả từng dòng để biết lỗi do điểm truy cập, DNS hay máy chủ. */
+    private void openNetTest() {
+        final Panel p = newPanel(Panel.TEXT, P_NET, "Kiểm tra mạng", "Chạy lại", "Quay lại");
+        p.addInfo(Vi.tr("Đang thử, chờ vài chục giây"), "...");
+        for (int i = 0; i < NET_URLS.length; i++) {
+            p.addInfo(NET_URLS[i], "...");
+        }
+        show(p);
+        final String agent = ua;
+        new Thread(new Runnable() {
+            public void run() {
+                boolean[] ok = new boolean[NET_URLS.length];
+                for (int i = 0; i < NET_URLS.length; i++) {
+                    String r = Net.probe(NET_URLS[i], agent);
+                    ok[i] = r.startsWith("OK");
+                    p.row(i + 1).value = r;
+                    p.repaint();
+                }
+                String v;
+                if (ok[0] || ok[1]) {
+                    v = "Mạng thông, máy chủ Monika trả lời.";
+                } else if (ok[2]) {
+                    v = "Gọi bằng IP được, gọi bằng tên miền không: lỗi phân giải tên miền (DNS).";
+                } else if (ok[3]) {
+                    v = "Ra được mạng nhưng không tới được Monika: lỗi riêng với tên miền hoặc Cloudflare.";
+                } else {
+                    v = "Không địa chỉ nào qua được: app chưa có điểm truy cập dùng được. Đổi điểm truy cập của app trong Quản lý ứng dụng.";
+                }
+                p.row(0).label = Vi.tr("Kết luận");
+                p.row(0).value = Vi.tr(v);
+                p.repaint();
+            }
+        }).start();
     }
 
     /** Máy cảm ứng: chạm vào ô thì dùng ô nhập gốc để hiện bàn phím ảo. */
