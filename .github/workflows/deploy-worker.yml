@@ -30,6 +30,8 @@ jobs:
         run: |
           node tools/gen-taxonomy.mjs --check
           node cloudflare/test/rank.test.mjs
+          node cloudflare/test/ext.test.mjs
+          node cloudflare/test/shot.test.mjs
       - name: Deploy Worker
         working-directory: cloudflare
         env:

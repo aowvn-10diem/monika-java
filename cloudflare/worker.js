@@ -55,12 +55,17 @@ function parseEntry(e) {
   const html = (e.content && e.content.$t) || "";
   const m = META_RE.exec(html);
   const meta = {};
+  const vl = []; // dòng v, v1..v99: link tải ngoài theo độ phân giải (bài chỉ dẫn link, không có jar)
   if (m) {
     for (const line of htmlToText(m[2]).split("\n")) {
       const i = line.indexOf(":");
-      if (i > 0) meta[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();
+      if (i <= 0) continue;
+      const k = line.slice(0, i).trim().toLowerCase(), val = line.slice(i + 1).trim();
+      const vm = /^v(\d{1,2})?$/.exec(k);
+      if (vm) vl.push([vm[1] ? +vm[1] : 0, val]); else meta[k] = val;
     }
   }
+  const ext = vl.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
   const labels = (e.category || []).map((c) => c.term);
   const labelsL = labels.map((l) => l.toLowerCase());
   let type = (meta.type || "").toLowerCase();
@@ -79,7 +84,7 @@ function parseEntry(e) {
   const net = meta.net === "1" || /^(y|yes|true)$/i.test(meta.net || "");
   const tags = (parseTags(meta.tags) || (meta.tags ? 0 : guessTags(title) | parseTags(labels.join(",")))) | (net ? 128 : 0);
   return {
-    src, type, title, alt, img, cat, catId: rc.id, catUnknown: rc.unknown || "", tags, plat: parsePlat(meta.plat), res: parseRes(meta.res || "", meta.jar || "", title), meta,
+    src, type, title, alt, img, ext, cat, catId: rc.id, catUnknown: rc.unknown || "", tags, plat: parsePlat(meta.plat), res: parseRes(meta.res || "", meta.jar || "", title), meta,
     fileK: (/^[0-9a-f]{10}$/i.test(meta.file || "") ? meta.file : ((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(meta.jar || "") || [])[1] || "")).toLowerCase(),
     ver: meta.ver || meta.version || "", size: num(meta.size), price: num(meta.price),
     jar: directJar(meta.jar || ""), descr: meta.desc || descr,
@@ -303,6 +308,8 @@ function resizeShot(u, w, h) {
 async function shot(env, id, w, h) {
   const it = await env.DB.prepare("SELECT img FROM items WHERE n=?").bind(id).first();
   if (!it || !it.img) return text("not found", 404);
+  const pn = picName(env, it.img);
+  if (pn) return await pic(env, pn);
   const urls = [...new Set([resizeShot(it.img, w, h), it.img])];
   for (const u of urls) {
     const r = await fetch(u, { headers: { "user-agent": "MonikaImg/1" }, cf: { cacheTtl: 86400, cacheEverything: true } });
@@ -322,10 +329,52 @@ async function countFile(env, req, fname) {
   return it ? countDownload(env, req, it.n) : "skip:noitem";
 }
 
+// Bài link-only (không có jar, có các dòng v1..vN trong mk-meta): trang HTML nhẹ liệt kê bản tải theo độ phân giải.
+// Dòng v: "240x320|365|JAD=http://...|JAR=http://..." (cỡ | KB | nhãn=URL ...). Nút Tải của app mở /v1/j/<id>.jad trên trình duyệt máy, nên máy cũ vào trang này qua HTTP.
+const hesc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+export function chooserHtml(title, lines, blog) {
+  const rows = [];
+  for (const l of lines.slice(0, 40)) {
+    const p = l.split("|").map((x) => x.trim());
+    const links = p.slice(2).map((x) => /^([^=<>"]{1,20})=(https?:\/\/[^\s<>"]+)$/i.exec(x)).filter(Boolean)
+      .map((x) => `<a href="${hesc(x[2])}">${hesc(x[1])}</a>`);
+    if (!/^\d{2,3}x\d{2,3}$/.test(p[0] || "") || !links.length) continue;
+    rows.push(`<p><b>${hesc(p[0])}</b>${p[1] && /^\d+$/.test(p[1]) ? " · " + p[1] + " KB" : ""} · ${links.join(" · ")}</p>`);
+  }
+  if (!rows.length) return "";
+  return `<html><head><meta charset="utf-8"><title>${hesc(title)}</title></head><body><h3>${hesc(title)}</h3>` +
+    `<p>Chọn dòng đúng độ phân giải màn hình máy bạn. Tệp tải từ trang nguồn.</p>${rows.join("")}` +
+    `<p><a href="${hesc(blog || "/")}">Monika</a></p></body></html>`;
+}
+async function chooser(env, it) {
+  const base = (env.BLOG_URL || "").replace(/\/+$/, "");
+  if (!base || !/^\d+$/.test(String(it.src))) return null;
+  let e;
+  try {
+    const r = await fetch(`${base}/feeds/posts/default/${it.src}?alt=json`, { headers: { "user-agent": "MonikaSync/1" }, cf: { cacheTtl: 300, cacheEverything: true } });
+    if (!r.ok) return null;
+    e = (await r.json()).entry;
+  } catch (_) { return null; }
+  if (!e) return null;
+  const html = chooserHtml(it.title || "Tải game", parseEntry(e).ext, base);
+  if (!html) return null;
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300", "access-control-allow-origin": "*" } });
+}
+
+// Ảnh minh họa lưu trong R2 (khóa pic/<tên>.jpg), phát qua /v1/pic/<tên>.jpg. Không có R2 thì 404.
+async function pic(env, name) {
+  if (!env.R2) return text("no r2", 404);
+  const o = await env.R2.get("pic/" + name);
+  if (!o) return text("not found", 404);
+  return new Response(o.body, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" } });
+}
+const picName = (env, u) => { const m = /^https?:\/\/([^/]+)\/v1\/pic\/([A-Za-z0-9_-]{1,60}\.jpg)$/.exec(u || ""); return m && m[1].toLowerCase() === String(env.API_HOST || "").toLowerCase() ? m[2] : ""; };
+
 const tooMany = () => new Response("Tai qua nhanh, thu lai sau 1 phut.", { status: 429, headers: { "content-type": "text/plain; charset=utf-8", "retry-after": "60", "access-control-allow-origin": "*" } });
 
 async function download(env, ctx, req, n, ext) {
-  const it = await env.DB.prepare("SELECT n,jar,jad_text,file_h,url FROM items WHERE n=?").bind(n).first();
+  const it = await env.DB.prepare("SELECT n,src,title,jar,jad_text,file_h,url FROM items WHERE n=?").bind(n).first();
+  if (it && !it.jar && !it.file_h && ext === "jad") { const pg = await chooser(env, it); if (pg) return pg; }
   if (!it || (!it.jar && !it.file_h)) return text("not found", 404);
   if (ext === "jar") {
     if (hotlinked(env, req)) return Response.redirect(it.url || env.BLOG_URL || `http://${env.API_HOST}/`, 302);
@@ -394,6 +443,7 @@ export default {
       }
       if ((m = /^\/v1\/b\/(\d+)-(\d+)\.png$/.exec(p))) return await banner(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 60), 1000));
       if ((m = /^\/v1\/sc\/(\d+)-(\d+)x(\d+)\.jpg$/.exec(p))) return await shot(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 40), 320), Math.min(Math.max(parseInt(m[3], 10), 30), 320));
+      if ((m = /^\/v1\/pic\/([A-Za-z0-9_-]{1,60}\.jpg)$/.exec(p))) return await pic(env, m[1]);
       if ((m = /^\/v1\/j\/(\d+)\.(jad|jar)$/.exec(p))) return await download(env, ctx, req, parseInt(m[1], 10), m[2]);
       if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
       if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
