@@ -7,7 +7,7 @@ name: deploy-worker
 on:
   workflow_dispatch:
   push:
-    branches: [main, claude/project-thread-y1dif7]
+    branches: [main]
     paths:
       - "cloudflare/**"
 
