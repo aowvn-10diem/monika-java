@@ -372,6 +372,8 @@ function gimg(u,w,h){
  if(/=[swh]\d[^\/]*$/i.test(u))return u.replace(/=[swh]\d[^\/]*$/i,'='+s);
  if(/\/[swh]\d+[^\/]*\/[^\/]+$/i.test(u))return u.replace(/\/[swh]\d+[^\/]*\/([^\/]+)$/i,'/'+s+'/$1');
  return u}
+/* may cu khong bat tay duoc HTTPS: anh/link cua api.justmonika.top di theo giao thuc cua trang (http tren trang http) */
+function lo(u){return u?u.replace(/^https?:\/\/api\.justmonika\.top/i,API):u}
 function fileKey(m){return m.file&&/^[0-9a-f]{10}$/i.test(m.file)?m.file.toLowerCase():((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(m.jar||'')||[])[1]||'').toLowerCase()}
 /* luot tai theo duong dan bai: id lay tu icons.json (/v1/ic/<id>-64.png); bai chua co id thi hoi stats.json?paths= (Worker tra {"<duong dan>":{"id":..,"dl":..}}) */
 function fillDl(list){
@@ -435,7 +437,7 @@ $$('.gc').forEach(function(c){
  /* anh minh hoa: meta img, hoac anh dau tien trong bai khong phai icon Monika (/v1/fi/) */
  var shot=m.img||'',ims=$$('img',r);
  for(k=0;!shot&&k<ims.length;k++){var u=ims[k].getAttribute('src')||'';if(u&&!/\/v1\/fi\//.test(u))shot=u}
- if(shot){var im=el('img','sc');im.alt='';im.onerror=function(){del(im);th.className=th.className.replace(' has','')};im.src=gimg(shot,GW,GH);th.appendChild(im);th.className+=' has'}
+ if(shot){var im=el('img','sc');im.alt='';im.onerror=function(){del(im);th.className=th.className.replace(' has','');if(ph)ph.style.display=''};im.src=gimg(lo(shot),GW,GH);th.appendChild(im);th.className+=' has';if(ph)ph.style.display='none'}
  var fk=fileKey(m);
  if(fk)setIc(th,API+'/v1/fi/'+fk+'-64.png',!!shot);
  else need.push({th:th,shot:!!shot,path:th.pathname});
@@ -462,7 +464,7 @@ $$('.pb pre.mk-meta').forEach(function(pre){
  var fk=fileKey(m);
  if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){del(gi)};box.appendChild(gi)}
  box.appendChild(tb);
- if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','Tải về (JAR)');a.href=m.jar;a.rel='nofollow noopener';box.appendChild(a)}
+ if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','Tải về (JAR)');a.href=lo(m.jar);a.rel='nofollow noopener';box.appendChild(a)}
  pre.parentNode.insertBefore(box,pre);del(pre);
  fillDl([{path:location.pathname,set:function(n){var t=fdl(n);if(t){dlt.textContent=t;tr.style.display=''}}}])});
 /* trang Xep hang (/p/xep-hang.html, trang tinh Blogger de trong): tab + loc + luoi tu list.json */
@@ -506,7 +508,7 @@ if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
   var c=el('div','gc'),b=el('div','gcb'),th=el('a','th'),g=el('div','gt'),h=el('h2'),a=el('a','',it.title||''),ch=el('div','chips'),
    rank=S.g*15+i+1,tgs=[],j,ts=it.tags||[];
   th.href=it.url||'#';th.title=it.title||'';th.appendChild(el('span','ph','M'));
-  if(it.shot){var im=el('img','sc');im.alt='';im.onerror=function(){del(im);th.className=th.className.replace(' has','')};im.src=API+it.shot;th.appendChild(im);th.className+=' has'}
+  if(it.shot){var im=el('img','sc');im.alt='';var ph2=th.querySelector('.ph');im.onerror=function(){del(im);th.className=th.className.replace(' has','');if(ph2)ph2.style.display=''};im.src=API+it.shot;th.appendChild(im);th.className+=' has';if(ph2)ph2.style.display='none'}
   if(it.icon)setIc(th,API+it.icon,!!it.shot);
   if(S.k!=='new')th.appendChild(el('span','rkn'+(S.g===0&&i<3?' r'+rank:''),String(rank)));
   if(it.flags&8)th.appendChild(el('span','bd h','HOT'));else if(it.flags&1)th.appendChild(el('span','bd','MỚI'));
@@ -537,6 +539,8 @@ if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
  window.onhashchange=function(){if(location.hash!==cur){rd();draw()}};
  once('cats','/v1/cats.json',function(C){cats=C||[];drawCtl()})
 })()}
+$$('.pb img').forEach(function(i){var u=i.getAttribute('src')||'',v=lo(u);if(v!==u)i.src=v});
+$$('.pb a').forEach(function(a){var u=a.getAttribute('href')||'',v=lo(u);if(v!==u)a.href=v});
 /* banner: chung du lieu voi app Java. Banner dau trang: trong header (man nho) hoac dau cot noi dung (PC), chi nap cai dang hien */
 var pc=vw>=900,slots=$$('.bn[data-slot]').filter(function(s){
  if(/\bbn-top2\b/.test(s.className))return pc;

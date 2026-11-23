@@ -33,7 +33,7 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.4.2";
+    static final String VERSION = "0.4.3";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -388,7 +388,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         if (err != null) {
             if (!homeAlerted && display.getCurrent() == home) {
                 homeAlerted = true;
-                alert("Thông báo", "Không vào được mạng (" + err + "). Chi tiết: " + Net.lastDiag + ". Nếu máy không hỏi chọn mạng (WiFi/3G), kiểm tra quyền truy cập mạng và điểm truy cập trong cài đặt của app. Chụp màn hình này gửi AowVN.",
+                alert("Thông báo", "Không vào được mạng (" + err + "). Chi tiết: " + Net.lastDiag + ". Mã -1 của máy thường là chưa có điểm truy cập cho app: thử vào cài đặt của app trong Quản lý ứng dụng, đặt điểm truy cập là WLAN hoặc Hỏi mỗi lần.",
                     home);
             }
             return;
