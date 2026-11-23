@@ -1,6 +1,7 @@
 // Luồng up file: nhận JAR -> trích tên/icon -> chống trùng -> lưu kho -> tạo mục cho app -> sinh HTML bài Blogspot.
 import { analyzeJar, makeIcons, sha256hex, slugify, cleanVer, manifestToJad, b64, unb64 } from "./jar.js";
 import { putFile, serveFile, delFile, storeInfo } from "./store.js";
+import { resolveCat, catName } from "./rank.js";
 
 const MAX_UP = 24 * 1024 * 1024;
 const FOREVER = 999999999; // sweep của mục up trực tiếp: không bị quét xóa theo feed Blogger
@@ -26,12 +27,13 @@ async function ensureItem(env, f, o) {
   const ex = await env.DB.prepare("SELECT n FROM items WHERE file_h=? ORDER BY (src LIKE 'up-%') ASC, n LIMIT 1").bind(f.k).first();
   if (ex) return ex.n;
   const now = Date.now(), st = [];
-  if (o.cat) st.push(env.DB.prepare("INSERT OR IGNORE INTO cats(name) VALUES(?)").bind(o.cat));
+  const rc = resolveCat(o.cat, o.type);
+  if (rc.unknown) st.push(env.DB.prepare("INSERT OR IGNORE INTO meta(k,v) VALUES(?,?)").bind("unk:" + rc.unknown.slice(0, 60), src));
   st.push(env.DB.prepare(
     `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,file_h)
-     VALUES(?,?,?,?,(SELECT n FROM cats WHERE name=?),?,?,?,?,?,?,?,?,?,?,?)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
      ON CONFLICT(src) DO NOTHING`
-  ).bind(src, o.type, f.name, norm(f.name), o.cat || null, f.ver || "", Math.max(1, Math.round(f.size / 1024)), o.price, `https://${hostOf(env)}/v1/f/${f.fname}`, clip(o.desc || f.descr || "", 300), "", (o.net ? 4 : 0) | (o.hot ? 8 : 0), now, now, FOREVER, f.k));
+  ).bind(src, o.type, f.name, norm(f.name), rc.id || null, f.ver || "", Math.max(1, Math.round(f.size / 1024)), o.price, `https://${hostOf(env)}/v1/f/${f.fname}`, clip(o.desc || f.descr || "", 300), "", (o.net ? 4 : 0) | (o.hot ? 8 : 0), now, now, FOREVER, f.k));
   await env.DB.batch(st);
   return (await env.DB.prepare("SELECT n FROM items WHERE src=?").bind(src).first()).n;
 }
@@ -43,13 +45,13 @@ function postPack(env, f, o, hasIcon) {
 file: ${f.k}
 ver: ${esc(f.ver)}
 size: ${kb}
-cat: ${esc(o.cat)}
+cat: ${esc(catName(resolveCat(o.cat, o.type).id, o.cat))}
 jar: https://${host}/v1/f/${f.fname}
 net: ${o.net ? 1 : 0}
 hot: ${o.hot ? 1 : 0}${desc ? "\ndesc: " + esc(clip(desc, 200)) : ""}
 </pre>${hasIcon ? `\n<img src="https://${host}/v1/fi/${f.k}-64.png" width="64" height="64" alt="${esc(f.name)}" />` : ""}
 <p>${esc(desc || f.name)}</p>`;
-  return { title: f.name, labels: [o.type === "app" ? "App" : "Game", o.cat].filter(Boolean), html };
+  return { title: f.name, labels: [o.type === "app" ? "App" : "Game", catName(resolveCat(o.cat, o.type).id, o.cat)].filter(Boolean), html };
 }
 
 export async function handleUpload(env, ctx, req, u) {

@@ -3,6 +3,7 @@
 
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
+import { resolveCat, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson } from "./rank.js";
 
 const PAGE = 15;
 const FEED_PAGE = 40;
@@ -74,8 +75,11 @@ function parseEntry(e) {
   const cat = meta.cat || labels.find((l) => !typeSet.has(l.toLowerCase())) || "";
   const num = (v) => { const n = parseInt(String(v || "").replace(/[^\d]/g, ""), 10); return Number.isFinite(n) ? n : 0; };
   const descr = htmlToText(body).replace(/\s+/g, " ").trim();
+  const rc = resolveCat(cat, type);
+  const net = meta.net === "1" || /^(y|yes|true)$/i.test(meta.net || "");
+  const tags = (parseTags(meta.tags) || (meta.tags ? 0 : guessTags(title) | parseTags(labels.join(",")))) | (net ? 128 : 0);
   return {
-    src, type, title, alt, img, cat, meta,
+    src, type, title, alt, img, cat, catId: rc.id, catUnknown: rc.unknown || "", tags, plat: parsePlat(meta.plat), res: parseRes(meta.res || "", meta.jar || "", title), meta,
     fileK: (/^[0-9a-f]{10}$/i.test(meta.file || "") ? meta.file : ((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(meta.jar || "") || [])[1] || "")).toLowerCase(),
     ver: meta.ver || meta.version || "", size: num(meta.size), price: num(meta.price),
     jar: directJar(meta.jar || ""), descr: meta.desc || descr,
@@ -137,11 +141,11 @@ async function syncStep(env) {
       ).bind(p.src, (p.meta.slot || "top").toLowerCase(), p.img, p.meta.link || "", p.meta.alt || p.title, p.updated, sweep));
       continue;
     }
-    if (p.cat) st.push(db.prepare("INSERT OR IGNORE INTO cats(name) VALUES(?)").bind(p.cat));
+    if (p.catUnknown) st.push(db.prepare("INSERT OR IGNORE INTO meta(k,v) VALUES(?,?)").bind("unk:" + p.catUnknown.slice(0, 60), p.alt || p.src));
     st.push(db.prepare(
-      `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,img,file_h)
-       VALUES(?,?,?,?,(SELECT n FROM cats WHERE name=?),?,COALESCE(NULLIF(?,0),(SELECT MAX(1,(size+512)/1024) FROM files WHERE k=?),0),?,?,?,?,?,?,?,?,?,(SELECT k FROM files WHERE k=?))
-       ON CONFLICT(src) DO UPDATE SET type=excluded.type,title=excluded.title,norm=excluded.norm,cat_n=excluded.cat_n,ver=excluded.ver,
+      `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,img,file_h,tags,plat,res)
+       VALUES(?,?,?,?,?,?,COALESCE(NULLIF(?,0),(SELECT MAX(1,(size+512)/1024) FROM files WHERE k=?),0),?,?,?,?,?,?,?,?,?,(SELECT k FROM files WHERE k=?),?,?,?)
+       ON CONFLICT(src) DO UPDATE SET type=excluded.type,title=excluded.title,norm=excluded.norm,cat_n=excluded.cat_n,ver=excluded.ver,tags=excluded.tags,plat=excluded.plat,res=excluded.res,
          size_kb=CASE WHEN excluded.size_kb>0 THEN excluded.size_kb ELSE items.size_kb END,
          price=excluded.price,descr=excluded.descr,url=excluded.url,flags=excluded.flags,published=excluded.published,updated=excluded.updated,sweep=excluded.sweep,
          img=excluded.img,file_h=excluded.file_h,
@@ -151,7 +155,7 @@ async function syncStep(env) {
          ic64=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.ic64 END,
          icon_state=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.icon_state END,
          jar=excluded.jar`
-    ).bind(p.src, p.type, p.title, norm(p.title), p.cat || null, p.ver, p.size, p.fileK || "", p.price, p.jar, clip(p.descr, 300), p.alt, p.flags, p.published, p.updated, sweep, p.img || "", p.fileK || ""));
+    ).bind(p.src, p.type, p.title, norm(p.title), p.catId || null, p.ver, p.size, p.fileK || "", p.price, p.jar, clip(p.descr, 300), p.alt, p.flags, p.published, p.updated, sweep, p.img || "", p.fileK || "", p.tags, p.plat, p.res));
   }
   const done = entries.length < FEED_PAGE;
   if (done) {
@@ -159,7 +163,6 @@ async function syncStep(env) {
       st.push(db.prepare("DELETE FROM items WHERE sweep < ?").bind(sweep));
       st.push(db.prepare("DELETE FROM items WHERE src LIKE 'up-%' AND file_h IN (SELECT file_h FROM items WHERE src NOT LIKE 'up-%' AND file_h IS NOT NULL)"));
       st.push(db.prepare("DELETE FROM banners WHERE sweep < ?").bind(sweep));
-      st.push(db.prepare("DELETE FROM cats WHERE n NOT IN (SELECT cat_n FROM items WHERE cat_n IS NOT NULL)"));
       st.push(setMetaStmt(db, "sweep", sweep + 1));
     }
     st.push(setMetaStmt(db, "cursor", 1));
@@ -227,18 +230,49 @@ async function home(env) {
 }
 
 async function list(env, where, binds, page, order) {
-  const db = env.DB, now = Date.now();
-  const total = (await db.prepare(`SELECT COUNT(*) c FROM items i WHERE i.type IN ('game','app') AND ${where}`).bind(...binds).first()).c;
-  const rows = (await db.prepare(
-    `SELECT i.n,i.flags,i.size_kb,i.price,i.ver,i.title,i.descr,i.published,i.updated,COALESCE(i.cat_n,0) cat,(i.dl >= 50) hot,
-       (i.ic32 IS NOT NULL OR f.ic32 IS NOT NULL) hasic, (i.img IS NOT NULL AND i.img <> '') hasimg
-     FROM items i LEFT JOIN files f ON f.k=i.file_h WHERE i.type IN ('game','app') AND ${where} ORDER BY ${order} LIMIT ${PAGE} OFFSET ${page * PAGE}`
-  ).bind(...binds).all()).results;
+  const now = Date.now();
+  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE);
   const o = new Out().i32(0x4d4b4c31).u8(1).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
   for (const r of rows) {
     o.i32(r.n).u8(r.cat).u8(flagsOf(r, now)).u16(Math.min(r.size_kb || 0, 65535)).i32(r.price || 0)
       .utf(r.ver).utf(r.title).utf(clip(r.descr, 120)).utf(`/v1/j/${r.n}.jad`);
   }
+  return bin(o.bytes());
+}
+
+// v2: thêm dl (int), tags (ushort), plat (ubyte) giữa price và version. App 0.3 không dùng.
+async function list2(env, where, binds, page, order) {
+  const now = Date.now();
+  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE);
+  const o = new Out().i32(0x4d4b4c32).u8(2).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
+  for (const r of rows) {
+    o.i32(r.n).u8(r.cat).u8(flagsOf(r, now)).u16(Math.min(r.size_kb || 0, 65535)).i32(r.price || 0).i32(r.dl || 0).u16(r.tags || 0).u8(r.plat || 1)
+      .utf(r.ver).utf(r.title).utf(clip(r.descr, 120)).utf(`/v1/j/${r.n}.jad`);
+  }
+  return bin(o.bytes());
+}
+
+async function listJson(env, key, page) {
+  const q = parseKey(key);
+  if (!q) return jsonResp({ error: "bad key" }, 400);
+  const now = Date.now();
+  const { total, rows } = await fetchRows(env, q.where, q.binds, page, await orderFor(env, q.sort), PAGE);
+  return jsonResp({ total, page, items: rows.map((r, i) => jsonItem(r, i, flagsOf(r, now))) });
+}
+const jsonResp = (o, status = 200, ttl = 60) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": `public, max-age=${ttl}`, "access-control-allow-origin": "*" } });
+
+// danh mục v2: kind 1 game, 2 app; tên chuẩn lấy từ taxonomy
+async function home2(env) {
+  const db = env.DB, now = Date.now();
+  const newCount = (await db.prepare("SELECT COUNT(*) c FROM items WHERE type IN ('game','app') AND published > ?").bind(now - NEW_DAYS * DAY).first()).c;
+  const self = await db.prepare("SELECT n,ver FROM items WHERE type='self' ORDER BY updated DESC LIMIT 1").first();
+  const cats = (await catsJson(env)).filter((c) => c.kind === 1 || c.kind === 2).slice(0, 60);
+  const bn = (await db.prepare("SELECT n,alt,link FROM banners WHERE slot='top' ORDER BY updated DESC LIMIT 10").all()).results;
+  const o = new Out().i32(0x4d4b4832).u8(2).u16(newCount).utf(self ? self.ver : "").utf(self ? `http://${env.API_HOST}/v1/j/${self.n}.jar` : "");
+  o.u8(cats.length);
+  for (const c of cats) o.u8(c.id).u8(c.kind).utf(c.name).u16(c.count);
+  o.u8(bn.length);
+  for (const b of bn) o.u8(b.n).utf(b.alt).utf(await resolveBannerLink(env, b.link));
   return bin(o.bytes());
 }
 
@@ -280,16 +314,30 @@ async function shot(env, id, w, h) {
   return text("upstream image error", 502);
 }
 
+// Link tải thẳng /v1/f/<tên>-<hash10>.jar: đếm vào mục (ưu tiên bài thật, không phải mục up-) dùng file đó.
+async function countFile(env, req, fname) {
+  const m = /-([0-9a-f]{10})\.jar$/.exec(fname);
+  if (!m) return "skip:name";
+  const it = await env.DB.prepare("SELECT n FROM items WHERE file_h=? ORDER BY (src LIKE 'up-%') ASC, n LIMIT 1").bind(m[1]).first();
+  return it ? countDownload(env, req, it.n) : "skip:noitem";
+}
+
+const tooMany = () => new Response("Tai qua nhanh, thu lai sau 1 phut.", { status: 429, headers: { "content-type": "text/plain; charset=utf-8", "retry-after": "60", "access-control-allow-origin": "*" } });
+
 async function download(env, ctx, req, n, ext) {
-  const it = await env.DB.prepare("SELECT n,jar,jad_text,file_h FROM items WHERE n=?").bind(n).first();
+  const it = await env.DB.prepare("SELECT n,jar,jad_text,file_h,url FROM items WHERE n=?").bind(n).first();
   if (!it || (!it.jar && !it.file_h)) return text("not found", 404);
+  if (ext === "jar") {
+    if (hotlinked(env, req)) return Response.redirect(it.url || env.BLOG_URL || `http://${env.API_HOST}/`, 302);
+    if (await tooFast(env, req, "RL_DL")) return tooMany();
+    ctx.waitUntil(countDownload(env, req, n));
+  }
   const origin = `http://${env.API_HOST}`;
   if (ext === "jad") {
     let jad = it.file_h ? await fileJad(env, n, origin) : it.jad_text;
     if (!jad) {
       try { jad = await buildJad(env, { ...it, title: "" }, origin); } catch (e) { return text("jad error: " + e.message, 502); }
     }
-    ctx.waitUntil(env.DB.prepare("UPDATE items SET dl=dl+1 WHERE n=?").bind(n).run());
     return new Response(jad, { headers: { "content-type": "text/vnd.sun.j2me.app-descriptor; charset=utf-8", "cache-control": "no-cache" } });
   }
   if (it.file_h) {
@@ -328,19 +376,20 @@ export default {
       let m;
       if (p === "/" || p === "/v1") return text("Monika API v1\n");
       if (p === "/v1/home.bin") return await home(env);
-      if ((m = /^\/v1\/l\/(new|hot|dl|app|game|c(\d+)|i(\d+))\/(\d+)\.bin$/.exec(p))) {
-        const page = Math.min(parseInt(m[4], 10), 4000), k = m[1];
-        if (m[3]) return await list(env, "i.n=?", [parseInt(m[3], 10)], 0, "i.n");
-        if (k === "new") return await list(env, "1=1", [], page, "i.updated DESC");
-        if (k === "hot") return await list(env, "1=1", [], page, "(i.flags & 8) DESC, i.dl DESC, i.updated DESC");
-        if (k === "dl") return await list(env, "1=1", [], page, "i.dl DESC, i.updated DESC");
-        if (k === "app" || k === "game") return await list(env, "i.type=?", [k], page, "i.updated DESC");
-        return await list(env, "i.cat_n=?", [parseInt(m[2], 10)], page, "i.updated DESC");
+      if (p === "/v1/home2.bin") return await home2(env);
+      if ((m = /^\/v1\/(l|l2)\/([a-z0-9.]+)\/(\d+)\.bin$/.exec(p))) {
+        const page = Math.min(parseInt(m[3], 10), 4000), q = parseKey(m[2]);
+        if (!q) return text("bad key", 404);
+        return await (m[1] === "l2" ? list2 : list)(env, q.where, q.binds, q.where.startsWith("i.n=?") ? 0 : page, await orderFor(env, q.sort));
       }
+      if (p === "/v1/list.json") return await listJson(env, u.searchParams.get("key") || "new", Math.min(Math.max(parseInt(u.searchParams.get("page") || "0", 10) || 0, 0), 4000));
+      if (p === "/v1/stats.json") return jsonResp(await statsJson(env, u.searchParams.get("ids")));
+      if (p === "/v1/cats.json") return jsonResp(await catsJson(env), 200, 300);
       if ((m = /^\/v1\/s\/([^/]*)\/(\d+)\.bin$/.exec(p))) {
         let key = "";
         try { key = norm(decodeURIComponent(m[1].replace(/\+/g, " "))).replace(/[%_\\]/g, "").trim().slice(0, 40); } catch (_) {}
         if (!key) return await list(env, "0=1", [], 0, "i.n");
+        if (await tooFast(env, req, "RL_SEARCH")) return tooMany();
         return await list(env, "i.norm LIKE ?", ["%" + key + "%"], Math.min(parseInt(m[2], 10), 4000), "i.updated DESC");
       }
       if ((m = /^\/v1\/b\/(\d+)-(\d+)\.png$/.exec(p))) return await banner(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 60), 1000));
@@ -350,7 +399,13 @@ export default {
       if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
       if (p === "/v1/up" && req.method === "POST") return await handleUpload(env, ctx, req, u);
       if (p.startsWith("/v1/admin/")) return await admin(env, req, u);
-      if ((m = /^\/v1\/f\/([^/]+)$/.exec(p))) return await fileDownload(env, req, decodeURIComponent(m[1]));
+      if ((m = /^\/v1\/f\/([^/]+)$/.exec(p))) {
+        const fname = decodeURIComponent(m[1]);
+        if (hotlinked(env, req)) return Response.redirect(env.BLOG_URL || `http://${env.API_HOST}/`, 302);
+        if (await tooFast(env, req, "RL_DL")) return tooMany();
+        ctx.waitUntil(countFile(env, req, fname));
+        return await fileDownload(env, req, fname);
+      }
       if ((m = /^\/v1\/ic\/(\d+)-(32|64)\.png$/.exec(p))) return await iconOfItem(env, parseInt(m[1], 10), parseInt(m[2], 10));
       if ((m = /^\/v1\/fi\/([0-9a-f]{10})-(32|64)\.png$/.exec(p))) return await iconOfFile(env, m[1], parseInt(m[2], 10));
       if (p === "/v1/icons.json") return await iconsJson(env);
@@ -366,5 +421,6 @@ export default {
   async scheduled(ev, env, ctx) {
     ctx.waitUntil(syncStep(env));
     ctx.waitUntil(backfillIcons(env));
+    if (Math.floor(Date.now() / 60000) % 15 < 5) ctx.waitUntil(recompute(env)); // 15 phút một lần (cron chạy 5 phút)
   },
 };
