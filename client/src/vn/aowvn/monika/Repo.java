@@ -5,10 +5,11 @@ import java.util.Vector;
 
 /**
  * Nguồn dữ liệu: gọi API Cloudflare qua {@link Net}, rơi về cache RMS, hoặc danh mục mẫu
- * trong JAR khi chưa có máy chủ. Một luồng nền xử lý lần lượt các yêu cầu
- * (máy cũ thường chỉ mở được ít kết nối cùng lúc).
+ * trong JAR khi chưa có máy chủ. Một luồng riêng cho dữ liệu (trang chủ, danh sách) để không phải chờ ảnh,
+ * và {@link #IMG_WORKERS} luồng tải ảnh song song (mỗi lần mở kết nối trên máy cũ mất cả giây,
+ * song song giúp lưới ảnh hiện nhanh hơn). Ảnh đã tải được giữ trong bộ nhớ để mở lại không tốn mạng.
  */
-final class Repo implements Runnable {
+final class Repo {
     /** Kết quả trả về luồng nền; result là Home, Page hoặc byte[] (ảnh), err là mã lỗi hoặc null. */
     interface Callback {
         void done(Object tag, Object result, String err);
@@ -35,7 +36,25 @@ final class Repo implements Runnable {
     private String suffix = "";
     private String ua = "Monika";
     private Catalog embedded;
-    private Thread worker;
+    private boolean started;
+    static final int IMG_WORKERS = 3;
+    /** Ảnh đã tải (byte JPEG/PNG gốc) giữ tối đa IMG_CACHE_BYTES, bỏ cũ nhất trước. */
+    private static final int IMG_CACHE_BYTES = 200 * 1024;
+    private final java.util.Hashtable imgCache = new java.util.Hashtable();
+    private final Vector imgOrder = new Vector();
+    private int imgBytes;
+
+    private final class Worker implements Runnable {
+        private final boolean images;
+
+        Worker(boolean images) {
+            this.images = images;
+        }
+
+        public void run() {
+            loop(images);
+        }
+    }
     /** False sau khi máy chủ báo không có endpoint v2: dùng /v1/l/ và /v1/home.bin. */
     private boolean v2 = true;
 
@@ -54,6 +73,9 @@ final class Repo implements Runnable {
         }
         if (b.length() > 0 && !b.startsWith("http://") && !b.startsWith("https://")) {
             b = "http://" + b;
+        }
+        if (!b.equals(base)) {
+            clearImages();
         }
         base = b;
         suffix = netSuffix == null ? "" : netSuffix;
@@ -161,27 +183,66 @@ final class Repo implements Runnable {
                 }
                 queue.insertElementAt(r, at);
             }
-            if (worker == null) {
-                worker = new Thread(this);
-                worker.start();
+            if (!started) {
+                started = true;
+                new Thread(new Worker(false)).start();
+                for (int i = 0; i < IMG_WORKERS; i++) {
+                    new Thread(new Worker(true)).start();
+                }
             }
-            queue.notify();
+            queue.notifyAll();
         }
     }
 
-    public void run() {
+    private synchronized byte[] cachedImage(String key) {
+        return (byte[]) imgCache.get(key);
+    }
+
+    private synchronized void rememberImage(String key, byte[] b) {
+        if (b == null || b.length > IMG_CACHE_BYTES / 4 || imgCache.containsKey(key)) {
+            return;
+        }
+        while (imgBytes + b.length > IMG_CACHE_BYTES && imgOrder.size() > 0) {
+            String old = (String) imgOrder.elementAt(0);
+            imgOrder.removeElementAt(0);
+            byte[] ob = (byte[]) imgCache.remove(old);
+            if (ob != null) {
+                imgBytes -= ob.length;
+            }
+        }
+        imgCache.put(key, b);
+        imgOrder.addElement(key);
+        imgBytes += b.length;
+    }
+
+    /** Xóa ảnh nhớ tạm khi đổi máy chủ. */
+    private synchronized void clearImages() {
+        imgCache.clear();
+        imgOrder.removeAllElements();
+        imgBytes = 0;
+    }
+
+    private void loop(boolean images) {
         while (true) {
-            Req r;
+            Req r = null;
             synchronized (queue) {
-                while (queue.size() == 0) {
-                    try {
-                        queue.wait();
-                    } catch (InterruptedException e) {
-                        return;
+                while (r == null) {
+                    for (int i = 0; i < queue.size(); i++) {
+                        Req q = (Req) queue.elementAt(i);
+                        if ((q.kind == K_IMAGE) == images) {
+                            r = q;
+                            queue.removeElementAt(i);
+                            break;
+                        }
+                    }
+                    if (r == null) {
+                        try {
+                            queue.wait();
+                        } catch (InterruptedException e) {
+                            return;
+                        }
                     }
                 }
-                r = (Req) queue.elementAt(0);
-                queue.removeElementAt(0);
             }
             if (r.cancelled) {
                 continue;
@@ -194,7 +255,14 @@ final class Repo implements Runnable {
                 } else if (r.kind == K_LIST) {
                     result = loadList(r.key, r.page);
                 } else {
-                    result = Net.get(url(r.key), suffix, ua, 48 * 1024);
+                    byte[] hit = cachedImage(r.key);
+                    if (hit != null) {
+                        result = hit;
+                    } else {
+                        byte[] got = Net.get(url(r.key), suffix, ua, 48 * 1024);
+                        rememberImage(r.key, got);
+                        result = got;
+                    }
                 }
             } catch (IOException e) {
                 err = e.getMessage() == null ? "E12" : e.getMessage();

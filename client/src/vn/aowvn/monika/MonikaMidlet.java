@@ -26,7 +26,7 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.5.1";
+    static final String VERSION = "0.5.2";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -77,6 +77,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     private static final int P_ALERT = 6;
     private static final int P_EDIT = 7;
     private static final int P_NET = 8;
+    private static final int P_NETHELP = 9;
 
     /** Ô nhập gốc của máy, chỉ dùng khi chạm vào ô nhập (máy cảm ứng, bàn phím ảo). */
     private TextBox nbox;
@@ -372,12 +373,23 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         }
     }
 
+    /** Hướng dẫn từng bước tạo và chọn điểm truy cập WLAN khi app không ra được mạng. */
+    private void netHelp(String err) {
+        Panel p = newPanel(Panel.TEXT, P_NETHELP, "Chưa vào được mạng", "Thử lại", "Đóng");
+        p.addPara(Vi.tr("Máy chưa có đường ra mạng (mã " + err + "). Làm theo các bước:"));
+        p.addPara(Vi.tr("1. Bật WiFi, vào Menu > Bảng điều khiển > Kết nối > Trình hướng dẫn WLAN. Chọn mạng WiFi, nhập mật khẩu, chọn Bắt đầu duyệt web để máy tạo điểm truy cập."));
+        p.addPara(Vi.tr("2. Vào Menu > Ứng dụng > Quản lý ứng dụng, chọn Monika, bấm Tùy chọn > Cài đặt. Ở mục Điểm truy cập, chọn tên mạng WiFi vừa tạo."));
+        p.addPara(Vi.tr("3. Bấm Thử lại. Nếu vẫn lỗi, thoát Monika rồi mở lại."));
+        p.addPara(Vi.tr("Cần chẩn đoán thêm: Tùy chọn > 6. Kiểm tra mạng."));
+        p.addInfo(Vi.tr("Chi tiết lỗi"), Net.lastDiag.length() == 0 ? err : Net.lastDiag);
+        display.setCurrent(p);
+    }
+
     private void onHome(Object result, String err) {
         if (err != null) {
             if (!homeAlerted && display.getCurrent() == home) {
                 homeAlerted = true;
-                alert("Thông báo", "Không vào được mạng (" + err + "). Chi tiết: " + Net.lastDiag + ". Vào Tùy chọn, chọn Kiểm tra mạng để biết lỗi do điểm truy cập hay tên miền.",
-                    home);
+                netHelp(err);
             }
             return;
         }
@@ -978,6 +990,13 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
                 } else if (act == Panel.A_RIGHT) {
                     editFor = null;
                     back();
+                }
+                break;
+            case P_NETHELP:
+                showHome();
+                if (act == Panel.A_LEFT) {
+                    homeAlerted = false;
+                    loadHome();
                 }
                 break;
             case P_NET:
