@@ -7,10 +7,9 @@ name: deploy-worker
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, claude/project-thread-y1dif7]
     paths:
       - "cloudflare/**"
-      - ".github/workflows/deploy-worker.yml"
 
 concurrency:
   group: deploy-worker

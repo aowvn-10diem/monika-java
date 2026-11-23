@@ -31,3 +31,7 @@ Link JAR: GitHub, Google Drive, host riêng. Pixeldrain chặn hotlink nên khô
 - Chặn lạm dụng: binding `RL_DL` (6 lần bắt đầu tải/phút/IP) và `RL_SEARCH` (60 lần/phút/IP) khai trong `wrangler.jsonc`; hotlink theo Referer (Referer rỗng cho qua); `REF_OK` thêm host được phép. Không bật Bot Fight Mode / JS challenge cho host API (máy J2ME không giải được).
 - Endpoint mới: `/v1/home2.bin`, `/v1/l2/{key}/{page}.bin`, `/v1/list.json`, `/v1/stats.json`, `/v1/cats.json` (xem `docs/api-contract.md`, mục v2). `/v1/l/...` và `/v1/home.bin` giữ nguyên định dạng.
 - Test: `node cloudflare/test/rank.test.mjs` (dùng `node:sqlite`, Node 24 trở lên).
+
+## Deploy bằng GitHub Actions
+
+Workflow `.github/workflows/deploy-worker.yml` chạy test rồi `wrangler deploy`, sau đó gọi thử 5 endpoint. Cần secret repo `CLOUDFLARE_API_TOKEN` và `CLOUDFLARE_ACCOUNT_ID` (tài khoản Cloudflare riêng của Monika Java). Secret của Worker giữ nguyên. Tự chạy khi push có sửa `cloudflare/` lên `main`.
