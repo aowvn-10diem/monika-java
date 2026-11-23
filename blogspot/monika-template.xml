@@ -10,21 +10,20 @@
 /* Monika by AOW.VN - Blogspot template (wap nhe, PC rong gon, luoi anh game)
    Banner va danh sach: web va app Java dung chung du lieu qua api.justmonika.top
    Luoi dung float + padding-top (khong flex/grid/aspect-ratio) de Opera Mini 6 tren Nokia chay duoc */
-:root{--bg:#1b0a38;--r1:#250e48;--r2:#290f4f;--hd1:#2b0f4f;--hd2:#4c1466;--or:#ff7a1a;--sel1:#cc580c;--sel2:#b44606;--bar:#140729;--pk:#dc1a70;--mu:#cdbfe8;--ln:#3a1a66}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:#fff;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+body{margin:0;background:#1b0a38;color:#fff;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 a{color:inherit;text-decoration:none}
 img{max-width:100%;height:auto}
 h1,h2,h3{margin:0}
 .wrap{max-width:1080px;margin:0 auto}
 /* header: to tren dien thoai/Nokia, gon tren PC */
-.hd{background:linear-gradient(135deg,var(--hd1),var(--hd2));position:relative;overflow:hidden}
+.hd{background:#2b0f4f;background:linear-gradient(135deg,#2b0f4f,#4c1466);position:relative;overflow:hidden}
 .hd-in{position:relative;z-index:1;padding:12px}
 .brand{margin-bottom:10px}
 .logo{display:block;font-size:30px;font-weight:700;letter-spacing:.3px;line-height:1.1}
-.logo b{color:var(--or)}
-.tag,.by{margin:2px 0 0;font-size:12px;color:var(--mu)}
-.by b{color:var(--or)}
+.logo b{color:#ff7a1a}
+.tag,.by{margin:2px 0 0;font-size:12px;color:#cdbfe8}
+.by b{color:#ff7a1a}
 .vn{background:#fff;color:#2b0f4f;font-weight:700;border-radius:3px;padding:0 4px;margin-left:3px;font-size:11px}
 .curve{position:absolute;right:0;bottom:0;width:62%;max-width:560px;height:75%;z-index:0}
 .hb .curve{display:none}
@@ -39,41 +38,41 @@ h1,h2,h3{margin:0}
 .bn-list{margin:0 0 12px}
 .adslot .widget{margin:0 0 12px}
 /* nav: 4 o ngang tren man nho */
-.nav{background:var(--bar);overflow:hidden}
-.nav a{float:left;width:25%;padding:7px 2px 6px;text-align:center;font-size:12px;line-height:1.2;background:var(--r1);border-bottom:1px solid var(--ln)}
-.nav a:nth-child(even){background:var(--r2)}
-.nav a.on,.nav a:hover{background:linear-gradient(var(--sel1),var(--sel2));font-weight:700}
+.nav{background:#140729;overflow:hidden}
+.nav a{float:left;width:25%;padding:7px 2px 6px;text-align:center;font-size:12px;line-height:1.2;background:#250e48;border-bottom:1px solid #3a1a66}
+.nav a:nth-child(even){background:#290f4f}
+.nav a.on,.nav a:hover{background:#cc580c;background:linear-gradient(#cc580c,#b44606);font-weight:700}
 .nav svg{display:block;margin:0 auto 2px;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .nav .go{display:none}
-.sf{display:flex;gap:6px;padding:8px 12px;background:var(--bar)}
-.sf input{flex:1;min-width:0;padding:8px 10px;border:1px solid #4a2a7a;border-radius:4px;background:#1f0b3d;color:#fff;font:inherit}
-.sf button{padding:8px 14px;border:0;border-radius:4px;background:linear-gradient(var(--sel1),var(--sel2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.sf{display:flex;gap:6px;overflow:hidden;padding:8px 12px;background:#140729}
+.sf input{float:left;width:68%;flex:1;min-width:0;padding:8px 10px;border:1px solid #4a2a7a;border-radius:4px;background:#1f0b3d;color:#fff;font:inherit}
+.sf button{float:right;padding:8px 14px;border:0;border-radius:4px;background:#cc580c;background:linear-gradient(#cc580c,#b44606);color:#fff;font:inherit;font-weight:700;cursor:pointer}
 /* tieu de muc + luoi game: 2 o moi hang tren Nokia/dien thoai */
-.st,.widget h2{padding:8px 12px;background:linear-gradient(90deg,var(--sel1),var(--sel2));font-size:14px;font-weight:700}
+.st,.widget h2{padding:8px 12px;background:#cc580c;background:linear-gradient(90deg,#cc580c,#b44606);font-size:14px;font-weight:700}
 .gl{overflow:hidden}
 .gc{float:left;width:50%;padding:8px 4px 0}
-.gcb{background:var(--r1);border:1px solid var(--ln);border-radius:8px;overflow:hidden}
-.gc:hover .gcb{border-color:var(--or)}
-.th{display:block;position:relative;height:0;padding-top:75%;overflow:hidden;background:linear-gradient(135deg,var(--hd2),var(--sel1))}
-.th.has{background:var(--bar)}
+.gcb{background:#250e48;border:1px solid #3a1a66;border-radius:8px;overflow:hidden}
+.gc:hover .gcb{border-color:#ff7a1a}
+.th{display:block;position:relative;height:0;padding-top:75%;overflow:hidden;background:#4c1466;background:linear-gradient(135deg,#4c1466,#cc580c)}
+.th.has{background:#140729}
 .th .sc{position:absolute;left:0;right:0;top:0;bottom:0;margin:auto;max-width:100%;max-height:100%;display:block}
 .th .ph{position:absolute;left:0;right:0;top:50%;margin-top:-.6em;text-align:center;font-size:34px;line-height:1.2;font-weight:700;color:rgba(255,255,255,.55)}
 .th .ic2{position:absolute;left:5px;bottom:5px;width:32px;height:32px;border-radius:7px;border:2px solid #fff;background:#3b1a6b;display:block}
 .th .ic1{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:12px;background:#3b1a6b;display:block}
-.bd{position:absolute;right:5px;top:5px;font-size:10px;line-height:1.6;font-weight:700;padding:0 6px;border-radius:8px;background:var(--pk);color:#fff}
-.bd.h{background:var(--sel1)}
+.bd{position:absolute;right:5px;top:5px;font-size:10px;line-height:1.6;font-weight:700;padding:0 6px;border-radius:8px;background:#dc1a70;color:#fff}
+.bd.h{background:#cc580c}
 .gt{padding:6px 7px 7px}
 .gt h2{height:2.6em;overflow:hidden;font-size:13px;line-height:1.3}
-.gt h2 a:hover{color:var(--or)}
-.chips{margin:3px 0 0;height:19px;overflow:hidden;white-space:nowrap}
-.chips span,.chips a{display:inline-block;font-size:11px;line-height:17px;padding:0 6px;margin:0 3px 0 0;border-radius:8px;background:#3b1a6b;color:var(--mu)}
-.chips .v{background:var(--pk);color:#fff}
+.gt h2 a:hover{color:#ff7a1a}
+.chips{margin:3px 0 0;max-height:42px;overflow:hidden}
+.chips span,.chips a{display:inline-block;max-width:100%;font-size:11px;line-height:17px;padding:0 6px;margin:0 3px 2px 0;border-radius:8px;background:#3b1a6b;color:#cdbfe8}
+.chips .v{background:#dc1a70;color:#fff}
 .dt{font-size:11px;color:#a58bd0}
 .it .chips{height:auto;white-space:normal;margin:6px 0}
 .it .chips a,.it .chips span{margin:0 4px 4px 0}
 .raw{display:none}
-.emp{padding:20px 12px;text-align:center;color:var(--mu)}
-.pg{overflow:hidden;margin-top:8px;padding:10px 12px;background:var(--bar);color:var(--or);font-weight:700}
+.emp{padding:20px 12px;text-align:center;color:#cdbfe8}
+.pg{overflow:hidden;margin-top:8px;padding:10px 12px;background:#140729;color:#ff7a1a;font-weight:700}
 .pg a{float:left}
 .pg a.o{float:right}
 /* huy hieu the (VH, MOD, 3D, VN...) va luot tai */
@@ -81,29 +80,29 @@ h1,h2,h3{margin:0}
 .dlc{position:absolute;right:5px;bottom:5px;font-size:10px;line-height:1.6;padding:0 6px;border-radius:8px;background:rgba(0,0,0,.72);color:#fff}
 /* menu tha xuong (the loai tu API; khong co JS thi menu van la link nhan) */
 .nav .cr{margin-left:3px;font-size:11px}
-.dd{display:none;background:var(--bar);border-top:1px solid var(--ln);border-bottom:2px solid var(--sel1)}
+.dd{display:none;background:#140729;border-top:1px solid #3a1a66;border-bottom:2px solid #cc580c}
 .dd.on{display:block}
 .dd-in{overflow:hidden}
-.dd a{float:left;width:50%;padding:9px 12px;font-size:13px;line-height:1.3;border-bottom:1px solid var(--ln)}
-.dd a:hover{background:var(--r2);color:var(--or)}
-.dd a.all{width:100%;font-weight:700;color:var(--or)}
-.dd a span{color:var(--mu);font-size:11px;margin-left:3px}
-.dd p{margin:0;padding:9px 12px;color:var(--mu);font-size:13px}
+.dd a{float:left;width:50%;padding:9px 12px;font-size:13px;line-height:1.3;border-bottom:1px solid #3a1a66}
+.dd a:hover{background:#290f4f;color:#ff7a1a}
+.dd a.all{width:100%;font-weight:700;color:#ff7a1a}
+.dd a span{color:#cdbfe8;font-size:11px;margin-left:3px}
+.dd p{margin:0;padding:9px 12px;color:#cdbfe8;font-size:13px}
 /* trang Xep hang */
 .it.rkp{padding:12px 0}
 .it.rkp .pt{padding:0 12px 10px}
 .rk .nj{padding:20px 12px}
-.rk .nj a{color:var(--or);text-decoration:underline}
+.rk .nj a{color:#ff7a1a;text-decoration:underline}
 .js .rk .nj{display:none}
 .rk .tabs{overflow:hidden}
-.rk .tabs a{float:left;width:20%;padding:9px 1px;text-align:center;font-size:12px;line-height:1.2;background:var(--r1);border-bottom:2px solid var(--ln)}
-.rk .tabs a:nth-child(even){background:var(--r2)}
-.rk .tabs a.on{background:var(--sel2);border-bottom-color:var(--or);font-weight:700}
+.rk .tabs a{float:left;width:20%;padding:9px 1px;text-align:center;font-size:12px;line-height:1.2;background:#250e48;border-bottom:2px solid #3a1a66}
+.rk .tabs a:nth-child(even){background:#290f4f}
+.rk .tabs a.on{background:#b44606;border-bottom-color:#ff7a1a;font-weight:700}
 .rk .fl{padding:8px 12px 0;overflow:hidden}
-.rk .fl b{display:block;font-size:11px;font-weight:400;color:var(--mu);margin-bottom:3px}
-.rk .fb{display:inline-block;margin:0 4px 6px 0;padding:0 10px;line-height:26px;font-size:12px;border-radius:13px;background:#3b1a6b;color:var(--mu)}
-.rk .fb.on{background:var(--or);color:#1b0a38;font-weight:700}
-.rk .emp a{color:var(--or);text-decoration:underline}
+.rk .fl b{display:block;font-size:11px;font-weight:400;color:#cdbfe8;margin-bottom:3px}
+.rk .fb{display:inline-block;margin:0 4px 6px 0;padding:0 10px;line-height:26px;font-size:12px;border-radius:13px;background:#3b1a6b;color:#cdbfe8}
+.rk .fb.on{background:#ff7a1a;color:#1b0a38;font-weight:700}
+.rk .emp a{color:#ff7a1a;text-decoration:underline}
 .it .rk .chips{height:19px;white-space:nowrap;margin:3px 0 0}
 .it .rk .chips a,.it .rk .chips span{margin:0 3px 0 0}
 .rkn{position:absolute;left:5px;top:5px;min-width:26px;height:26px;padding:0 5px;line-height:26px;text-align:center;border-radius:13px;font-size:13px;font-weight:700;background:#3b1a6b;color:#fff;border:1px solid #8f78bd}
@@ -111,31 +110,31 @@ h1,h2,h3{margin:0}
 .rkn.r2{background:#dde1e7;color:#14161a;border-color:#fff}
 .rkn.r3{background:#e0954f;color:#1c0d00;border-color:#ffd9b0}
 /* item */
-.it{background:var(--r1);padding:12px}
+.it{background:#250e48;padding:12px}
 .pt{font-size:22px;line-height:1.25}
 .pb{margin-top:10px;word-wrap:break-word;overflow-wrap:break-word}
-.pb a{color:var(--or);text-decoration:underline}
+.pb a{color:#ff7a1a;text-decoration:underline}
 .pb img{border-radius:4px}
-.dlbox{margin:8px 0 14px;padding:10px;background:var(--r2);border:1px solid var(--ln);border-radius:6px;overflow:hidden}
+.dlbox{margin:8px 0 14px;padding:10px;background:#290f4f;border:1px solid #3a1a66;border-radius:6px;overflow:hidden}
 .gic{float:right;margin:0 0 6px 10px;border-radius:12px;image-rendering:pixelated;background:#3b1a6b}
 .info{border-collapse:collapse;width:100%;margin-bottom:10px}
-.info th{width:38%;text-align:left;color:var(--mu);font-weight:400;padding:3px 0}
+.info th{width:38%;text-align:left;color:#cdbfe8;font-weight:400;padding:3px 0}
 .info td{padding:3px 0}
-.pb a.dlbtn{display:block;text-align:center;padding:12px;border-radius:6px;background:linear-gradient(var(--sel1),var(--sel2));color:#fff;font-weight:700;font-size:16px;text-decoration:none}
+.pb a.dlbtn{display:block;text-align:center;padding:12px;border-radius:6px;background:#cc580c;background:linear-gradient(#cc580c,#b44606);color:#fff;font-weight:700;font-size:16px;text-decoration:none}
 .pb a.dlbtn:hover{filter:brightness(1.15)}
 .nojs pre.mk-meta{display:block;white-space:pre-wrap;font:12px monospace;background:#1f0b3d;padding:8px;border-radius:4px}
 pre.mk-meta{display:none}
 /* widgets, footer */
 .widget{margin:0 0 12px}
 .widget ul{list-style:none;margin:0;padding:0}
-.widget li{display:flex;justify-content:space-between;gap:8px;padding:9px 12px;background:var(--r1);border-bottom:1px solid var(--ln)}
-.widget li:nth-child(even){background:var(--r2)}
-.widget li a:hover{color:var(--or)}
-.widget li span{color:var(--mu);font-size:12px}
-.ft{background:var(--bar);margin-top:12px;padding:12px;text-align:center;color:var(--mu);font-size:12px}
+.widget li{display:flex;justify-content:space-between;gap:8px;overflow:hidden;padding:9px 12px;background:#250e48;border-bottom:1px solid #3a1a66}
+.widget li:nth-child(even){background:#290f4f}
+.widget li a:hover{color:#ff7a1a}
+.widget li span{float:right;color:#cdbfe8;font-size:12px}
+.ft{background:#140729;margin-top:12px;padding:12px;text-align:center;color:#cdbfe8;font-size:12px}
 .ft a{text-decoration:underline}
 .ft .widget{margin:0}
-.ft .widget li{background:none;border:0;justify-content:center;padding:2px}
+.ft .widget li{text-align:center;background:none;border:0;justify-content:center;padding:2px}
 /* tablet: 3 o moi hang */
 @media (min-width:600px){
 .cols{padding:12px}
@@ -145,7 +144,7 @@ pre.mk-meta{display:none}
 }
 /* PC: header gon mot hang (logo + menu + tim kiem), banner dau trang chuyen xuong cot noi dung, 4 o moi hang */
 @media (min-width:900px){
-.top{position:sticky;top:0;z-index:10;background:linear-gradient(90deg,var(--hd1),var(--hd2));box-shadow:0 2px 10px rgba(0,0,0,.45)}
+.top{position:sticky;top:0;z-index:10;background:#2b0f4f;background:linear-gradient(90deg,#2b0f4f,#4c1466);box-shadow:0 2px 10px rgba(0,0,0,.45)}
 .top-in{max-width:1080px;margin:0 auto;padding:0 12px;height:52px;display:flex;align-items:center}
 .hd{background:none;overflow:visible;flex:none}
 .hd-in{padding:0}
@@ -157,7 +156,7 @@ pre.mk-meta{display:none}
 .nav{background:none;overflow:visible;display:flex}
 .nav a{float:none;width:auto;display:flex;align-items:center;padding:7px 13px;margin-right:2px;font-size:14px;background:none;border:0;border-radius:6px;text-align:left}
 .nav a:nth-child(even){background:none}
-.nav a.on,.nav a:hover{background:linear-gradient(var(--sel1),var(--sel2))}
+.nav a.on,.nav a:hover{background:#cc580c;background:linear-gradient(#cc580c,#b44606)}
 .nav svg{display:inline-block;margin:0 7px 0 0;width:18px;height:18px}
 .sf{margin-left:auto;padding:0;background:none;width:250px}
 .dd{position:absolute;left:0;right:0;top:100%;box-shadow:0 8px 14px rgba(0,0,0,.5)}
@@ -168,7 +167,7 @@ pre.mk-meta{display:none}
 .it.rkp .pt{padding:0 18px 10px}
 .it.rkp .rk .fl{padding:8px 18px 0}
 .sf input{padding:6px 10px}
-.sf button{padding:6px 12px}
+.sf button{float:right;padding:6px 12px}
 .cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;padding:12px;align-items:start}
 .bn-top2.on{display:block!important;max-width:520px;margin:0 0 12px}
 .gc{width:25%}
