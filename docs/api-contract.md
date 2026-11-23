@@ -66,7 +66,7 @@ Nguồn chuẩn danh mục: `catalog/taxonomy.json` (id thể loại: game 10–
 ### Key danh sách (cho `/v1/l/`, `/v1/l2/`, `/v1/list.json`)
 `<base>(.<mod>)*` với:
 - base: `new` (theo ngày đăng) · `upd` (mới cập nhật) · `hot` · `dl` (tải nhiều từ trước đến nay) · `top1` (hôm nay) · `top7` (tuần) · `app` · `game` · `c<catId>` · `i<itemId>`
-- mod: `new|upd|hot|dl|top1|top7` (đổi cách xếp, dùng sau `app`/`game`/`c<id>`), `p<bit>` (lọc nền tảng, bit 1 j2me, 2 s60v2, 4 s60v3, 8 s60v5, 16 s3; mục chưa khai nền tảng coi là j2me), `r<W>x<H>` (lọc độ phân giải, mục chưa khai cỡ thì luôn khớp), `t<bit>` (phải có thẻ đó)
+- mod: `new|upd|hot|dl|top1|top7` (đổi cách xếp, dùng sau `app`/`game`/`c<id>`), `p<mask>` (lọc nền tảng, nhận mặt nạ nhiều bit: mục khớp nếu có BẤT KỲ bit nào, ví dụ `p30` = mọi S60/S^3; bit 1 j2me, 2 s60v2, 4 s60v3, 8 s60v5, 16 s3; mục chưa khai nền tảng coi là j2me), `r<W>x<H>` (lọc độ phân giải, mục chưa khai cỡ thì luôn khớp), `t<bit>` (phải có thẻ đó)
 - Ví dụ: `c12.top7`, `game.hot.p4`, `new.r240x320`, `dl.t2` (Việt hóa tải nhiều).
 - `hot`/`top1`/`top7` bỏ mục đang bị giữ (`hold`). Cache biên 60 giây theo đường dẫn.
 
@@ -79,8 +79,8 @@ Header: `int 0x4D4B4C32, ubyte ver=2, ushort total, ushort page, ubyte count`. M
 ### `GET /v1/list.json?key=<key>&page=0` (web)
 `{"total":N,"page":0,"items":[{"id":12,"title":"…","url":"<permalink Blogger>","cat":12,"catName":"Hành động","ver":"1.0","sizeKb":120,"price":0,"dl":340,"d7":25,"tags":["vh","3d"],"plat":["j2me"],"flags":9,"icon":"/v1/ic/12-64.png","shot":"/v1/sc/12-240x320.jpg","pos":0}]}`. 15 mục mỗi trang, CORS *, cache 60 giây. `icon`/`shot` rỗng nếu không có. `pos` = thứ hạng trong trang kết quả (từ 0).
 
-### `GET /v1/stats.json?ids=1,2,3` (web, tối đa 50 id)
-`{"1":{"dl":340,"d1":3,"d7":25}}`. Cache 60 giây. Id không có thì bỏ qua.
+### `GET /v1/stats.json?ids=1,2,3` hoặc `?paths=/2026/11/a.html,...` (web, mỗi loại tối đa 50)
+`{"1":{"id":1,"dl":340,"d1":3,"d7":25}}`; với `paths` khóa là pathname của bài. Cache 60 giây. Không có thì bỏ qua.
 
 ### `GET /v1/cats.json`
 `[{"id":10,"kind":1,"slug":"hanh-dong","name":"Hành động","count":7}]` chỉ danh mục có mục; web dùng dựng menu. Cache 300 giây.

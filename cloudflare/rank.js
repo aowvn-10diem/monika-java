@@ -245,12 +245,25 @@ export async function recompute(env, now = Date.now()) {
 }
 
 // ---------- endpoint phụ ----------
-export async function statsJson(env, ids) {
-  const list = [...new Set(String(ids || "").split(",").map((x) => parseInt(x, 10)).filter((x) => x > 0))].slice(0, 50);
+export async function statsJson(env, ids, paths) {
   const out = {};
+  const list = [...new Set(String(ids || "").split(",").map((x) => parseInt(x, 10)).filter((x) => x > 0))].slice(0, 50);
   if (list.length) {
     const rows = (await env.DB.prepare(`SELECT n,dl,d1,d7 FROM items WHERE n IN (${list.map(() => "?").join(",")})`).bind(...list).all()).results;
-    for (const r of rows) out[r.n] = { dl: r.dl, d1: r.d1, d7: r.d7 };
+    for (const r of rows) out[r.n] = { id: r.n, dl: r.dl, d1: r.d1, d7: r.d7 };
+  }
+  // ?paths=/2026/11/a.html,... (pathname của bài Blogger) -> khóa là chính pathname đó
+  const ps = [...new Set(String(paths || "").split(",").map((x) => x.trim()).filter((x) => /^\/[^\s?#]{1,200}$/.test(x)))].slice(0, 50);
+  if (ps.length) {
+    const base = String(env.BLOG_URL || "").replace(/\/+$/, "");
+    const alt = base.replace(/^https?:/i, (m) => (m.toLowerCase() === "https:" ? "http:" : "https:"));
+    const urls = [];
+    for (const x of ps) { urls.push(base + x); if (alt !== base) urls.push(alt + x); }
+    const rows = (await env.DB.prepare(`SELECT n,url,dl,d1,d7 FROM items WHERE url IN (${urls.map(() => "?").join(",")})`).bind(...urls).all()).results;
+    for (const r of rows) {
+      let pn = ""; try { pn = new URL(r.url).pathname; } catch (_) {}
+      if (pn) out[pn] = { id: r.n, dl: r.dl, d1: r.d1, d7: r.d7 };
+    }
   }
   return out;
 }

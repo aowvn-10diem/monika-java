@@ -383,7 +383,7 @@ export default {
         return await (m[1] === "l2" ? list2 : list)(env, q.where, q.binds, q.where.startsWith("i.n=?") ? 0 : page, await orderFor(env, q.sort));
       }
       if (p === "/v1/list.json") return await listJson(env, u.searchParams.get("key") || "new", Math.min(Math.max(parseInt(u.searchParams.get("page") || "0", 10) || 0, 0), 4000));
-      if (p === "/v1/stats.json") return jsonResp(await statsJson(env, u.searchParams.get("ids")));
+      if (p === "/v1/stats.json") return jsonResp(await statsJson(env, u.searchParams.get("ids"), u.searchParams.get("paths")));
       if (p === "/v1/cats.json") return jsonResp(await catsJson(env), 200, 300);
       if ((m = /^\/v1\/s\/([^/]*)\/(\d+)\.bin$/.exec(p))) {
         let key = "";
