@@ -47,6 +47,18 @@ final class DetailCanvas extends BaseCanvas {
         sb.append(Vi.tr("Phiên bản: ")).append(a.version).append('\n');
         sb.append(Vi.tr("Dung lượng: ")).append(a.sizeKb).append(" KB\n");
         sb.append(Vi.tr("Giá: ")).append(Vi.tr(a.isFree() ? "Miễn phí" : MonikaMidlet.money(a.price))).append('\n');
+        String dl = AppInfo.dlText(a.dl);
+        if (dl.length() > 0) {
+            sb.append(Vi.tr("Lượt tải: ")).append(dl).append('\n');
+        }
+        String[] tg = a.tagBadges(6);
+        if (tg.length > 0) {
+            sb.append(Vi.tr("Thẻ: "));
+            for (int i = 0; i < tg.length; i++) {
+                sb.append(i > 0 ? ", " : "").append(tg[i]);
+            }
+            sb.append('\n');
+        }
         if (catName != null && catName.length() > 0) {
             sb.append(Vi.tr("Thể loại: ")).append(catName).append('\n');
         }
@@ -164,7 +176,8 @@ final class DetailCanvas extends BaseCanvas {
         for (int i = 0; i < lines.length; i++) {
             if (y + lh >= textY && y < textY + viewH) {
                 boolean head = lines[i].startsWith(Vi.tr("Phiên bản: ")) || lines[i].startsWith(Vi.tr("Dung lượng: "))
-                    || lines[i].startsWith(Vi.tr("Giá: ")) || lines[i].startsWith(Vi.tr("Thể loại: "));
+                    || lines[i].startsWith(Vi.tr("Giá: ")) || lines[i].startsWith(Vi.tr("Thể loại: "))
+                    || lines[i].startsWith(Vi.tr("Lượt tải: ")) || lines[i].startsWith(Vi.tr("Thẻ: "));
                 g.setColor(head ? Theme.DIM : Theme.TEXT);
                 g.drawString(lines[i], 8, y, Graphics.TOP | Graphics.LEFT);
             }

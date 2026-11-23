@@ -12,7 +12,7 @@ import javax.microedition.rms.RecordStoreException;
 
 /**
  * Lưu trạng thái vào RMS: id thiết bị ngẫu nhiên (không dùng IMEI), chế độ chữ,
- * toàn màn hình, máy chủ tự chọn, danh sách yêu thích (đủ thông tin để mở offline),
+ * toàn màn hình, máy chủ tự chọn, lọc theo màn hình, danh sách yêu thích (đủ thông tin để mở offline),
  * cache vài trang đầu từ máy chủ.
  */
 final class Store {
@@ -29,6 +29,8 @@ final class Store {
     int fullscreen = 0;
     /** Máy chủ do người dùng nhập (rỗng = dùng máy chủ có sẵn trong JAR). */
     String server = "";
+    /** Chỉ hiện mục hợp màn hình máy (thêm hậu tố .r&lt;W&gt;x&lt;H&gt; khi gọi danh sách). Mặc định bật. */
+    boolean fitScreen = true;
 
     private Vector favs;
 
@@ -141,6 +143,9 @@ final class Store {
                 in.readUTF(); // bản 0.1: danh sách yêu thích dạng chuỗi, bỏ
             } else {
                 server = in.readUTF();
+                if (ver >= 3) {
+                    fitScreen = in.readUnsignedByte() != 0;
+                }
             }
             if (deviceId.length() == 0) {
                 newDeviceId();
@@ -161,11 +166,12 @@ final class Store {
         try {
             ByteArrayOutputStream bo = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(bo);
-            out.writeByte(2);
+            out.writeByte(3);
             out.writeByte(Vi.mode);
             out.writeByte(fullscreen);
             out.writeUTF(deviceId);
             out.writeUTF(server);
+            out.writeByte(fitScreen ? 1 : 0);
             byte[] b = bo.toByteArray();
             rs = RecordStore.openRecordStore(SETTINGS, true);
             if (rs.getNumRecords() == 0) {

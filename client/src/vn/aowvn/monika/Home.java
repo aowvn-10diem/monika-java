@@ -13,15 +13,22 @@ import java.io.IOException;
  * ubyte nCats, mỗi cat: ubyte id, UTF name, ushort count,
  * ubyte nBanners, mỗi banner: ubyte id, UTF alt, UTF link
  * </pre>
+ * Bản v2 (/v1/home2.bin): magic 0x4D4B4832 ("MKH2"), version 2, mỗi cat thêm ubyte kind (1 game, 2 app)
+ * ngay sau id. Bản v1 không có kind: đoán theo tên ("Trò chơi", "game" là game, còn lại là app).
  * Link banner: rỗng, "l:&lt;khóa danh sách&gt;" hoặc "g:&lt;id app&gt;".
  */
 final class Home {
     static final int MAGIC = 0x4D4B4831;
+    static final int MAGIC2 = 0x4D4B4832;
+    static final int KIND_GAME = 1;
+    static final int KIND_APP = 2;
 
     int newCount;
     String latest = "";
     String latestJar = "";
+    boolean v2;
     int[] catId = new int[0];
+    int[] catKind = new int[0];
     String[] catName = new String[0];
     int[] catCount = new int[0];
     int[] banId = new int[0];
@@ -31,24 +38,34 @@ final class Home {
     static Home parse(byte[] data) throws IOException {
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(data));
         try {
-            if (in.readInt() != MAGIC) {
+            int magic = in.readInt();
+            if (magic != MAGIC && magic != MAGIC2) {
                 throw new IOException("E14");
             }
-            if (in.readUnsignedByte() != 1) {
+            boolean two = magic == MAGIC2;
+            if (in.readUnsignedByte() != (two ? 2 : 1)) {
                 throw new IOException("E15");
             }
             Home h = new Home();
+            h.v2 = two;
             h.newCount = in.readUnsignedShort();
             h.latest = in.readUTF();
             h.latestJar = in.readUTF();
             int n = in.readUnsignedByte();
             h.catId = new int[n];
+            h.catKind = new int[n];
             h.catName = new String[n];
             h.catCount = new int[n];
             for (int i = 0; i < n; i++) {
                 h.catId[i] = in.readUnsignedByte();
+                if (two) {
+                    h.catKind[i] = in.readUnsignedByte() == KIND_GAME ? KIND_GAME : KIND_APP;
+                }
                 h.catName[i] = in.readUTF();
                 h.catCount[i] = in.readUnsignedShort();
+                if (!two) {
+                    h.catKind[i] = guessKind(h.catName[i]);
+                }
             }
             n = in.readUnsignedByte();
             h.banId = new int[n];
@@ -74,15 +91,33 @@ final class Home {
         Home h = new Home();
         int n = Catalog.CATEGORIES.length;
         h.catId = new int[n];
+        h.catKind = new int[n];
         h.catName = new String[n];
         h.catCount = new int[n];
         for (int i = 0; i < n; i++) {
             h.catId[i] = i;
+            h.catKind[i] = guessKind(Catalog.CATEGORIES[i]);
             h.catName[i] = Catalog.CATEGORIES[i];
             h.catCount[i] = c.byCategory(i).size();
         }
         h.newCount = c.updateCount();
         return h;
+    }
+
+    private static int guessKind(String name) {
+        String k = Vi.key(name);
+        return k.indexOf("choi") >= 0 || k.indexOf("game") >= 0 ? KIND_GAME : KIND_APP;
+    }
+
+    /** Tổng số mục các danh mục thuộc nhóm kind. */
+    int countOfKind(int kind) {
+        int n = 0;
+        for (int i = 0; i < catId.length; i++) {
+            if (catKind[i] == kind) {
+                n += catCount[i];
+            }
+        }
+        return n;
     }
 
     String nameOfCat(int id) {

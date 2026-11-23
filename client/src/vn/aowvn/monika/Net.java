@@ -10,7 +10,7 @@ import javax.microedition.io.HttpConnection;
  * Lớp mạng duy nhất: hậu tố kết nối (BlackBerry), thử lại 2 lần, mã lỗi ngắn.
  * Chỉ HTTP cổng 80. Phải gọi trên luồng riêng, không gọi trên luồng giao diện.
  *
- * Mã lỗi: E12 không vào được mạng, E13 máy chủ trả mã khác 200, E17 file quá lớn.
+ * Mã lỗi: E12 không vào được mạng, E13 máy chủ trả mã khác 200 (404 không thử lại), E17 file quá lớn.
  */
 final class Net {
     static final int TRIES = 3;
@@ -38,6 +38,9 @@ final class Net {
                 c.setRequestMethod(HttpConnection.GET);
                 c.setRequestProperty("User-Agent", ua);
                 int rc = c.getResponseCode();
+                if (rc == HttpConnection.HTTP_NOT_FOUND) {
+                    throw new IOException("E13N");
+                }
                 if (rc != HttpConnection.HTTP_OK) {
                     throw new IOException("E13");
                 }
@@ -47,6 +50,10 @@ final class Net {
                 String m = e.getMessage();
                 if ("E17".equals(m)) {
                     throw e;
+                }
+                if ("E13N".equals(m)) {
+                    // 404: thử lại vô ích (máy chủ chưa có endpoint này), báo E13 ngay
+                    throw new IOException("E13");
                 }
                 last = "E13".equals(m) ? e : new IOException("E12");
             } catch (SecurityException e) {

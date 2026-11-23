@@ -9,8 +9,8 @@ import javax.microedition.lcdui.Graphics;
 import javax.microedition.lcdui.Image;
 
 /**
- * Danh sách có phân trang vẽ theo ngôn ngữ giao diện web: thanh tiêu đề tím, tab Mới / Hot / Tải nhiều,
- * huy hiệu MỚI / HOT, "Trang sau" ở cuối.
+ * Danh sách có phân trang vẽ theo ngôn ngữ giao diện web: thanh tiêu đề tím, tab Mới / Hot / Hôm nay / Tuần /
+ * Tải nhiều, huy hiệu MỚI / HOT, thẻ (VH, MOD...), số lượt tải, hạng 1-2-3, "Trang sau" ở cuối.
  *
  * Màn rộng từ 170 px (trừ danh mục): lưới 2 cột (3 cột từ 420 px), mỗi ô có ảnh minh họa của game, icon, tên,
  * dung lượng; chiều cao ô chia sao cho mỗi màn hình hiện đúng số hàng nguyên (E72 320x240: một hàng = 2 game
@@ -32,10 +32,16 @@ final class ListCanvas extends BaseCanvas {
     final Object token = new Object();
     /** Khóa danh sách hiện tại (app, game, new, c3, s:abc...). */
     String key = "";
+    /** Khóa gửi máy chủ (key + hậu tố lọc màn hình); đổi sang key nếu bộ lọc cho kết quả rỗng. */
+    String reqKey = "";
+    /** Danh mục: 0 = cấp 1 (nhóm), 1 = thể loại game, 2 = thể loại app. */
+    int group;
     /** 0 = danh sách app, 1 = danh mục, 2 = yêu thích (cục bộ, không phân trang). */
     int kind;
     String title = "";
     String[] tabLabels;
+    /** Nhãn tab ngắn dùng khi nhãn đầy đủ không vừa bề ngang (máy hẹp); null = không có. */
+    String[] tabShort;
     String[] tabKeys;
     int tab;
     int state = LOADING;
@@ -59,6 +65,8 @@ final class ListCanvas extends BaseCanvas {
     private Image[] scaled = new Image[0];
     private int[] scaledPx = new int[0];
     private boolean showIcons;
+    /** True nếu đây là trang đầu của bảng xếp hạng (top1/top7/dl/hot): 3 mục đầu có huy hiệu hạng. */
+    private boolean ranked;
     private int iconPx;
 
     // lưới ảnh
@@ -159,6 +167,7 @@ final class ListCanvas extends BaseCanvas {
             }
         }
         this.page = page;
+        ranked = kind == 0 && page == 0 && rankKey(key);
         this.pages = perPage <= 0 || total <= 0 ? 1 : (total + perPage - 1) / perPage;
         hasPrev = page > 0;
         hasNext = perPage > 0 && (page + 1) * perPage < total;
@@ -169,6 +178,29 @@ final class ListCanvas extends BaseCanvas {
         }
         top = 0;
         repaint();
+    }
+
+    /** Khóa xếp hạng: lần đổi cách xếp cuối cùng (base hoặc mod) là top1, top7, dl hoặc hot. */
+    static boolean rankKey(String key) {
+        if (key == null || key.startsWith("s:")) {
+            return false;
+        }
+        boolean r = false;
+        int pos = 0;
+        while (pos <= key.length()) {
+            int dot = key.indexOf('.', pos);
+            String part = dot < 0 ? key.substring(pos) : key.substring(pos, dot);
+            if ("top1".equals(part) || "top7".equals(part) || "dl".equals(part) || "hot".equals(part)) {
+                r = true;
+            } else if ("new".equals(part) || "upd".equals(part)) {
+                r = false;
+            }
+            if (dot < 0) {
+                break;
+            }
+            pos = dot + 1;
+        }
+        return r;
     }
 
     /** Nhận icon đã tải của mục k (thread an toàn: chỉ gán tham chiếu rồi vẽ lại). */
@@ -547,22 +579,54 @@ final class ListCanvas extends BaseCanvas {
         }
     }
 
+    /** 0 = nhãn đầy đủ vừa, 1 = nhãn ngắn vừa, 2 = chỉ hiện tab đang chọn giữa hai mũi tên (máy rất hẹp). */
+    private int tabMode(int w) {
+        Font fs = Theme.small();
+        int n = tabLabels.length;
+        int tw = w / n - 4;
+        boolean longOk = true;
+        boolean shortOk = tabShort != null && tabShort.length == n;
+        for (int i = 0; i < n; i++) {
+            if (fs.stringWidth(Vi.tr(tabLabels[i])) > tw) {
+                longOk = false;
+            }
+            if (shortOk && fs.stringWidth(Vi.tr(tabShort[i])) > tw) {
+                shortOk = false;
+            }
+        }
+        return longOk ? 0 : shortOk ? 1 : 2;
+    }
+
     private void paintTabs(Graphics g, int w, int y) {
         Font fs = Theme.small();
         int n = tabLabels.length;
-        int tw = w / n;
+        int mode = tabMode(w);
         g.setColor(Theme.BAR_BG);
         g.fillRect(0, y, w, tabH);
-        for (int i = 0; i < n; i++) {
-            int x = i * tw;
-            boolean on = i == tab;
-            if (on) {
-                Theme.vgradient(g, x, y, tw, tabH, Theme.SEL_A, Theme.SEL_B);
-            }
+        if (mode == 2) {
+            String lab = fit(fs, Vi.tr(tabLabels[tab]), w - 40);
+            int lw = fs.stringWidth(lab) + 14;
+            Theme.vgradient(g, (w - lw) / 2, y, lw, tabH, Theme.SEL_A, Theme.SEL_B);
             g.setFont(fs);
-            g.setColor(on ? Theme.TEXT : Theme.DIM);
-            g.drawString(fit(fs, Vi.tr(tabLabels[i]), tw - 4), x + tw / 2,
-                y + (tabH - fs.getHeight()) / 2, Graphics.TOP | Graphics.HCENTER);
+            g.setColor(Theme.TEXT);
+            g.drawString(lab, w / 2, y + (tabH - fs.getHeight()) / 2, Graphics.TOP | Graphics.HCENTER);
+            int cy = y + tabH / 2;
+            g.setColor(Theme.ORANGE);
+            g.fillTriangle(8, cy, 14, cy - 4, 14, cy + 4);
+            g.fillTriangle(w - 9, cy, w - 15, cy - 4, w - 15, cy + 4);
+        } else {
+            int tw = w / n;
+            for (int i = 0; i < n; i++) {
+                int x = i * tw;
+                boolean on = i == tab;
+                if (on) {
+                    Theme.vgradient(g, x, y, tw, tabH, Theme.SEL_A, Theme.SEL_B);
+                }
+                g.setFont(fs);
+                g.setColor(on ? Theme.TEXT : Theme.DIM);
+                g.drawString(fit(fs, Vi.tr(mode == 1 ? tabShort[i] : tabLabels[i]), tw - 4), x + tw / 2,
+                    y + (tabH - fs.getHeight()) / 2, Graphics.TOP | Graphics.HCENTER);
+            }
         }
         g.setColor(Theme.LINE);
         g.drawLine(0, y + tabH - 1, w - 1, y + tabH - 1);
@@ -679,7 +743,9 @@ final class ListCanvas extends BaseCanvas {
         g.setClip(0, y0, paintW, areaH);
         // số bấm nhanh (trái trên) và huy hiệu (phải trên)
         int bh = fs.getHeight();
-        if (k < 9) {
+        if (ranked && k < 3) {
+            medal(g, tx + 3 + (bh + 4) / 2, ty + 3 + bh / 2, bh + 4, k + 1);
+        } else if (k < 9) {
             g.setColor(Theme.BAR_BG);
             g.fillRoundRect(tx + 3, ty + 3, bh, bh, 6, 6);
             g.setFont(fs);
@@ -688,12 +754,37 @@ final class ListCanvas extends BaseCanvas {
         }
         int bcy = ty + 3 + bh / 2;
         int bright = tx + thW - 3;
+        boolean flagged = true;
         if ((flags[k] & AppInfo.F_HOT) != 0) {
             pill(g, fs, "HOT", bright, bcy, Theme.SEL_B);
         } else if ((flags[k] & AppInfo.F_NEW) != 0) {
             pill(g, fs, Vi.tr("MỚI"), bright, bcy, Theme.PINK_D);
         } else if ((flags[k] & AppInfo.F_UPDATE) != 0) {
             pill(g, fs, Vi.tr("CẬP NHẬT"), bright, bcy, Theme.PINK_D);
+        } else {
+            flagged = false;
+        }
+        AppInfo ai = k < items.size() ? (AppInfo) items.elementAt(k) : null;
+        if (ai != null) {
+            // huy hiệu thẻ (tối đa 2: VH, MOD trước): hàng dưới cờ HOT/MỚI, hoặc hàng trên nếu không có cờ
+            String[] tg = ai.tagBadges(2);
+            int ry = flagged ? bcy + bh + 2 : bcy;
+            int rr = bright;
+            int lim = flagged ? tx + 3 : tx + 3 + bh + 6;
+            if (ry + bh / 2 <= ty + thH - 3) {
+                for (int i = tg.length - 1; i >= 0; i--) {
+                    int bw = Math.max(fs.stringWidth(tg[i]) + 8, bh);
+                    if (rr - bw < lim) {
+                        break;
+                    }
+                    pill(g, fs, tg[i], rr, ry, tagColor(tg[i]));
+                    rr -= bw + 2;
+                }
+            }
+            String dt = AppInfo.dlText(ai.dl);
+            if (dt.length() > 0 && thH >= bh + 8) {
+                dlPill(g, fs, dt, tx + thW - 3, ty + thH - 3);
+            }
         }
         // tên (1-2 dòng) và dung lượng
         int maxW = cellW - 8;
@@ -766,12 +857,15 @@ final class ListCanvas extends BaseCanvas {
         }
         // số thứ tự bấm nhanh
         int x = 6;
-        if (k < 9) {
+        int md = ranked ? Math.min(f.getHeight(), rowH - 4) : 0;
+        if (ranked && k < 3) {
+            medal(g, x + md / 2, cy, md, k + 1);
+        } else if (k < 9) {
             g.setColor(on ? Theme.TEXT : Theme.ORANGE);
             String n = Integer.toString(k + 1);
             g.drawString(n, x, cy - f.getHeight() / 2, Graphics.TOP | Graphics.LEFT);
         }
-        x += f.stringWidth("9") + 6;
+        x += (ranked ? md : f.stringWidth("9")) + 6;
         if (iconPx > 0) {
             paintIcon(g, k, x, cy - iconPx / 2, f);
             x += iconPx + 6;
@@ -1049,7 +1143,7 @@ final class ListCanvas extends BaseCanvas {
         }
         if (tabH > 0 && y >= hh && y < y0) {
             int n = tabLabels.length;
-            int t = Math.min(n - 1, x * n / w);
+            int t = tabMode(w) == 2 ? (x < w / 2 ? (tab + n - 1) % n : (tab + 1) % n) : Math.min(n - 1, x * n / w);
             if (t != tab) {
                 app.listTab(this, t);
             }

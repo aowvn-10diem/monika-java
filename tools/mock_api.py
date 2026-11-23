@@ -2,7 +2,10 @@
 """Máy chủ giả lập API Monika (xem docs/api-contract.md) để thử app mà không cần Cloudflare.
 
 Chạy: python3 tools/mock_api.py [cổng]   (mặc định 8081). Dữ liệu sinh ngẫu nhiên có dấu.
+Có cả v1 (/v1/home.bin, /v1/l/) và v2 (/v1/home2.bin, /v1/l2/ với dl, tags, plat, danh mục chuẩn 10-39).
+MOCK_V1_ONLY=1 python3 tools/mock_api.py: giả lập Worker cũ (endpoint v2 trả 404) để thử chế độ tương thích.
 """
+import os
 import struct
 import sys
 import urllib.parse
@@ -39,6 +42,99 @@ for it in ITEMS:
         it["flags"] |= 16  # có icon: GET /v1/ic/<id>-32.png
     if it["id"] % 3 != 0:
         it["flags"] |= 32  # có ảnh minh họa: GET /v1/sc/<id>-<w>x<h>.jpg
+
+
+# ---- v2: danh mục chuẩn (rút gọn từ catalog/taxonomy.json), dl, tags, plat, độ phân giải ----
+CATS2 = [(10, 1, "Hành động"), (11, 1, "Phiêu lưu"), (12, 1, "Nhập vai"), (14, 1, "Đua xe"), (15, 1, "Thể thao"),
+         (16, 1, "Bắn súng"), (18, 1, "Giải đố & trí tuệ"), (19, 1, "Arcade & chạy nhảy"), (21, 1, "Cờ & bài"),
+         (23, 1, "Khác"), (30, 2, "Mạng & trình duyệt"), (31, 2, "Chat & mạng xã hội"), (32, 2, "Đọc sách & truyện"),
+         (33, 2, "Nhạc & video"), (34, 2, "Văn phòng & học tập"), (35, 2, "Công cụ hệ thống"), (39, 2, "Khác")]
+GAME_CATS = [12, 12, 10, 14, 16, 18, 21, 12, 19, 15, 11, 23]
+APP_CATS = [30, 31, 32, 33, 34, 35, 39]
+DLS = [0, 3, 5, 7, 42, 120, 999, 1000, 1234, 5600, 12345, 987]
+TAGS = [1, 2, 4, 2 | 8, 4 | 16, 1 | 128, 2 | 4 | 8, 32, 64 | 16, 8, 2 | 32 | 64, 4 | 128]
+RES = [["240x320"], ["240x320", "320x240"], [], ["176x208", "128x160"]]
+for n, it in enumerate(ITEMS):
+    k = it["id"]
+    it["cat2"] = GAME_CATS[n % len(GAME_CATS)] if it["cat"] == 1 else APP_CATS[n % len(APP_CATS)]
+    it["dl"] = DLS[(k * 7) % len(DLS)]
+    if it["dl"] >= 5:
+        it["dl"] += k % 7 * 37
+    it["d1"] = (k * 37) % 23
+    it["d7"] = (k * 53) % 91
+    it["tags"] = TAGS[(k * 5) % len(TAGS)]
+    it["plat"] = [1, 1 | 4, 4, 1 | 2 | 4, 8 | 16][k % 5]
+    it["res"] = RES[k % 4]
+    it["seq"] = n
+
+
+def item_bytes2(it):
+    return (struct.pack(">iBBHiiHB", it["id"], it["cat2"], it["flags"], it["kb"], it["price"], it["dl"],
+                        it["tags"], it["plat"])
+            + utf(it["ver"]) + utf(it["name"]) + utf(it["desc"]) + utf(it["path"]))
+
+
+def select2(key):
+    """Khóa v2: base + mod (.new .upd .hot .dl .top1 .top7 .p<bit> .r<WxH> .t<bit>), xem docs/api-contract.md."""
+    parts = key.split(".")
+    base, mods = parts[0], parts[1:]
+    items = list(ITEMS)
+    sort = "new"
+    if base in ("new", "upd", "hot", "dl", "top1", "top7"):
+        sort = base
+    elif base == "app":
+        items = [i for i in items if i["cat"] != 1]
+    elif base == "game":
+        items = [i for i in items if i["cat"] == 1]
+    elif base[:1] == "c" and base[1:].isdigit():
+        items = [i for i in items if i["cat2"] == int(base[1:])]
+    elif base[:1] == "i" and base[1:].isdigit():
+        return [i for i in items if i["id"] == int(base[1:])]
+    else:
+        return None
+    for m in mods:
+        if m in ("new", "upd", "hot", "dl", "top1", "top7"):
+            sort = m
+        elif m[:1] == "p" and m[1:].isdigit():
+            bit = int(m[1:])
+            items = [i for i in items if i["plat"] & bit]
+        elif m[:1] == "t" and m[1:].isdigit():
+            bit = int(m[1:])
+            items = [i for i in items if i["tags"] & bit]
+        elif m[:1] == "r" and "x" in m[1:]:
+            items = [i for i in items if not i["res"] or m[1:] in i["res"]]
+        else:
+            return None
+    if sort == "hot":
+        items.sort(key=lambda i: (-(1 if i["flags"] & 8 else 0), -i["d7"]))
+    elif sort == "top1":
+        items.sort(key=lambda i: -i["d1"])
+    elif sort == "top7":
+        items.sort(key=lambda i: -i["d7"])
+    elif sort == "dl":
+        items.sort(key=lambda i: -i["dl"])
+    else:
+        items.sort(key=lambda i: -i["seq"])
+    return items
+
+
+def page_bytes2(items, page):
+    sl = items[page * PAGE:(page + 1) * PAGE]
+    return (struct.pack(">IBHHB", 0x4D4B4C32, 2, len(items), page, len(sl)) + b"".join(item_bytes2(i) for i in sl))
+
+
+def home2_bytes():
+    new = len([i for i in ITEMS if i["flags"] & 3])
+    cats = [(cid, kind, name, len([i for i in ITEMS if i["cat2"] == cid])) for cid, kind, name in CATS2]
+    cats = [c for c in cats if c[3] > 0]
+    out = struct.pack(">IBH", 0x4D4B4832, 2, new) + utf("0.4.0") + utf("") + struct.pack(">B", len(cats))
+    for cid, kind, name, cnt in cats:
+        out += struct.pack(">BB", cid, kind) + utf(name) + struct.pack(">H", cnt)
+    banners = [(1, "Monika - kho game Java", "l:hot"), (2, "Game mới mỗi ngày", "g:200")]
+    out += struct.pack(">B", len(banners))
+    for bid, alt, link in banners:
+        out += struct.pack(">B", bid) + utf(alt) + utf(link)
+    return out
 
 
 def item_bytes(it):
@@ -139,7 +235,15 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         p = urllib.parse.urlparse(self.path).path
         body, ctype = None, "application/octet-stream"
-        if p == "/v1/home.bin":
+        v2ok = not os.environ.get("MOCK_V1_ONLY")
+        if p == "/v1/home2.bin" and v2ok:
+            body = home2_bytes()
+        elif p.startswith("/v1/l2/") and p.endswith(".bin") and v2ok:
+            key, pg = p[7:-4].split("/")
+            items = select2(key)
+            if items is not None:
+                body = page_bytes2(items, int(pg))
+        elif p == "/v1/home.bin":
             body = home_bytes()
         elif p.startswith("/v1/l/") and p.endswith(".bin"):
             key, pg = p[6:-4].split("/")
