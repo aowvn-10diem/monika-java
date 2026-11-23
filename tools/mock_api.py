@@ -37,6 +37,8 @@ for it in ITEMS:
     it["path"] = "/v1/j/%d.jad" % it["id"]
     if it["id"] % 2 == 0:
         it["flags"] |= 16  # có icon: GET /v1/ic/<id>-32.png
+    if it["id"] % 3 != 0:
+        it["flags"] |= 32  # có ảnh minh họa: GET /v1/sc/<id>-<w>x<h>.jpg
 
 
 def item_bytes(it):
@@ -108,6 +110,27 @@ def png(w, h, c1, c2):
             + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
 
 
+def shot(iid, w, h):
+    """Ảnh minh họa JPEG w x h. Có Pillow thì vẽ hình + tên game, không thì trả PNG chuyển sắc (app nhận cả hai)."""
+    try:
+        import io
+        import random
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return png(w, h, (30 + iid * 7 % 120, 40 + iid * 13 % 120, 80 + iid * 29 % 140), (255, 160, 60)), "image/png"
+    rnd = random.Random(iid)
+    im = Image.new("RGB", (w, h), tuple(rnd.randint(20, 110) for _ in range(3)))
+    d = ImageDraw.Draw(im)
+    for _ in range(10):
+        x, y, r = rnd.randint(0, w), rnd.randint(0, h), rnd.randint(w // 12, w // 3)
+        d.ellipse([x - r, y - r, x + r, y + r], fill=tuple(rnd.randint(60, 255) for _ in range(3)))
+    name = next((i["name"] for i in ITEMS if i["id"] == iid), "")
+    d.text((4, 4), "".join(c for c in strip(name) if c.isascii()), fill=(255, 255, 255))
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=70)
+    return buf.getvalue(), "image/jpeg"
+
+
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
         p = urllib.parse.urlparse(self.path).path
@@ -132,6 +155,10 @@ class H(BaseHTTPRequestHandler):
             iid = int(p[7:-7])
             body = png(32, 32, (40 + iid * 7 % 180, 60 + iid * 13 % 160, 90 + iid * 29 % 140), (255, 200, 60))
             ctype = "image/png"
+        elif p.startswith("/v1/sc/") and p.endswith(".jpg"):
+            iid, size = p[7:-4].split("-")
+            w, h = size.split("x")
+            body, ctype = shot(int(iid), int(w), int(h))
         elif p.startswith("/v1/j/") and p.endswith(".jad"):
             iid = p[6:-4]
             host = self.headers.get("Host", "localhost")

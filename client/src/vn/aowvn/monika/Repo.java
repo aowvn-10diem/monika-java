@@ -26,6 +26,7 @@ final class Repo implements Runnable {
         Object group;
         Callback cb;
         boolean cancelled;
+        boolean urgent;
     }
 
     private final Store store;
@@ -104,6 +105,11 @@ final class Repo implements Runnable {
         enqueue(K_IMAGE, path, 0, tag, group, cb);
     }
 
+    /** Như {@link #image(String, Object, Object, Callback)} nhưng đứng trước các ảnh thường đang chờ (ảnh đang hiện trên màn). */
+    void imageFirst(String path, Object tag, Object group, Callback cb) {
+        enqueue(K_IMAGE, path, 0, tag, group, cb, true);
+    }
+
     void cancel(Object tag) {
         synchronized (queue) {
             for (int i = 0; i < queue.size(); i++) {
@@ -116,7 +122,12 @@ final class Repo implements Runnable {
     }
 
     private void enqueue(int kind, String key, int page, Object tag, Object group, Callback cb) {
+        enqueue(kind, key, page, tag, group, cb, false);
+    }
+
+    private void enqueue(int kind, String key, int page, Object tag, Object group, Callback cb, boolean urgent) {
         Req r = new Req();
+        r.urgent = urgent;
         r.kind = kind;
         r.key = key;
         r.page = page;
@@ -124,8 +135,18 @@ final class Repo implements Runnable {
         r.group = group;
         r.cb = cb;
         synchronized (queue) {
-            if (kind == K_IMAGE) {
+            if (kind == K_IMAGE && !urgent) {
                 queue.addElement(r);
+            } else if (kind == K_IMAGE) {
+                int at = queue.size();
+                for (int i = 0; i < queue.size(); i++) {
+                    Req q = (Req) queue.elementAt(i);
+                    if (q.kind == K_IMAGE && !q.urgent) {
+                        at = i;
+                        break;
+                    }
+                }
+                queue.insertElementAt(r, at);
             } else {
                 // yêu cầu của người dùng đi trước ảnh đang chờ (icon, banner)
                 int at = queue.size();

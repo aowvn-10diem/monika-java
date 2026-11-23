@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS items (
   sweep INTEGER DEFAULT 0,
   jad_text TEXT,
   jar_size INTEGER,
+  img TEXT,           -- ảnh minh họa (URL), app lấy qua /v1/sc/<id>-<w>x<h>.jpg
   file_h TEXT,        -- files.k nếu JAR nằm trong kho của Monika
   ic32 TEXT, ic64 TEXT, icon_state INTEGER -- icon từ JAR ở link ngoài; icon_state: NULL chưa thử, 1 ok, 2 không có, 3 đang thử
 );

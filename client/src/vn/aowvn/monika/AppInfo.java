@@ -12,6 +12,8 @@ final class AppInfo {
     static final int F_HOT = 8;
     /** Có icon: lấy ở /v1/ic/&lt;id&gt;-32.png. */
     static final int F_ICON = 16;
+    /** Có ảnh minh họa: lấy ở /v1/sc/&lt;id&gt;-&lt;w&gt;x&lt;h&gt;.jpg (cắt giữa đúng cỡ). */
+    static final int F_SHOT = 32;
 
     static final int CAT_GAME = 1;
 

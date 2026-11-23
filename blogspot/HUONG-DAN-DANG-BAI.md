@@ -31,7 +31,9 @@ desc: Mô tả ngắn hiện trong app (không bắt buộc)
 | `price` | giá, bỏ trống là miễn phí |
 | `desc` | mô tả ngắn cho app, bỏ trống thì cắt từ nội dung bài |
 
-Ảnh đầu tiên trong bài là icon nhỏ ở danh sách web (bài đăng bằng trang up file thì icon tự trích từ JAR, xem mục 6). App hiện icon ở danh sách khi bài có icon.
+**Ảnh minh họa** (hiện to ở ô lưới trang chủ, tìm kiếm, chuyên mục của web và app): ảnh đầu tiên trong bài **không phải icon Monika** (ảnh `/v1/fi/...` do trang up file tự thêm bị bỏ qua, ảnh khai width ≤ 80 cũng bỏ qua). Muốn chọn ảnh khác thì thêm dòng `img: https://...` vào khối `mk-meta`. Nên dùng ảnh chụp màn hình hoặc ảnh bìa tỉ lệ **4:3** (ví dụ 640×480), tải thẳng lên Blogspot (Google tự cắt giữa đúng cỡ cho web 200×150 / 256×192 và app, JPEG vài KB). Ảnh host ngoài Google vẫn hiện trên web, còn app nhận bản gốc nên cần dưới 48KB, quá thì app dùng icon thay.
+
+Icon nhỏ gắn vào góc ô là icon trích từ JAR (bài đăng bằng trang up file thì có sẵn, xem mục 6). Bài chưa có ảnh minh họa thì ô hiện nền gradient + icon lớn (hoặc chữ cái đầu).
 
 ## 2. Bài banner
 
@@ -74,7 +76,7 @@ jar: https://link-jar-monika
 
 1. Theme → mũi tên cạnh Customize → Edit HTML → xóa hết, dán nội dung `monika-blogspot-template.xml` → Save. Nếu Blogspot báo lỗi, gửi nguyên văn thông báo để sửa.
 2. Theme → bánh răng "Mobile" → chọn **No. Show desktop template on mobile devices** (template đã tự co giãn, không dùng bản mobile của Blogger).
-3. Settings → Posts: số bài hiện trên trang chính = 15. Settings → Blog feeds (Site feed) = **Full**.
+3. Settings → Posts: số bài hiện trên trang chính = **16** (lưới 4 cột trên PC, 2 cột trên điện thoại/Nokia đều chia hết). Settings → Blog feeds (Site feed) = **Full**.
 4. Settings → Custom domain: `m.justmonika.top`. DNS đã có bản ghi `m` → `ghs.google.com`. Blogspot sẽ đưa thêm một bản ghi CNAME xác minh riêng, gửi tôi hoặc tự thêm vào Cloudflare (để DNS only, đám mây xám).
 5. Tạo hai Page nếu muốn (Giới thiệu, Liên hệ), template tự hiển thị trang tĩnh.
 

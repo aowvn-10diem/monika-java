@@ -69,7 +69,7 @@ function parseEntry(e) {
   const alt = ((e.link || []).find((l) => l.rel === "alternate") || {}).href || "";
   const title = decodeEntities((e.title && e.title.$t) || "").trim();
   const body = m ? html.replace(m[0], "") : html;
-  const img = meta.img || ((/<img[^>]+src=["']([^"']+)["']/i.exec(body) || [])[1]) || (e.media$thumbnail && e.media$thumbnail.url) || "";
+  const img = meta.img || firstShot(body) || (e.media$thumbnail && e.media$thumbnail.url) || "";
   const typeSet = new Set(["banner", "self", "game", "app"]);
   const cat = meta.cat || labels.find((l) => !typeSet.has(l.toLowerCase())) || "";
   const num = (v) => { const n = parseInt(String(v || "").replace(/[^\d]/g, ""), 10); return Number.isFinite(n) ? n : 0; };
@@ -83,6 +83,20 @@ function parseEntry(e) {
     published: Date.parse(e.published && e.published.$t) || 0,
     updated: Date.parse(e.updated && e.updated.$t) || 0,
   };
+}
+// Ảnh minh họa = ảnh đầu tiên trong bài không phải icon Monika (/v1/fi/, /v1/ic/), bỏ ảnh quá nhỏ khai báo width/height <= 80.
+function firstShot(body) {
+  const re = /<img\b[^>]*>/gi;
+  let m;
+  while ((m = re.exec(body))) {
+    const t = m[0];
+    const src = (/\bsrc=["']([^"']+)["']/i.exec(t) || [])[1];
+    if (!src || /\/v1\/(fi|ic)\//.test(src)) continue;
+    const w = parseInt((/\bwidth=["']?(\d+)/i.exec(t) || [])[1], 10);
+    if (w && w <= 80) continue;
+    return decodeEntities(src);
+  }
+  return "";
 }
 function directJar(u) {
   u = (u || "").trim();
@@ -125,19 +139,19 @@ async function syncStep(env) {
     }
     if (p.cat) st.push(db.prepare("INSERT OR IGNORE INTO cats(name) VALUES(?)").bind(p.cat));
     st.push(db.prepare(
-      `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,file_h)
-       VALUES(?,?,?,?,(SELECT n FROM cats WHERE name=?),?,COALESCE(NULLIF(?,0),(SELECT MAX(1,(size+512)/1024) FROM files WHERE k=?),0),?,?,?,?,?,?,?,?,(SELECT k FROM files WHERE k=?))
+      `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,img,file_h)
+       VALUES(?,?,?,?,(SELECT n FROM cats WHERE name=?),?,COALESCE(NULLIF(?,0),(SELECT MAX(1,(size+512)/1024) FROM files WHERE k=?),0),?,?,?,?,?,?,?,?,?,(SELECT k FROM files WHERE k=?))
        ON CONFLICT(src) DO UPDATE SET type=excluded.type,title=excluded.title,norm=excluded.norm,cat_n=excluded.cat_n,ver=excluded.ver,
          size_kb=CASE WHEN excluded.size_kb>0 THEN excluded.size_kb ELSE items.size_kb END,
          price=excluded.price,descr=excluded.descr,url=excluded.url,flags=excluded.flags,published=excluded.published,updated=excluded.updated,sweep=excluded.sweep,
-         file_h=excluded.file_h,
+         img=excluded.img,file_h=excluded.file_h,
          jad_text=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.jad_text END,
          jar_size=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.jar_size END,
          ic32=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.ic32 END,
          ic64=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.ic64 END,
          icon_state=CASE WHEN items.jar IS NOT excluded.jar THEN NULL ELSE items.icon_state END,
          jar=excluded.jar`
-    ).bind(p.src, p.type, p.title, norm(p.title), p.cat || null, p.ver, p.size, p.fileK || "", p.price, p.jar, clip(p.descr, 300), p.alt, p.flags, p.published, p.updated, sweep, p.fileK || ""));
+    ).bind(p.src, p.type, p.title, norm(p.title), p.cat || null, p.ver, p.size, p.fileK || "", p.price, p.jar, clip(p.descr, 300), p.alt, p.flags, p.published, p.updated, sweep, p.img || "", p.fileK || ""));
   }
   const done = entries.length < FEED_PAGE;
   if (done) {
@@ -178,6 +192,7 @@ const flagsOf = (r, now) => {
   else if (now - r.updated < NEW_DAYS * DAY && r.updated - r.published > DAY) f |= 2;
   if (r.hot) f |= 8;
   if (r.hasic) f |= 16; // có icon: app gọi /v1/ic/{id}-32.png
+  if (r.hasimg) f |= 32; // có ảnh minh họa: app gọi /v1/sc/{id}-{w}x{h}.jpg
   return f;
 };
 const bin = (u8, ttl = 60) => new Response(u8, { headers: { "content-type": "application/octet-stream", "cache-control": `public, max-age=${ttl}`, "access-control-allow-origin": "*" } });
@@ -216,7 +231,7 @@ async function list(env, where, binds, page, order) {
   const total = (await db.prepare(`SELECT COUNT(*) c FROM items i WHERE i.type IN ('game','app') AND ${where}`).bind(...binds).first()).c;
   const rows = (await db.prepare(
     `SELECT i.n,i.flags,i.size_kb,i.price,i.ver,i.title,i.descr,i.published,i.updated,COALESCE(i.cat_n,0) cat,(i.dl >= 50) hot,
-       (i.ic32 IS NOT NULL OR f.ic32 IS NOT NULL) hasic
+       (i.ic32 IS NOT NULL OR f.ic32 IS NOT NULL) hasic, (i.img IS NOT NULL AND i.img <> '') hasimg
      FROM items i LEFT JOIN files f ON f.k=i.file_h WHERE i.type IN ('game','app') AND ${where} ORDER BY ${order} LIMIT ${PAGE} OFFSET ${page * PAGE}`
   ).bind(...binds).all()).results;
   const o = new Out().i32(0x4d4b4c31).u8(1).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
@@ -237,6 +252,29 @@ async function banner(env, id, w) {
     const ct = r.headers.get("content-type") || "";
     if (r.ok && /^image\//.test(ct)) {
       return new Response(r.body, { headers: { "content-type": ct, "cache-control": "public, max-age=3600", "access-control-allow-origin": "*" } });
+    }
+  }
+  return text("upstream image error", 502);
+}
+
+// Ảnh minh họa cho lưới trong app: cắt giữa đúng w x h, JPEG chất lượng 70 (vài KB). Nguồn Google/Blogger thì Google cắt và nén,
+// nguồn khác trả nguyên bản. Cloudflare cache 1 ngày nên mỗi cỡ chỉ kéo từ Google một lần.
+function resizeShot(u, w, h) {
+  if (!/(googleusercontent|ggpht)\.com|blogger\.com\/img|bp\.blogspot\.com/i.test(u)) return u;
+  const spec = `w${w}-h${h}-c-rj-l70`;
+  if (/=[swh]\d[^/]*$/i.test(u)) return u.replace(/=[swh]\d[^/]*$/i, "=" + spec);
+  if (/\/[swh]\d+(-[a-z0-9-]*)?\/[^/]+$/i.test(u)) return u.replace(/\/[swh]\d+(-[a-z0-9-]*)?\/([^/]+)$/i, `/${spec}/$2`);
+  return u + "=" + spec;
+}
+async function shot(env, id, w, h) {
+  const it = await env.DB.prepare("SELECT img FROM items WHERE n=?").bind(id).first();
+  if (!it || !it.img) return text("not found", 404);
+  const urls = [...new Set([resizeShot(it.img, w, h), it.img])];
+  for (const u of urls) {
+    const r = await fetch(u, { headers: { "user-agent": "MonikaImg/1" }, cf: { cacheTtl: 86400, cacheEverything: true } });
+    const ct = r.headers.get("content-type") || "";
+    if (r.ok && /^image\//.test(ct)) {
+      return new Response(r.body, { headers: { "content-type": ct, "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" } });
     }
   }
   return text("upstream image error", 502);
@@ -306,6 +344,7 @@ export default {
         return await list(env, "i.norm LIKE ?", ["%" + key + "%"], Math.min(parseInt(m[2], 10), 4000), "i.updated DESC");
       }
       if ((m = /^\/v1\/b\/(\d+)-(\d+)\.png$/.exec(p))) return await banner(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 60), 1000));
+      if ((m = /^\/v1\/sc\/(\d+)-(\d+)x(\d+)\.jpg$/.exec(p))) return await shot(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 40), 320), Math.min(Math.max(parseInt(m[3], 10), 30), 320));
       if ((m = /^\/v1\/j\/(\d+)\.(jad|jar)$/.exec(p))) return await download(env, ctx, req, parseInt(m[1], 10), m[2]);
       if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
       if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });

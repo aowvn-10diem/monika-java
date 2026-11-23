@@ -7,8 +7,9 @@
 <title><data:blog.pageTitle/></title>
 <b:include data='blog' name='all-head-content'/>
 <b:skin><![CDATA[
-/* Monika by AOW.VN - Blogspot template (wap nhe, PC rong, co cho banner)
-   Banner: web va app Java dung chung du lieu qua api.justmonika.top */
+/* Monika by AOW.VN - Blogspot template (wap nhe, PC rong gon, luoi anh game)
+   Banner va danh sach: web va app Java dung chung du lieu qua api.justmonika.top
+   Luoi dung float + padding-top (khong flex/grid/aspect-ratio) de Opera Mini 6 tren Nokia chay duoc */
 :root{--bg:#1b0a38;--r1:#250e48;--r2:#290f4f;--hd1:#2b0f4f;--hd2:#4c1466;--or:#ff7a1a;--sel1:#cc580c;--sel2:#b44606;--bar:#140729;--pk:#dc1a70;--mu:#cdbfe8;--ln:#3a1a66}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:#fff;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
@@ -16,55 +17,71 @@ a{color:inherit;text-decoration:none}
 img{max-width:100%;height:auto}
 h1,h2,h3{margin:0}
 .wrap{max-width:1080px;margin:0 auto}
-/* header */
+/* header: to tren dien thoai/Nokia, gon tren PC */
 .hd{background:linear-gradient(135deg,var(--hd1),var(--hd2));position:relative;overflow:hidden}
-.hd-in{position:relative;z-index:1;padding:12px;display:flex;flex-direction:column;gap:10px}
+.hd-in{position:relative;z-index:1;padding:12px}
+.brand{margin-bottom:10px}
 .logo{display:block;font-size:30px;font-weight:700;letter-spacing:.3px;line-height:1.1}
 .logo b{color:var(--or)}
 .tag,.by{margin:2px 0 0;font-size:12px;color:var(--mu)}
 .by b{color:var(--or)}
 .vn{background:#fff;color:#2b0f4f;font-weight:700;border-radius:3px;padding:0 4px;margin-left:3px;font-size:11px}
 .curve{position:absolute;right:0;bottom:0;width:62%;max-width:560px;height:75%;z-index:0}
-/* banner slots */
-.bn{display:block;position:relative;min-height:60px;aspect-ratio:4/1;background:rgba(0,0,0,.28);border:1px dashed #6a3ba0;border-radius:4px;overflow:hidden;color:#a58bd0;font-size:11px}
-.bn span{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px}
-.bn img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;display:block}
-.bn.on{border:0;background:none}
+.hb .curve{display:none}
+/* banner: an khi chua co, hien dung ti le 4:1 khi da nap */
+.bn{display:none}
+.bn.on{display:block;position:relative;height:0;padding-top:25%;overflow:hidden;border-radius:4px}
+.bn.on a,.bn.on div,.bn.on img{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+.bn.on img{object-fit:contain}
+.bn-top2{display:none!important}
 .bn-item,.bn-foot{margin:12px auto;max-width:640px}
+.bn-list.on{padding-top:83%}
 .bn-list{margin:0 0 12px}
 .adslot .widget{margin:0 0 12px}
-/* nav */
-.nav a{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--r1);border-bottom:1px solid var(--ln)}
+/* nav: 4 o ngang tren man nho */
+.nav{background:var(--bar);overflow:hidden}
+.nav a{float:left;width:25%;padding:7px 2px 6px;text-align:center;font-size:12px;line-height:1.2;background:var(--r1);border-bottom:1px solid var(--ln)}
 .nav a:nth-child(even){background:var(--r2)}
 .nav a.on,.nav a:hover{background:linear-gradient(var(--sel1),var(--sel2));font-weight:700}
-.nav svg{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.nav .go{margin-left:auto;width:16px;height:16px;opacity:.85}
+.nav svg{display:block;margin:0 auto 2px;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav .go{display:none}
 .sf{display:flex;gap:6px;padding:8px 12px;background:var(--bar)}
 .sf input{flex:1;min-width:0;padding:8px 10px;border:1px solid #4a2a7a;border-radius:4px;background:#1f0b3d;color:#fff;font:inherit}
 .sf button{padding:8px 14px;border:0;border-radius:4px;background:linear-gradient(var(--sel1),var(--sel2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
-/* list */
+/* tieu de muc + luoi game: 2 o moi hang tren Nokia/dien thoai */
 .st,.widget h2{padding:8px 12px;background:linear-gradient(90deg,var(--sel1),var(--sel2));font-size:14px;font-weight:700}
-.pr{display:flex;gap:10px;padding:10px 12px;background:var(--r1);border-bottom:1px solid var(--ln)}
-.pr:nth-of-type(even){background:var(--r2)}
-.pr .ic{flex:none;width:48px;height:48px;border-radius:8px;overflow:hidden;background:linear-gradient(135deg,var(--hd2),var(--sel1));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
-.pr .ic img{width:48px;height:48px;object-fit:cover;display:block}
-.pc{min-width:0;flex:1}
-.pc h2{font-size:16px;line-height:1.3}
-.pc h2 a:hover{color:var(--or)}
-.chips{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0}
-.chips span,.chips a{font-size:11px;padding:0 6px;border-radius:8px;background:#3b1a6b;color:var(--mu)}
+.gl{overflow:hidden}
+.gc{float:left;width:50%;padding:8px 4px 0}
+.gcb{background:var(--r1);border:1px solid var(--ln);border-radius:8px;overflow:hidden}
+.gc:hover .gcb{border-color:var(--or)}
+.th{display:block;position:relative;height:0;padding-top:75%;overflow:hidden;background:linear-gradient(135deg,var(--hd2),var(--sel1))}
+.th .sc{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+.th .ph{position:absolute;left:0;right:0;top:50%;margin-top:-.6em;text-align:center;font-size:34px;line-height:1.2;font-weight:700;color:rgba(255,255,255,.55)}
+.th .ic2{position:absolute;left:5px;bottom:5px;width:32px;height:32px;border-radius:7px;border:2px solid #fff;background:#3b1a6b;display:block}
+.th .ic1{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:12px;background:#3b1a6b;display:block}
+.bd{position:absolute;right:5px;top:5px;font-size:10px;line-height:1.6;font-weight:700;padding:0 6px;border-radius:8px;background:var(--pk);color:#fff}
+.bd.h{background:var(--sel1)}
+.gt{padding:6px 7px 7px}
+.gt h2{height:2.6em;overflow:hidden;font-size:13px;line-height:1.3}
+.gt h2 a:hover{color:var(--or)}
+.chips{margin:3px 0 0;height:19px;overflow:hidden;white-space:nowrap}
+.chips span,.chips a{display:inline-block;font-size:11px;line-height:17px;padding:0 6px;margin:0 3px 0 0;border-radius:8px;background:#3b1a6b;color:var(--mu)}
 .chips .v{background:var(--pk);color:#fff}
-.sn{margin:2px 0 0;font-size:13px;color:var(--mu);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .dt{font-size:11px;color:#a58bd0}
+.it .chips{height:auto;white-space:normal;margin:6px 0}
+.it .chips a,.it .chips span{margin:0 4px 4px 0}
 .raw{display:none}
-.pg{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;background:var(--bar);color:var(--or);font-weight:700}
+.emp{padding:20px 12px;text-align:center;color:var(--mu)}
+.pg{overflow:hidden;margin-top:8px;padding:10px 12px;background:var(--bar);color:var(--or);font-weight:700}
+.pg a{float:left}
+.pg a.o{float:right}
 /* item */
 .it{background:var(--r1);padding:12px}
 .pt{font-size:22px;line-height:1.25}
 .pb{margin-top:10px;word-wrap:break-word;overflow-wrap:break-word}
 .pb a{color:var(--or);text-decoration:underline}
 .pb img{border-radius:4px}
-.dlbox{margin:8px 0 14px;padding:10px;background:var(--r2);border:1px solid var(--ln);border-radius:6px}
+.dlbox{margin:8px 0 14px;padding:10px;background:var(--r2);border:1px solid var(--ln);border-radius:6px;overflow:hidden}
 .gic{float:right;margin:0 0 6px 10px;border-radius:12px;image-rendering:pixelated;background:#3b1a6b}
 .info{border-collapse:collapse;width:100%;margin-bottom:10px}
 .info th{width:38%;text-align:left;color:var(--mu);font-weight:400;padding:3px 0}
@@ -84,21 +101,36 @@ pre.mk-meta{display:none}
 .ft a{text-decoration:underline}
 .ft .widget{margin:0}
 .ft .widget li{background:none;border:0;justify-content:center;padding:2px}
-/* tablet */
+/* tablet: 3 o moi hang */
 @media (min-width:600px){
-.cols{display:grid;grid-template-columns:200px minmax(0,1fr);gap:12px;padding:12px;align-items:start}
-.side{grid-column:1/-1}
-.nav,.main,.side,.sf{border-radius:6px;overflow:hidden}
-.navbox{position:sticky;top:8px}
+.cols{padding:12px}
+.gc{width:33.333%}
+.gt h2{font-size:14px}
+.main,.side{border-radius:6px;overflow:hidden}
 }
-/* PC rong */
+/* PC: header gon mot hang (logo + menu + tim kiem), banner dau trang chuyen xuong cot noi dung, 4 o moi hang */
 @media (min-width:900px){
-.hd-in{flex-direction:row;align-items:center;justify-content:space-between;padding:18px 12px}
-.hd-in .bn-top{width:480px;flex:none}
-.cols{grid-template-columns:210px minmax(0,1fr) 300px}
-.side{grid-column:auto}
-.bn-list{aspect-ratio:6/5}
-.pc h2{font-size:17px}
+.top{position:sticky;top:0;z-index:10;background:linear-gradient(90deg,var(--hd1),var(--hd2));box-shadow:0 2px 10px rgba(0,0,0,.45)}
+.top-in{max-width:1080px;margin:0 auto;padding:0 12px;height:52px;display:flex;align-items:center}
+.hd{background:none;overflow:visible;flex:none}
+.hd-in{padding:0}
+.brand{margin:0;display:flex;align-items:center}
+.logo{font-size:26px}
+.tag,.curve,.hd .bn-top{display:none}
+.by{margin:0 0 0 10px}
+.bar{flex:1;min-width:0;display:flex;align-items:center;margin-left:22px}
+.nav{background:none;overflow:visible;display:flex}
+.nav a{float:none;width:auto;display:flex;align-items:center;padding:7px 13px;margin-right:2px;font-size:14px;background:none;border:0;border-radius:6px;text-align:left}
+.nav a:nth-child(even){background:none}
+.nav a.on,.nav a:hover{background:linear-gradient(var(--sel1),var(--sel2))}
+.nav svg{display:inline-block;margin:0 7px 0 0;width:18px;height:18px}
+.sf{margin-left:auto;padding:0;background:none;width:250px}
+.sf input{padding:6px 10px}
+.sf button{padding:6px 12px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;padding:12px;align-items:start}
+.bn-top2.on{display:block!important;max-width:520px;margin:0 0 12px}
+.gc{width:25%}
+.gt h2{font-size:14px}
 .it{padding:18px}
 .pt{font-size:26px}
 .pb a.dlbtn{display:inline-block;padding:12px 28px}
@@ -114,31 +146,35 @@ pre.mk-meta{display:none}
 <symbol id='i-go' viewBox='0 0 24 24'><path d='M9 5l7 7-7 7'/></symbol>
 </svg>
 
+<div class='top'>
+<div class='top-in'>
 <header class='hd'>
 <svg aria-hidden='true' class='curve' preserveAspectRatio='none' viewBox='0 0 400 120' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='cg' x1='0' x2='1' y1='1' y2='0'><stop offset='0' stop-color='#e0556f'/><stop offset='1' stop-color='#fb8133'/></linearGradient></defs><path d='M0 120L150 120C230 115 290 90 340 40C360 20 380 12 400 10L400 120Z' fill='url(#cg)'/></svg>
-<div class='hd-in wrap'>
+<div class='hd-in'>
 <div class='brand'>
 <a class='logo' expr:href='data:blog.homepageUrl'><b>M</b>onika</a>
 <p class='tag'>Cửa hàng ứng dụng &amp; game Java</p>
 <p class='by'>by <b>AOW</b><span class='vn'>.VN</span></p>
 </div>
-<div class='bn bn-top' data-slot='top'><span>Chỗ đặt banner (4:1, ví dụ 640×160)</span></div>
+<div class='bn bn-top' data-slot='top'></div>
 </div>
 </header>
-<b:section class='adslot wrap' id='ad-top' maxwidgets='1' showaddelement='yes'/>
-
-<div class='cols wrap'>
-<div class='navbox'>
+<div class='bar'>
 <nav class='nav'>
 <a href='/search/label/App'><svg><use href='#i-app'/></svg>Ứng dụng<svg class='go'><use href='#i-go'/></svg></a>
 <a href='/search/label/Game'><svg><use href='#i-game'/></svg>Trò chơi<svg class='go'><use href='#i-go'/></svg></a>
 <a href='#cats'><svg><use href='#i-cat'/></svg>Danh mục<svg class='go'><use href='#i-go'/></svg></a>
-<a href='/'><svg><use href='#i-new'/></svg>Mới cập nhật<svg class='go'><use href='#i-go'/></svg></a>
+<a href='/'><svg><use href='#i-new'/></svg>Mới<svg class='go'><use href='#i-go'/></svg></a>
 </nav>
 <form action='/search' class='sf' method='get'><input name='q' placeholder='Tìm app, game...' type='search'/><button type='submit'>Tìm</button></form>
 </div>
+</div>
+</div>
+<b:section class='adslot wrap' id='ad-top' maxwidgets='1' showaddelement='yes'/>
 
+<div class='cols wrap'>
 <main class='main'>
+<div class='bn bn-top2' data-slot='top'></div>
 <b:section class='main-sec' id='main' showaddelement='no'>
 <b:widget id='Blog1' locked='true' title='Bài đăng trên blog' type='Blog' version='1'>
 <b:includable id='main' var='top'>
@@ -155,6 +191,7 @@ pre.mk-meta{display:none}
 </h2>
 </b:if>
 </b:if>
+<div class='gl'>
 <b:loop values='data:posts' var='post'>
 <b:if cond='data:blog.pageType == "item"'>
 <article class='it'>
@@ -164,7 +201,7 @@ pre.mk-meta{display:none}
 <span class='dt' expr:data-t='data:post.timestampValue'></span>
 </div>
 <div class='pb'><data:post.body/></div>
-<div class='bn bn-item' data-slot='item'><span>Chỗ đặt banner (4:1)</span></div>
+<div class='bn bn-item' data-slot='item'></div>
 </article>
 <b:elseif cond='data:blog.pageType == "static_page"'/>
 <article class='it'>
@@ -172,24 +209,25 @@ pre.mk-meta{display:none}
 <div class='pb'><data:post.body/></div>
 </article>
 <b:else/>
-<article class='pr'>
-<a class='ic' expr:href='data:post.url'>M</a>
-<div class='pc'>
+<article class='gc' expr:data-t='data:post.timestampValue'>
+<div class='gcb'>
+<a class='th' expr:href='data:post.url' expr:title='data:post.title'><span class='ph'>M</span></a>
+<div class='gt'>
 <h2><a expr:href='data:post.url'><data:post.title/></a></h2>
 <div class='chips'>
 <b:loop values='data:post.labels' var='label'><span><data:label.name/></span></b:loop>
 </div>
-<p class='sn'></p>
-<span class='dt' expr:data-t='data:post.timestampValue'></span>
+</div>
 </div>
 <div class='raw'><data:post.body/></div>
 </article>
 </b:if>
 </b:loop>
+</div>
 <b:if cond='data:blog.pageType != "static_page"'>
 <div class='pg'>
 <b:if cond='data:newerPageUrl'><a expr:href='data:newerPageUrl'>‹ Mới hơn</a><b:else/><span></span></b:if>
-<b:if cond='data:olderPageUrl'><a expr:href='data:olderPageUrl'>Cũ hơn ›</a></b:if>
+<b:if cond='data:olderPageUrl'><a class='o' expr:href='data:olderPageUrl'>Cũ hơn ›</a></b:if>
 </div>
 </b:if>
 </b:if>
@@ -200,7 +238,7 @@ pre.mk-meta{display:none}
 </main>
 
 <aside class='side'>
-<div class='bn bn-list' data-slot='list'><span>Chỗ đặt banner (PC: 300×250)</span></div>
+<div class='bn bn-list' data-slot='list'></div>
 <b:section class='adslot' id='ad-side' maxwidgets='1' showaddelement='yes'/>
 <div id='cats'></div>
 <b:section class='side-sec' id='side' preferred='yes' showaddelement='yes'>
@@ -219,7 +257,7 @@ pre.mk-meta{display:none}
 
 <footer class='ft'>
 <div class='wrap'>
-<div class='bn bn-foot' data-slot='foot'><span>Chỗ đặt banner chân trang (4:1)</span></div>
+<div class='bn bn-foot' data-slot='foot'></div>
 <b:section class='adslot' id='ad-foot' maxwidgets='1' showaddelement='yes'/>
 <p>© Monika by AOW.VN · Kho ứng dụng và game Java cho điện thoại</p>
 <b:section class='foot-sec' id='footer' showaddelement='no'>
@@ -235,11 +273,12 @@ pre.mk-meta{display:none}
 <script type='text/javascript'>
 //<![CDATA[
 (function(){
-var d=document,API='https://api.justmonika.top';
+var d=document,vw=d.documentElement.clientWidth||window.innerWidth||320,
+ API=(location.protocol==='https:'?'https:':'http:')+'//api.justmonika.top';
 d.documentElement.className=d.documentElement.className.replace('nojs','js');
 function $$(s,r){return Array.prototype.slice.call((r||d).querySelectorAll(s))}
 function el(t,c,x){var e=d.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
-function rm(e){if(e&&e.parentNode)e.parentNode.removeChild(e)}
+function del(e){if(e&&e.parentNode)e.parentNode.removeChild(e)}
 function meta(pre){
  var t=pre.innerHTML.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div)>/gi,'\n').replace(/<[^>]+>/g,''),
   x=el('textarea');x.innerHTML=t;t=x.value;
@@ -248,54 +287,71 @@ function meta(pre){
 function sz(k){k=parseInt(k,10);if(!k)return'';return k>=1024?(k/1024).toFixed(1)+' MB':k+' KB'}
 function pad(n){return('0'+n).slice(-2)}
 function fd(t){var x=new Date(t);return isNaN(x.getTime())?'':pad(x.getDate())+'/'+pad(x.getMonth()+1)+'/'+x.getFullYear()}
-/* ngay dang */
+/* anh Google/Blogger: xin dung o va kich thuoc (cat giua), anh ngoai giu nguyen */
+function gimg(u,w,h){
+ if(!/googleusercontent|blogspot|ggpht/i.test(u))return u;
+ var s='w'+w+'-h'+h+'-c';
+ if(/=[swh]\d[^\/]*$/i.test(u))return u.replace(/=[swh]\d[^\/]*$/i,'='+s);
+ if(/\/[swh]\d+[^\/]*\/[^\/]+$/i.test(u))return u.replace(/\/[swh]\d+[^\/]*\/([^\/]+)$/i,'/'+s+'/$1');
+ return u}
+function fileKey(m){return m.file&&/^[0-9a-f]{10}$/i.test(m.file)?m.file.toLowerCase():((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(m.jar||'')||[])[1]||'').toLowerCase()}
+/* ngay dang (trang bai) */
 $$('.dt').forEach(function(e){e.textContent=fd(e.getAttribute('data-t'))});
 /* menu dang chon */
 $$('.nav a').forEach(function(a){if(!a.hash&&a.pathname===location.pathname)a.className='on'});
-function fileKey(m){return m.file&&/^[0-9a-f]{10}$/i.test(m.file)?m.file.toLowerCase():((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(m.jar||'')||[])[1]||'').toLowerCase()}
-function setIc(ic,u){var i2=el('img');i2.alt='';i2.width=48;i2.height=48;i2.onerror=function(){rm(i2);ic.textContent=ic.getAttribute('data-l')||'M'};i2.src=u;ic.setAttribute('data-l',ic.textContent);ic.textContent='';ic.appendChild(i2)}
-var need=[];
-/* danh sach: chip phien ban/dung luong + mo ta ngan tu bai */
-$$('.raw').forEach(function(r){
- var row=r.parentNode,pre=r.querySelector('pre.mk-meta'),m=pre?meta(pre):{},ch=row.querySelector('.chips');
- if(m.ver)ch.appendChild(el('span','v','v'+m.ver));
- if(sz(m.size))ch.appendChild(el('span','',sz(m.size)));
- if(m.net==='1')ch.appendChild(el('span','','Cần mạng'));
- var im=r.querySelector('img'),fk=fileKey(m),ic=row.querySelector('.ic');
- if(fk)setIc(ic,API+'/v1/fi/'+fk+'-64.png');
- else if(im){var u=im.getAttribute('src')||'';
-  if(/googleusercontent|blogspot|ggpht/i.test(u))u=u.replace(/\/(s|w)\d+(-h\d+)?(-[a-z0-9]+)*\//,'/s96-c/').replace(/=(s|w)\d+(-h\d+)?(-[a-z0-9]+)*$/,'=s96-c');
-  setIc(ic,u)}
- else need.push(ic);
- rm(pre);$$('img,script,style',r).forEach(rm);
- var tx=(m.desc||r.textContent||'').replace(/\s+/g,' ').trim();
- row.querySelector('.sn').textContent=tx.length>110?tx.slice(0,108)+'…':tx;
- rm(r)});
-/* bai khong co anh/meta file: lay icon trich tu JAR qua API (theo duong dan bai) */
+/* luoi game: anh minh hoa + icon + huy hieu + ban, phien ban, dung luong */
+var need=[],GW=vw<600?200:256,GH=vw<600?150:192,now=new Date().getTime();
+function setIc(th,u,hasShot){
+ var i2=el('img',hasShot?'ic2':'ic1');i2.alt='';i2.onerror=function(){del(i2)};i2.src=u;th.appendChild(i2)}
+$$('.gc').forEach(function(c){
+ var r=c.querySelector('.raw'),th=c.querySelector('.th'),ch=c.querySelector('.chips'),
+  pre=r.querySelector('pre.mk-meta'),m=pre?meta(pre):{},ph=th.querySelector('.ph'),k;
+ $$('span',ch).forEach(function(s){if(/^(game|app|banner)$/i.test(s.textContent))del(s)});
+ var add=[];
+ if(m.ver)add.push(el('span','v','v'+m.ver));
+ if(sz(m.size))add.push(el('span','',sz(m.size)));
+ if(m.net==='1')add.push(el('span','','Cần mạng'));
+ for(k=0;k<add.length;k++)ch.insertBefore(add[k],ch.childNodes[k]||null);
+ /* anh minh hoa: meta img, hoac anh dau tien trong bai khong phai icon Monika (/v1/fi/) */
+ var shot=m.img||'',ims=$$('img',r);
+ for(k=0;!shot&&k<ims.length;k++){var u=ims[k].getAttribute('src')||'';if(u&&!/\/v1\/fi\//.test(u))shot=u}
+ if(shot){var im=el('img','sc');im.alt='';im.onerror=function(){del(im)};im.src=gimg(shot,GW,GH);th.appendChild(im)}
+ var fk=fileKey(m);
+ if(fk)setIc(th,API+'/v1/fi/'+fk+'-64.png',!!shot);
+ else need.push({th:th,shot:!!shot,path:th.pathname});
+ var t=new Date(c.getAttribute('data-t')).getTime();
+ if(m.hot==='1')th.appendChild(el('span','bd h','HOT'));
+ else if(!isNaN(t)&&now-t<6048e5)th.appendChild(el('span','bd','MỚI'));
+ del(r)});
+if($$('.st').length&&!$$('.gc').length&&$$('.gl').length){var gl=$$('.gl')[0];gl.parentNode.insertBefore(el('div','emp','Chưa có bài nào ở mục này.'),gl.nextSibling)}
+/* bai khong co meta file: lay icon trich tu JAR qua API (theo duong dan bai) */
 if(need.length&&window.fetch){fetch(API+'/v1/icons.json').then(function(r){return r.json()}).then(function(M){
- need.forEach(function(ic){var u=M[ic.pathname];if(u)setIc(ic,API+u)})}).catch(function(){})}
+ need.forEach(function(x){var u=M[x.path];if(u)setIc(x.th,API+u,x.shot)})}).catch(function(){})}
 /* trang bai: bang thong tin + nut tai */
 $$('.pb pre.mk-meta').forEach(function(pre){
  var m=meta(pre),box=el('div','dlbox'),tb=el('table','info');
  [['Danh mục',m.cat],['Phiên bản',m.ver],['Dung lượng',sz(m.size)],['Cần mạng',m.net==='1'?'Có':''],['Giá',m.price&&m.price!=='0'?m.price:'']].forEach(function(p){
   if(!p[1])return;var tr=el('tr');tr.appendChild(el('th','',p[0]));tr.appendChild(el('td','',p[1]));tb.appendChild(tr)});
  var fk=fileKey(m);
- if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){rm(gi)};box.appendChild(gi)}
+ if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){del(gi)};box.appendChild(gi)}
  box.appendChild(tb);
  if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','▼ Tải về (JAR)');a.href=m.jar;a.rel='nofollow noopener';box.appendChild(a)}
- pre.parentNode.insertBefore(box,pre);rm(pre)});
-/* banner: lay tu API chung voi app Java */
-var slots=$$('.bn[data-slot]');
+ pre.parentNode.insertBefore(box,pre);del(pre)});
+/* banner: chung du lieu voi app Java. Banner dau trang: trong header (man nho) hoac dau cot noi dung (PC), chi nap cai dang hien */
+var pc=vw>=900,slots=$$('.bn[data-slot]').filter(function(s){
+ if(/\bbn-top2\b/.test(s.className))return pc;
+ if(/\bbn-top\b/.test(s.className))return !pc;
+ return true});
 if(slots.length&&window.fetch){
  fetch(API+'/v1/banners.json').then(function(r){return r.json()}).then(function(L){
   slots.forEach(function(s){
    var sl=s.getAttribute('data-slot'),c=L.filter(function(x){return x.slot===sl});
    if(!c.length)return;
    var b=c[Math.floor(Math.random()*c.length)],img=el('img');
-   img.alt=b.alt||'';img.src=b.src||(API+b.img2);img.loading='lazy';
+   img.alt=b.alt||'';img.src=vw<600?API+b.img:(b.src||API+b.img2);
    var h=el(b.href?'a':'div');if(b.href){h.href=b.href;h.rel='nofollow'}
-   h.style.cssText='position:absolute;left:0;top:0;right:0;bottom:0;display:block';
-   h.appendChild(img);rm(s.querySelector('span'));s.appendChild(h);s.className+=' on'});
+   h.appendChild(img);s.appendChild(h);s.className+=' on';
+   if(/\bbn-top\b/.test(s.className)){var hd=d.querySelector('.hd');if(hd)hd.className+=' hb'}});
  }).catch(function(){})}
 })();
 //]]>

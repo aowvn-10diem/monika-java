@@ -32,7 +32,7 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.2.0";
+    static final String VERSION = "0.3.0";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -94,6 +94,13 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         ListCanvas lc;
         int k;
         int id;
+    }
+
+    /** Tag yêu cầu ảnh minh họa: mục k của danh sách lc, gen để bỏ kết quả của dữ liệu cũ. */
+    private static final class ShotReq {
+        ListCanvas lc;
+        int k;
+        int gen;
     }
 
     private int promoGen;
@@ -254,6 +261,62 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             onBanner((ImgReq) tag, result);
         } else if (tag instanceof IconReq) {
             onIcon((IconReq) tag, result);
+        } else if (tag instanceof ShotReq) {
+            onShot((ShotReq) tag, result);
+        }
+    }
+
+    /**
+     * Lưới ảnh: tải icon (cache hoặc mạng) và ảnh minh họa tw x th của mục k. urgent = mục đang hiện trên màn,
+     * đứng trước hàng đợi ảnh. Gọi từ ListCanvas khi cuộn tới.
+     */
+    void listLoad(ListCanvas lc, int k, int gen, int tw, int th, boolean urgent, boolean icon, boolean shot) {
+        if (!repo.online() || k < 0 || k >= lc.items.size()) {
+            return;
+        }
+        AppInfo a = (AppInfo) lc.items.elementAt(k);
+        if (shot) {
+            ShotReq r = new ShotReq();
+            r.lc = lc;
+            r.k = k;
+            r.gen = gen;
+            String p = "/v1/sc/" + a.id + "-" + tw + "x" + th + ".jpg";
+            if (urgent) {
+                repo.imageFirst(p, r, lc, this);
+            } else {
+                repo.image(p, r, lc, this);
+            }
+        }
+        if (icon) {
+            Image im = (Image) iconCache.get(new Integer(a.id));
+            if (im != null) {
+                lc.setIcon(k, im);
+            } else {
+                IconReq r = new IconReq();
+                r.lc = lc;
+                r.k = k;
+                r.id = a.id;
+                String p = "/v1/ic/" + a.id + "-32.png";
+                if (urgent) {
+                    repo.imageFirst(p, r, lc, this);
+                } else {
+                    repo.image(p, r, lc, this);
+                }
+            }
+        }
+    }
+
+    private void onShot(ShotReq r, Object result) {
+        if (result == null) {
+            return;
+        }
+        byte[] b = (byte[]) result;
+        try {
+            r.lc.setShot(r.k, r.gen, Image.createImage(b, 0, b.length));
+        } catch (RuntimeException e) {
+            // ảnh hỏng hoặc máy không giải mã được JPEG: giữ ô icon/chữ cái
+        } catch (OutOfMemoryError e) {
+            r.lc.dropShots();
         }
     }
 
@@ -261,6 +324,11 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     private void loadIcons(ListCanvas lc) {
         repo.cancel(lc);
         if (!repo.online()) {
+            return;
+        }
+        if (lc.useGrid()) {
+            // lưới: ListCanvas tự xin ảnh theo mục đang hiện (listLoad)
+            lc.wantLoad();
             return;
         }
         int n = lc.items.size();
@@ -514,8 +582,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         for (int i = 0; i < n; i++) {
             AppInfo a = (AppInfo) p.items.elementAt(i);
             names[i] = (store.isFavorite(a.id) ? "* " : "") + a.name;
-            subs[i] = a.sizeKb + " KB · v" + a.version + " · "
-                + (a.isFree() ? "Miễn phí" : money(a.price));
+            subs[i] = a.sizeKb + " KB · v" + a.version + (a.isFree() ? "" : " · " + money(a.price));
             flags[i] = a.flags;
         }
         lc.setData(names, subs, flags, badges, p.page, p.total, Page.SIZE);

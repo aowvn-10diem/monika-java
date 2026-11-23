@@ -17,5 +17,6 @@ Link JAR: GitHub, Google Drive, host riêng. Pixeldrain chặn hotlink nên khô
 - `/v1/admin/files`, `/v1/admin/del` (cần token) xem thống kê và xóa file.
 - Kho lưu: R2 (binding `R2`, tạo bucket `monika-files`) → GitHub (`GH_TOKEN`, repo `GH_REPO`, tối đa 20MB mỗi file, giới hạn mềm 0,9GB) → KV `FILES` (tối đa 25MB mỗi file, giới hạn mềm 0,9GB). Chưa bật R2 thì tự dùng KV.
 - Cron mỗi 5 phút đồng bộ blog và bù icon cho file cũ (`backfillIcons`, có cơ chế chặn file lỗi lặp lại).
+- Ảnh minh họa cho lưới trong app: cột `items.img` (migration `migrations/003-screenshot.sql`, **chạy trước khi deploy Worker mới**), cờ 32 trong `flags`, `GET /v1/sc/<id>-<w>x<h>.jpg` (Google cắt đúng cỡ, JPEG q70, Cloudflare cache 1 ngày). Cron 5 phút tự điền `img` từ bài Blogspot. Thử: `node cloudflare/test/shot.test.mjs`.
 - Migration: `migrations/002-upload.sql` (cột `file_h`, `jad_text`, `jar_size`, `ic32`, `ic64`, `icon_state`, bảng `files`).
 - Thử cục bộ: `node cloudflare/test/jar.test.mjs`, `store.test.mjs`, `test/integ.sh` (cần wrangler).
