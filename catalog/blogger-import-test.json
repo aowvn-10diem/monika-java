@@ -1,0 +1,23 @@
+[
+  {
+    "title": "[Test] Game mẫu Monika",
+    "html": "<p>Bài thử nhập lô. Nội dung mô tả game mẫu.</p>",
+    "labels": ["Game", "Hành động"],
+    "meta": {"type": "game", "ver": "1.0", "size": "44", "cat": "Hành động", "jar": "https://raw.githubusercontent.com/aowvn-10diem/monika-java/claude/project-thread-apxszb/demo/Monika.jar", "desc": "Bài thử, xóa sau khi nhập thử"},
+    "published": "2026-11-23T04:00:00Z"
+  },
+  {
+    "title": "[Test] App mẫu Monika",
+    "html": "<p>Bài thử nhập lô cho ứng dụng.</p>",
+    "labels": ["App", "Tiện ích"],
+    "meta": {"type": "app", "ver": "0.1", "cat": "Tiện ích", "jar": "https://raw.githubusercontent.com/aowvn-10diem/monika-java/claude/project-thread-apxszb/demo/Monika.jar"},
+    "published": "2026-11-23T03:59:00Z"
+  },
+  {
+    "title": "[Test] Banner mẫu",
+    "html": "<p>Banner thử.</p>",
+    "labels": ["Banner"],
+    "meta": {"type": "banner", "slot": "top", "link": "hot", "alt": "Banner thử"},
+    "published": "2026-11-23T03:58:00Z"
+  }
+]
