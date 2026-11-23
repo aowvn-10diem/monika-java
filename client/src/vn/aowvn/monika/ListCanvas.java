@@ -183,6 +183,18 @@ final class ListCanvas extends BaseCanvas {
     /** Nhận ảnh minh họa của mục k (gen khác = dữ liệu cũ, bỏ; ô đã bị giải phóng cũng bỏ). */
     void setShot(int k, int g, Image img) {
         if (g == gen && k >= 0 && k < shots.length && reqShot[k] && !noShots) {
+            // máy chủ đã thu vừa khung; ảnh từ nguồn ngoài có thể lớn hơn khung: thu nhỏ giữ tỉ lệ
+            int iw = img.getWidth();
+            int ih = img.getHeight();
+            if ((iw > thW || ih > thH) && thW > 0 && thH > 0) {
+                int dw = iw * thH > ih * thW ? thW : iw * thH / ih;
+                int dh = iw * thH > ih * thW ? ih * thW / iw : thH;
+                try {
+                    img = scaleTo(img, Math.max(1, dw), Math.max(1, dh));
+                } catch (OutOfMemoryError e) {
+                    // giữ ảnh gốc, ô sẽ cắt phần thừa
+                }
+            }
             shots[k] = img;
             repaint();
         }
@@ -828,17 +840,21 @@ final class ListCanvas extends BaseCanvas {
 
     /** Thu về px x px bằng trung bình diện tích (alpha nhân trước); phóng to thì lấy mẫu gần nhất. */
     static Image scale(Image src, int px) {
+        return scaleTo(src, px, px);
+    }
+
+    static Image scaleTo(Image src, int dw, int dh) {
         int sw = src.getWidth();
         int sh = src.getHeight();
         int[] in = new int[sw * sh];
         src.getRGB(in, 0, sw, 0, 0, sw, sh);
-        int[] out = new int[px * px];
-        for (int y = 0; y < px; y++) {
-            int y0 = y * sh / px;
-            int y1 = Math.max(y0 + 1, (y + 1) * sh / px);
-            for (int x = 0; x < px; x++) {
-                int x0 = x * sw / px;
-                int x1 = Math.max(x0 + 1, (x + 1) * sw / px);
+        int[] out = new int[dw * dh];
+        for (int y = 0; y < dh; y++) {
+            int y0 = y * sh / dh;
+            int y1 = Math.max(y0 + 1, (y + 1) * sh / dh);
+            for (int x = 0; x < dw; x++) {
+                int x0 = x * sw / dw;
+                int x1 = Math.max(x0 + 1, (x + 1) * sw / dw);
                 int r = 0;
                 int g = 0;
                 int b = 0;
@@ -856,11 +872,11 @@ final class ListCanvas extends BaseCanvas {
                     }
                 }
                 if (a > 0 && n > 0) {
-                    out[y * px + x] = ((a / n) << 24) | ((r / a) << 16) | ((g / a) << 8) | (b / a);
+                    out[y * dw + x] = ((a / n) << 24) | ((r / a) << 16) | ((g / a) << 8) | (b / a);
                 }
             }
         }
-        return Image.createRGBImage(out, px, px, true);
+        return Image.createRGBImage(out, dw, dh, true);
     }
 
     private void paintBar(Graphics g, int w, int h) {

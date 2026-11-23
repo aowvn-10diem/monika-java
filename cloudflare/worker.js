@@ -257,11 +257,11 @@ async function banner(env, id, w) {
   return text("upstream image error", 502);
 }
 
-// Ảnh minh họa cho lưới trong app: cắt giữa đúng w x h, JPEG chất lượng 70 (vài KB). Nguồn Google/Blogger thì Google cắt và nén,
+// Ảnh minh họa cho lưới trong app: thu nhỏ vừa khung w x h (giữ tỉ lệ, không cắt, không méo; ảnh dọc 240x320 và ngang 320x240 đều vừa), JPEG chất lượng 70 (vài KB). Nguồn Google/Blogger thì Google thu nhỏ và nén,
 // nguồn khác trả nguyên bản. Cloudflare cache 1 ngày nên mỗi cỡ chỉ kéo từ Google một lần.
 function resizeShot(u, w, h) {
   if (!/(googleusercontent|ggpht)\.com|blogger\.com\/img|bp\.blogspot\.com/i.test(u)) return u;
-  const spec = `w${w}-h${h}-c-rj-l70`;
+  const spec = `w${w}-h${h}-rj-l70`;
   if (/=[swh]\d[^/]*$/i.test(u)) return u.replace(/=[swh]\d[^/]*$/i, "=" + spec);
   if (/\/[swh]\d+(-[a-z0-9-]*)?\/[^/]+$/i.test(u)) return u.replace(/\/[swh]\d+(-[a-z0-9-]*)?\/([^/]+)$/i, `/${spec}/$2`);
   return u + "=" + spec;

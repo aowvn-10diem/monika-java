@@ -119,6 +119,10 @@ def shot(iid, w, h):
     except ImportError:
         return png(w, h, (30 + iid * 7 % 120, 40 + iid * 13 % 120, 80 + iid * 29 % 140), (255, 160, 60)), "image/png"
     rnd = random.Random(iid)
+    # giống máy chủ thật: thu vừa khung w x h giữ tỉ lệ gốc (ngang 320x240, dọc 240x320, thỉnh thoảng 176x208)
+    ow, oh = (176, 208) if iid % 5 == 1 else ((320, 240) if iid % 2 == 0 else (240, 320))
+    k = min(w / ow, h / oh)
+    w, h = max(1, int(ow * k)), max(1, int(oh * k))
     im = Image.new("RGB", (w, h), tuple(rnd.randint(20, 110) for _ in range(3)))
     d = ImageDraw.Draw(im)
     for _ in range(10):

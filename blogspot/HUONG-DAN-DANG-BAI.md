@@ -31,7 +31,7 @@ desc: Mô tả ngắn hiện trong app (không bắt buộc)
 | `price` | giá, bỏ trống là miễn phí |
 | `desc` | mô tả ngắn cho app, bỏ trống thì cắt từ nội dung bài |
 
-**Ảnh minh họa** (hiện to ở ô lưới trang chủ, tìm kiếm, chuyên mục của web và app): ảnh đầu tiên trong bài **không phải icon Monika** (ảnh `/v1/fi/...` do trang up file tự thêm bị bỏ qua, ảnh khai width ≤ 80 cũng bỏ qua). Muốn chọn ảnh khác thì thêm dòng `img: https://...` vào khối `mk-meta`. Nên dùng ảnh chụp màn hình hoặc ảnh bìa tỉ lệ **4:3** (ví dụ 640×480), tải thẳng lên Blogspot (Google tự cắt giữa đúng cỡ cho web 200×150 / 256×192 và app, JPEG vài KB). Ảnh host ngoài Google vẫn hiện trên web, còn app nhận bản gốc nên cần dưới 48KB, quá thì app dùng icon thay.
+**Ảnh minh họa** (hiện to ở ô lưới trang chủ, tìm kiếm, chuyên mục của web và app): ảnh đầu tiên trong bài **không phải icon Monika** (ảnh `/v1/fi/...` do trang up file tự thêm bị bỏ qua, ảnh khai width ≤ 80 cũng bỏ qua). Muốn chọn ảnh khác thì thêm dòng `img: https://...` vào khối `mk-meta`. Nên dùng ảnh chụp màn hình tỉ lệ **240×320 (dọc) hoặc 320×240 (ngang)**, tải thẳng lên Blogspot (Google tự thu nhỏ vừa ô cho web và app, giữ tỉ lệ, không cắt, JPEG vài KB). Kích thước khác vẫn được: ảnh tự co vừa ô. Ảnh host ngoài Google vẫn hiện trên web, còn app nhận bản gốc nên cần dưới 48KB, quá thì app dùng icon thay.
 
 Icon nhỏ gắn vào góc ô là icon trích từ JAR (bài đăng bằng trang up file thì có sẵn, xem mục 6). Bài chưa có ảnh minh họa thì ô hiện nền gradient + icon lớn (hoặc chữ cái đầu).
 

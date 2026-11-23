@@ -26,7 +26,7 @@ const fetches = [];
 globalThis.fetch = async (u, o) => {
   u = String(u); fetches.push(u);
   if (u.includes("/feeds/posts/default")) return new Response(JSON.stringify(feed), { headers: { "content-type": "application/json" } });
-  if (u.includes("-c-rj-l70")) return new Response(new Uint8Array([0xff, 0xd8, 1, 2]), { headers: { "content-type": "image/jpeg" } });
+  if (u.includes("-rj-l70")) return new Response(new Uint8Array([0xff, 0xd8, 1, 2]), { headers: { "content-type": "image/jpeg" } });
   return new Response("no", { status: 404 });
 };
 
@@ -40,12 +40,12 @@ assert.equal(imgOf(ins[1]), "https://x/y/big.jpg", "bỏ ảnh width<=80");
 assert.equal(imgOf(ins[2]), "https://z/shot.jpg", "meta img ưu tiên");
 assert.equal(imgOf(ins[3]), "", "chỉ có icon thì không có ảnh minh họa");
 
-// 2) endpoint /v1/sc cắt đúng cỡ qua Google
+// 2) endpoint /v1/sc thu nhỏ vừa khung qua Google (không -c)
 const r = await w.fetch(new Request("http://api.test/v1/sc/7-150x113.jpg"), env, { waitUntil() {} });
 assert.equal(r.status, 200);
 assert.equal(r.headers.get("content-type"), "image/jpeg");
-assert.ok(fetches.some((u) => u.endsWith("/w150-h113-c-rj-l70/shot.png")), fetches.join("\n"));
+assert.ok(fetches.some((u) => u.endsWith("/w150-h113-rj-l70/shot.png")), fetches.join("\n"));
 // 3) kẹp kích thước
 await w.fetch(new Request("http://api.test/v1/sc/7-9999x1.jpg"), env, { waitUntil() {} });
-assert.ok(fetches.some((u) => u.includes("/w320-h30-c-rj-l70/")));
+assert.ok(fetches.some((u) => u.includes("/w320-h30-rj-l70/")));
 console.log("shot.test ok");
