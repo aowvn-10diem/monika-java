@@ -3,19 +3,12 @@ package vn.aowvn.monika;
 import java.util.Hashtable;
 import java.util.Vector;
 import javax.microedition.io.ConnectionNotFoundException;
-import javax.microedition.lcdui.Alert;
-import javax.microedition.lcdui.AlertType;
 import javax.microedition.lcdui.Canvas;
-import javax.microedition.lcdui.Choice;
-import javax.microedition.lcdui.ChoiceGroup;
 import javax.microedition.lcdui.Command;
 import javax.microedition.lcdui.CommandListener;
 import javax.microedition.lcdui.Display;
 import javax.microedition.lcdui.Displayable;
-import javax.microedition.lcdui.Form;
 import javax.microedition.lcdui.Image;
-import javax.microedition.lcdui.List;
-import javax.microedition.lcdui.StringItem;
 import javax.microedition.lcdui.TextBox;
 import javax.microedition.lcdui.TextField;
 import javax.microedition.midlet.MIDlet;
@@ -33,7 +26,7 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.4.3";
+    static final String VERSION = "0.5.0";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -75,20 +68,22 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     private final Vector stack = new Vector();
 
-    // màn hình đang dùng (để nhận diện trong commandAction)
-    private Form fFont;
-    private Command cFontYes;
-    private Command cFontNo;
-    private List fOptions;
-    private TextBox fSearch;
-    private Command cFind;
-    private Form fSettings;
-    private ChoiceGroup cgFont;
-    private ChoiceGroup cgOpts;
-    private TextField tfServer;
-    private Command cSave;
-    private Form fInfo;
-    private Form fAbout;
+    // màn hình tự vẽ đang mở (nhận diện trong panelAction)
+    private static final int P_OPTIONS = 1;
+    private static final int P_SEARCH = 2;
+    private static final int P_SETTINGS = 3;
+    private static final int P_INFO = 4;
+    private static final int P_ABOUT = 5;
+    private static final int P_ALERT = 6;
+    private static final int P_EDIT = 7;
+
+    /** Ô nhập gốc của máy, chỉ dùng khi chạm vào ô nhập (máy cảm ứng, bàn phím ảo). */
+    private TextBox nbox;
+    private Command cNbOk;
+    private Panel nowner;
+    /** Hàng đang sửa trong màn Cài đặt. */
+    private Panel editFor;
+    private int editRow;
 
     /** Tag yêu cầu danh sách: gắn với canvas và trang đang chờ. */
     private static final class ListReq {
@@ -131,12 +126,11 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         jadBase = prop("Monika-Base-URL");
         netSuffix = prop("Monika-Net-Suffix");
         jadFullscreen = !"0".equals(prop("Monika-Fullscreen"));
-        boolean known = store.load();
-        if (known) {
-            begin();
-        } else {
-            showFontTest();
+        if (!store.load()) {
+            Vi.mode = Vi.MODE_ACCENT;
+            store.save();
         }
+        begin();
     }
 
     protected void pauseApp() {
@@ -216,26 +210,19 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         return h;
     }
 
+    /** Thông báo tự vẽ; bấm OK (hoặc bất kỳ phím mềm) quay về next, mặc định trang chủ. */
     private void alert(String title, String msg, Displayable next) {
-        Alert a = new Alert(Vi.tr(title), Vi.tr(msg), null, AlertType.INFO);
-        a.setTimeout(3000);
-        display.setCurrent(a, next == null ? (Displayable) home : next);
+        Panel p = newPanel(Panel.TEXT, P_ALERT, title, "OK", null);
+        p.addPara(Vi.tr(msg));
+        p.next = next == null ? (Displayable) home : next;
+        display.setCurrent(p);
     }
 
-    // ---------- lần chạy đầu: thử font ----------
-
-    private void showFontTest() {
-        Vi.mode = Vi.MODE_ACCENT;
-        fFont = new Form("Monika");
-        fFont.append("Bạn đọc được dòng này không?\n");
-        fFont.append("Tiếng Việt có dấu: ắ ằ ẳ ẵ ặ ơ ư đ ế ệ ỷ\n\n");
-        fFont.append("Neu ban khong doc duoc dong tren, hay chon \"Khong doc duoc\".");
-        cFontYes = new Command("Doc duoc", Command.OK, 1);
-        cFontNo = new Command("Khong doc duoc", Command.CANCEL, 2);
-        fFont.addCommand(cFontYes);
-        fFont.addCommand(cFontNo);
-        fFont.setCommandListener(this);
-        display.setCurrent(fFont);
+    private Panel newPanel(int kind, int id, String title, String left, String right) {
+        Panel p = new Panel(this, kind, id, Vi.tr(title), left == null ? null : Vi.tr(left),
+            right == null ? null : Vi.tr(right), isFull());
+        p.setCommandListener(this);
+        return p;
     }
 
     // ---------- khởi động và trang chủ ----------
@@ -843,22 +830,24 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     // ---------- tìm kiếm ----------
 
-    private void openSearch() {
-        fSearch = new TextBox(Vi.tr("Tìm ứng dụng"), "", 40, TextField.ANY);
-        cFind = new Command(Vi.tr("Tìm"), Command.OK, 1);
-        fSearch.addCommand(cFind);
-        fSearch.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 2));
-        fSearch.setCommandListener(this);
-        show(fSearch);
-    }
-
-    private void doSearch() {
-        String key = Vi.key(fSearch.getString()).trim();
-        if (Repo.enc(key).length() == 0) {
-            alert("Thông báo", "Nhập từ khóa để tìm.", fSearch);
+    void openSearch() {
+        Displayable c = display.getCurrent();
+        if (c instanceof Panel && ((Panel) c).id == P_SEARCH) {
             return;
         }
-        ListCanvas lc = newList("Tìm: " + fSearch.getString(), 0);
+        Panel p = newPanel(Panel.INPUT, P_SEARCH, "Tìm ứng dụng", "Tìm", "Quay lại");
+        p.setInput("", Vi.tr("Gõ tên game hoặc ứng dụng cần tìm"));
+        show(p);
+    }
+
+    private void doSearch(Panel p) {
+        String text = p.inputText().trim();
+        String key = Vi.key(text).trim();
+        if (Repo.enc(key).length() == 0) {
+            alert("Thông báo", "Nhập từ khóa để tìm.", p);
+            return;
+        }
+        ListCanvas lc = newList("Tìm: " + text, 0);
         loadList(lc, "s:" + key, 0);
         show(lc);
     }
@@ -866,93 +855,165 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     // ---------- tùy chọn, cài đặt, thông tin ----------
 
     private void openOptions() {
-        fOptions = new List(Vi.tr("Tùy chọn"), Choice.IMPLICIT);
-        fOptions.append(Vi.tr("Mở mục đang chọn"), null);
-        fOptions.append(Vi.tr("Cài đặt"), null);
-        fOptions.append(Vi.tr("Thông tin máy"), null);
-        fOptions.append(Vi.tr("Giới thiệu"), null);
+        Panel p = newPanel(Panel.MENU, P_OPTIONS, "Tùy chọn", "Chọn", "Quay lại");
+        p.addItem(Vi.tr("1. Mở mục đang chọn"));
+        p.addItem(Vi.tr("2. Tìm kiếm  (phím *)"));
+        p.addItem(Vi.tr("3. Cài đặt"));
+        p.addItem(Vi.tr("4. Thông tin máy"));
+        p.addItem(Vi.tr("5. Giới thiệu"));
         if (updateUrl.length() > 0) {
-            fOptions.append(Vi.tr("Cập nhật Monika " + updateVer), null);
+            p.addItem(Vi.tr("6. Cập nhật Monika " + updateVer));
         }
-        fOptions.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
-        fOptions.setCommandListener(this);
-        show(fOptions);
+        show(p);
     }
 
     private void openSettings() {
-        fSettings = new Form(Vi.tr("Cài đặt"));
-        cgFont = new ChoiceGroup(Vi.tr("Chữ tiếng Việt"), Choice.EXCLUSIVE);
-        cgFont.append(Vi.tr("Có dấu"), null);
-        cgFont.append(Vi.tr("Không dấu"), null);
-        cgFont.setSelectedIndex(Vi.mode == Vi.MODE_PLAIN ? 1 : 0, true);
-        fSettings.append(cgFont);
-        cgOpts = new ChoiceGroup(Vi.tr("Khác"), Choice.MULTIPLE);
-        cgOpts.append(Vi.tr("Toàn màn hình (tự vẽ phím mềm)"), null);
-        cgOpts.append(Vi.tr("Chỉ hiện game hợp màn hình"), null);
-        cgOpts.append(Vi.tr("Xóa dữ liệu đã lưu"), null);
-        cgOpts.setSelectedIndex(0, isFull());
-        cgOpts.setSelectedIndex(1, store.fitScreen);
-        fSettings.append(cgOpts);
-        tfServer = new TextField(Vi.tr("Máy chủ (để trống = mặc định)"), store.server, 80, TextField.URL);
-        fSettings.append(tfServer);
-        cSave = new Command(Vi.tr("Lưu"), Command.OK, 1);
-        fSettings.addCommand(cSave);
-        fSettings.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 2));
-        fSettings.setCommandListener(this);
-        show(fSettings);
+        Panel p = newPanel(Panel.FORM, P_SETTINGS, "Cài đặt", "Lưu", "Hủy");
+        p.addChoice(Vi.tr("Chữ tiếng Việt"), new String[] {Vi.tr("Có dấu"), Vi.tr("Không dấu")},
+            Vi.mode == Vi.MODE_PLAIN ? 1 : 0);
+        p.addToggle(Vi.tr("Toàn màn hình"), isFull());
+        p.addToggle(Vi.tr("Chỉ hiện game hợp màn hình"), store.fitScreen);
+        p.addToggle(Vi.tr("Xóa dữ liệu đã lưu"), false);
+        p.addText(Vi.tr("Máy chủ"), store.server);
+        p.addPara(Vi.tr("Máy chủ để trống là dùng mặc định. Bấm OK để đổi mục, Lưu để áp dụng."));
+        show(p);
     }
 
-    private void saveSettings() {
-        Vi.mode = cgFont.getSelectedIndex() == 1 ? Vi.MODE_PLAIN : Vi.MODE_ACCENT;
-        store.fullscreen = cgOpts.isSelected(0) ? 1 : 2;
-        store.fitScreen = cgOpts.isSelected(1);
-        if (cgOpts.isSelected(2)) {
+    private void saveSettings(Panel p) {
+        Vi.mode = p.row(0).idx == 1 ? Vi.MODE_PLAIN : Vi.MODE_ACCENT;
+        store.fullscreen = p.row(1).on ? 1 : 2;
+        store.fitScreen = p.row(2).on;
+        if (p.row(3).on) {
             store.cacheClear();
         }
-        store.server = tfServer.getString().trim();
+        String sv = p.row(4).value;
+        store.server = sv == null ? "" : sv.trim();
         store.save();
         home = newHome();
         hdata = repo.online() ? new Home() : Home.fromCatalog(repo.embedded());
         stack.removeAllElements();
-        Alert a = new Alert(Vi.tr("Cài đặt"), Vi.tr("Đã lưu."), null, AlertType.INFO);
-        a.setTimeout(1500);
-        display.setCurrent(a, home);
+        alert("Cài đặt", "Đã lưu.", home);
         loadHome();
     }
 
     private void showInfo() {
-        fInfo = new Form(Vi.tr("Thông tin máy"));
-        fInfo.append(line("Nền tảng", System.getProperty("microedition.platform")));
-        fInfo.append(line("Cấu hình", System.getProperty("microedition.configuration")));
-        fInfo.append(line("Profile", System.getProperty("microedition.profiles")));
-        fInfo.append(line("Ngôn ngữ máy", System.getProperty("microedition.locale")));
+        Panel p = newPanel(Panel.TEXT, P_INFO, "Thông tin máy", null, "Quay lại");
+        p.addInfo(Vi.tr("Nền tảng"), System.getProperty("microedition.platform"));
+        p.addInfo(Vi.tr("Cấu hình"), System.getProperty("microedition.configuration"));
+        p.addInfo(Vi.tr("Profile"), System.getProperty("microedition.profiles"));
+        p.addInfo(Vi.tr("Ngôn ngữ máy"), System.getProperty("microedition.locale"));
         Runtime rt = Runtime.getRuntime();
-        fInfo.append(line("Bộ nhớ", (rt.freeMemory() / 1024) + " / " + (rt.totalMemory() / 1024) + " KB"));
-        fInfo.append(line("Màn hình", home.getWidth() + "x" + home.getHeight()
-            + (display.isColor() ? ", " + display.numColors() + " màu" : ", đơn sắc")));
-        fInfo.append(line("Mã thiết bị", store.deviceId));
-        fInfo.append(line("Dữ liệu", repo.source + (repo.stale ? " (mạng lỗi)" : "")));
-        fInfo.append(line("Lọc màn hình", store.fitScreen ? screenSize() : "tắt"));
-        fInfo.append(line("Máy chủ", repo.online() ? repo.base() : "(chưa cấu hình)"));
-        fInfo.append(line("Lỗi mạng", Net.lastDiag.length() == 0 ? "chưa có" : Net.lastDiag));
-        fInfo.append(line("Monika", VERSION));
-        fInfo.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
-        fInfo.setCommandListener(this);
-        show(fInfo);
-    }
-
-    private StringItem line(String label, String value) {
-        return new StringItem(Vi.tr(label + ": "), (value == null ? "-" : value) + "\n");
+        p.addInfo(Vi.tr("Bộ nhớ"), (rt.freeMemory() / 1024) + " / " + (rt.totalMemory() / 1024) + " KB");
+        p.addInfo(Vi.tr("Màn hình"), home.getWidth() + "x" + home.getHeight()
+            + (display.isColor() ? ", " + display.numColors() + " màu" : ", đơn sắc"));
+        p.addInfo(Vi.tr("Mã thiết bị"), store.deviceId);
+        p.addInfo(Vi.tr("Dữ liệu"), repo.source + (repo.stale ? " (mạng lỗi)" : ""));
+        p.addInfo(Vi.tr("Lọc màn hình"), store.fitScreen ? screenSize() : "tắt");
+        p.addInfo(Vi.tr("Máy chủ"), repo.online() ? repo.base() : "(chưa cấu hình)");
+        p.addInfo(Vi.tr("Lỗi mạng"), Net.lastDiag.length() == 0 ? "chưa có" : Net.lastDiag);
+        p.addInfo("Monika", VERSION);
+        show(p);
     }
 
     private void showAbout() {
-        fAbout = new Form(Vi.tr("Giới thiệu"));
-        fAbout.append(new StringItem(null, "Monika " + VERSION + "\n"));
-        fAbout.append(new StringItem(null,
-            Vi.tr("Cửa hàng ứng dụng Java S60 by AOW.VN.\nDữ liệu đồng bộ với web m.justmonika.top.\n")));
-        fAbout.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
-        fAbout.setCommandListener(this);
-        show(fAbout);
+        Panel p = newPanel(Panel.TEXT, P_ABOUT, "Giới thiệu", null, "Quay lại");
+        p.addInfo("Monika", VERSION);
+        p.addPara(Vi.tr("Cửa hàng ứng dụng Java S60 by AOW.VN. Dữ liệu đồng bộ với web m.justmonika.top."));
+        p.addPara(Vi.tr("Phím tắt: * tìm kiếm, phím giữa chọn, phím xóa quay lại."));
+        show(p);
+    }
+
+    // ---------- nhận hành động từ màn hình tự vẽ ----------
+
+    void panelAction(Panel p, int act, int sel) {
+        if (p.id == P_ALERT) {
+            if (act == Panel.A_LEFT || act == Panel.A_RIGHT) {
+                display.setCurrent(p.next);
+            }
+            return;
+        }
+        if (act == Panel.A_SEARCH) {
+            openSearch();
+            return;
+        }
+        if (act == Panel.A_NATIVE) {
+            nativeInput(p);
+            return;
+        }
+        switch (p.id) {
+            case P_OPTIONS:
+                if (act == Panel.A_RIGHT) {
+                    back();
+                } else if (act == Panel.A_PICK || act == Panel.A_LEFT) {
+                    optionPicked(sel);
+                }
+                break;
+            case P_SEARCH:
+                if (act == Panel.A_LEFT) {
+                    doSearch(p);
+                } else if (act == Panel.A_RIGHT) {
+                    back();
+                }
+                break;
+            case P_SETTINGS:
+                if (act == Panel.A_LEFT) {
+                    saveSettings(p);
+                } else if (act == Panel.A_RIGHT) {
+                    back();
+                } else if (act == Panel.A_EDIT) {
+                    Panel e = newPanel(Panel.INPUT, P_EDIT, p.row(sel).label, "OK", "Hủy");
+                    e.setInput(p.row(sel).value, Vi.tr("Để trống là dùng mặc định"));
+                    editFor = p;
+                    editRow = sel;
+                    show(e);
+                }
+                break;
+            case P_EDIT:
+                if (act == Panel.A_LEFT && editFor != null) {
+                    editFor.row(editRow).value = p.inputText().trim();
+                    editFor = null;
+                    back();
+                } else if (act == Panel.A_RIGHT) {
+                    editFor = null;
+                    back();
+                }
+                break;
+            default:
+                // thông tin, giới thiệu: phím mềm phải hoặc phím giữa quay lại
+                back();
+                break;
+        }
+    }
+
+    private void optionPicked(int i) {
+        boolean hasUpdate = updateUrl.length() > 0;
+        if (i == 0) {
+            stack.removeAllElements();
+            showHome();
+            home.activate();
+        } else if (i == 1) {
+            openSearch();
+        } else if (i == 2) {
+            openSettings();
+        } else if (i == 3) {
+            showInfo();
+        } else if (i == 4) {
+            showAbout();
+        } else if (hasUpdate && i == 5) {
+            installUpdate();
+        }
+    }
+
+    /** Máy cảm ứng: chạm vào ô thì dùng ô nhập gốc để hiện bàn phím ảo. */
+    private void nativeInput(Panel p) {
+        nowner = p;
+        nbox = new TextBox(p.id == P_SEARCH ? Vi.tr("Tìm ứng dụng") : Vi.tr("Nhập"),
+            p.inputText(), 80, p.id == P_EDIT ? TextField.URL : TextField.ANY);
+        cNbOk = new Command(Vi.tr("OK"), Command.OK, 1);
+        nbox.addCommand(cNbOk);
+        nbox.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 2));
+        nbox.setCommandListener(this);
+        display.setCurrent(nbox);
     }
 
     private void installUpdate() {
@@ -984,11 +1045,22 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             }
             return;
         }
-        if (d == fFont) {
-            Vi.mode = c == cFontNo ? Vi.MODE_PLAIN : Vi.MODE_ACCENT;
-            store.save();
-            fFont = null;
-            begin();
+        if (d == nbox) {
+            Panel o = nowner;
+            nbox = null;
+            nowner = null;
+            if (o != null) {
+                if (c == cNbOk) {
+                    o.setText(((TextBox) d).getString());
+                }
+                display.setCurrent(o);
+            } else {
+                back();
+            }
+            return;
+        }
+        if (d instanceof Panel) {
+            ((Panel) d).onCommand(c);
             return;
         }
         if (d instanceof ListCanvas) {
@@ -1018,26 +1090,6 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         if (c.getCommandType() == Command.BACK) {
             back();
             return;
-        }
-        if (d == fOptions && c == List.SELECT_COMMAND) {
-            int i = fOptions.getSelectedIndex();
-            if (i == 0) {
-                stack.removeAllElements();
-                showHome();
-                home.activate();
-            } else if (i == 1) {
-                openSettings();
-            } else if (i == 2) {
-                showInfo();
-            } else if (i == 3) {
-                showAbout();
-            } else {
-                installUpdate();
-            }
-        } else if (d == fSearch && c == cFind) {
-            doSearch();
-        } else if (d == fSettings && c == cSave) {
-            saveSettings();
         }
     }
 }
