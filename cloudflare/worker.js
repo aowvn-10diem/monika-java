@@ -364,9 +364,15 @@ async function chooser(env, it) {
 // Ảnh minh họa lưu trong R2 (khóa pic/<tên>.jpg), phát qua /v1/pic/<tên>.jpg. Không có R2 thì 404.
 async function pic(env, name) {
   if (!env.R2) return text("no r2", 404);
+  // Cache biên: ảnh đã đọc một lần thì các lần sau không tốn lượt đọc R2 (hạn mức Class B).
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  const key = new Request(`https://${env.API_HOST || "api"}/v1/pic/${name}`);
+  if (cache) { const hit = await cache.match(key); if (hit) return hit; }
   const o = await env.R2.get("pic/" + name);
   if (!o) return text("not found", 404);
-  return new Response(o.body, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" } });
+  const res = new Response(o.body, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" } });
+  if (cache) { try { await cache.put(key, res.clone()); } catch (_) {} }
+  return res;
 }
 const picName = (env, u) => { const m = /^https?:\/\/([^/]+)\/v1\/pic\/([A-Za-z0-9_-]{1,60}\.jpg)$/.exec(u || ""); return m && m[1].toLowerCase() === String(env.API_HOST || "").toLowerCase() ? m[2] : ""; };
 
