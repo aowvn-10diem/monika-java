@@ -4,7 +4,7 @@ Mỗi bài Blogspot là một game/app. Web hiển thị trực tiếp, Worker `
 
 ## 1. Bài game/app
 
-Nhãn (Labels): `Game` hoặc `App`, thêm nhãn danh mục (ví dụ `Hành động`). Nội dung bài:
+Nhãn (Labels), gắn đủ ba nhóm (xem mục 1b): loại `Game` hoặc `App` + thể loại chuẩn (ví dụ `Hành động`) + thẻ nếu có (`VH`, `MOD`, `3D`, `VN`). Nội dung bài:
 
 ```html
 <pre class="mk-meta">
@@ -14,6 +14,9 @@ cat: Hành động
 jar: https://link-tai-thang-file.jar
 net: 0
 hot: 0
+tags: vh, 3d
+plat: j2me, s60v3
+res: 240x320, 320x240
 desc: Mô tả ngắn hiện trong app (không bắt buộc)
 </pre>
 <img src="ảnh chụp màn hình hoặc icon" />
@@ -24,7 +27,10 @@ desc: Mô tả ngắn hiện trong app (không bắt buộc)
 |---|---|
 | `ver` | phiên bản |
 | `size` | dung lượng KB (bỏ trống thì app tự lấy từ file JAR) |
-| `cat` | danh mục (bỏ trống thì lấy nhãn đầu tiên không phải Game/App) |
+| `cat` | thể loại: tên chuẩn hoặc bí danh trong `catalog/taxonomy.json` (bỏ trống thì lấy nhãn đầu tiên không phải Game/App). Tên lạ rơi vào "Khác" |
+| `tags` | thẻ, cách nhau dấu phẩy: `goc`, `vh`, `mod`, `3d`, `cam-ung`, `game-viet`, `nhieu-nguoi`, `can-mang` (hoặc viết tắt `VH`, `MOD`, `3D`, `TOUCH`, `VN`, `MP`, `NET`). Hiện thành huy hiệu vàng ở ô lưới và trang bài |
+| `plat` | nền tảng: `j2me`, `s60v2`, `s60v3`, `s60v5`, `s3` (bỏ trống coi là `j2me`). Dùng cho bộ lọc Java / S60 ở trang Xếp hạng |
+| `res` | độ phân giải màn hình hỗ trợ, ví dụ `240x320, 320x240` (bỏ trống nghĩa là chạy mọi cỡ) |
 | `jar` | link tải thẳng file JAR (xem mục 3) |
 | `net` | `1` nếu cần mạng |
 | `hot` | `1` để ghim vào mục Hot |
@@ -34,6 +40,22 @@ desc: Mô tả ngắn hiện trong app (không bắt buộc)
 **Ảnh minh họa** (hiện to ở ô lưới trang chủ, tìm kiếm, chuyên mục của web và app): ảnh đầu tiên trong bài **không phải icon Monika** (ảnh `/v1/fi/...` do trang up file tự thêm bị bỏ qua, ảnh khai width ≤ 80 cũng bỏ qua). Muốn chọn ảnh khác thì thêm dòng `img: https://...` vào khối `mk-meta`. Nên dùng ảnh chụp màn hình tỉ lệ **240×320 (dọc) hoặc 320×240 (ngang)**, tải thẳng lên Blogspot (Google tự thu nhỏ vừa ô cho web và app, giữ tỉ lệ, không cắt, JPEG vài KB). Kích thước khác vẫn được: ảnh tự co vừa ô. Ảnh host ngoài Google vẫn hiện trên web, còn app nhận bản gốc nên cần dưới 48KB, quá thì app dùng icon thay.
 
 Icon nhỏ gắn vào góc ô là icon trích từ JAR (bài đăng bằng trang up file thì có sẵn, xem mục 6). Bài chưa có ảnh minh họa thì ô hiện nền gradient + icon lớn (hoặc chữ cái đầu).
+
+## 1b. Nhãn nên gắn và thể loại chuẩn
+
+Mỗi bài game/app nên có:
+
+1. **Loại**: `Game` hoặc `App` (menu "Game" / "App" và nhãn gốc dựa vào đây).
+2. **Một thể loại chuẩn** (đúng chính tả, có dấu), lấy từ danh sách dưới. Menu thả xuống trên web tự dựng từ thể loại đang có bài, mỗi mục là link `/search/label/<tên>`.
+3. **Thẻ** nếu đúng: `VH` (Việt hóa), `MOD`, `3D`, `VN` (game Việt). Nhãn trùng tên thẻ tự hiện huy hiệu vàng ngay cả khi tắt JavaScript. Các thẻ khác (`TOUCH`, `MP`, `NET`, `GỐC`) khai ở dòng `tags:`.
+
+Game: `Hành động`, `Phiêu lưu`, `Nhập vai`, `Chiến thuật`, `Đua xe`, `Thể thao`, `Bắn súng`, `Đối kháng`, `Giải đố & trí tuệ`, `Arcade & chạy nhảy`, `Mô phỏng & quản lý`, `Cờ & bài`, `Trẻ em & vui nhộn`, `Khác`
+
+App: `Mạng & trình duyệt`, `Chat & mạng xã hội`, `Đọc sách & truyện`, `Nhạc & video`, `Văn phòng & học tập`, `Công cụ hệ thống`, `Bản đồ & GPS`, `Đời sống`, `Giao diện & hình nền`, `Khác`
+
+Bài viết (không phải game/app, chỉ dùng nhãn trên web): `Thủ thuật`, `Truyện & giải trí`, `Tin Monika`
+
+Lưu ý: `Khác` có ở cả Game và App; hai mục "Khác" trong menu cùng trỏ tới nhãn `Khác`. Nên đặt thêm nhãn `Game` hoặc `App` để phân biệt (menu hiện kết quả theo nhãn, không lọc chéo).
 
 ## 2. Bài banner
 
@@ -74,11 +96,24 @@ jar: https://link-jar-monika
 
 ## 5. Cài đặt Blogspot một lần
 
-1. Theme → mũi tên cạnh Customize → Edit HTML → xóa hết, dán nội dung `monika-blogspot-template.xml` → Save. Nếu Blogspot báo lỗi, gửi nguyên văn thông báo để sửa.
+1. Theme → mũi tên cạnh Customize → Edit HTML → xóa hết, dán nội dung `blogspot/monika-template.xml` → Save. Nếu Blogspot báo lỗi, gửi nguyên văn thông báo để sửa.
 2. Theme → bánh răng "Mobile" → chọn **No. Show desktop template on mobile devices** (template đã tự co giãn, không dùng bản mobile của Blogger).
 3. Settings → Posts: số bài hiện trên trang chính = **16** (lưới 4 cột trên PC, 2 cột trên điện thoại/Nokia đều chia hết). Settings → Blog feeds (Site feed) = **Full**.
 4. Settings → Custom domain: `m.justmonika.top`. DNS đã có bản ghi `m` → `ghs.google.com`. Blogspot sẽ đưa thêm một bản ghi CNAME xác minh riêng, gửi tôi hoặc tự thêm vào Cloudflare (để DNS only, đám mây xám).
 5. Tạo hai Page nếu muốn (Giới thiệu, Liên hệ), template tự hiển thị trang tĩnh.
+6. **Trang Xếp hạng** (làm một lần): Pages → New page → tiêu đề `Xếp hạng`, chế độ **HTML**, nội dung để trống → ô Permalink chọn *Custom permalink* và gõ `xep-hang` để địa chỉ thành `/p/xep-hang.html` (đúng chuẩn này, menu và template nhận diện theo đường dẫn) → Publish. Template tự dựng các tab Hôm nay / Tuần / Tải nhiều / Hot / Mới, bộ lọc Game|App|Tất cả, thể loại và nền tảng (Java / S60) từ API. Tắt JavaScript thì chỉ hiện thông báo kèm link nhãn.
+
+Lượt tải hiện ở góc ô lưới và trang bài (dưới 5 ẩn, dưới 1000 hiện số thật, từ 1000 dạng `1,2k`), lấy từ API. Chỉ hiện khi Worker biết mục đó (xem mục "Việc sếp cần làm").
+
+### Việc sếp cần làm
+
+| Việc | Khi nào | Ghi chú |
+|---|---|---|
+| Dán lại `monika-template.xml` vào Theme → Edit HTML | Mỗi lần template đổi | Nếu Blogspot báo lỗi, gửi nguyên văn thông báo |
+| Tạo Page `Xếp hạng`, nội dung trống, permalink `xep-hang` | Một lần | Bước 6 ở trên; thiếu trang này thì menu Xếp hạng báo "Không tìm thấy trang" |
+| Gắn nhãn `Game`/`App` + thể loại chuẩn + `VH`/`MOD`/`3D`/`VN` cho bài mới và bài cũ | Mỗi bài | Mục 1b; sửa nhãn bài cũ để menu thể loại có bài |
+| Thêm dòng `tags:`, `plat:`, `res:` vào `mk-meta` | Bài mới (bài cũ thêm dần) | Chưa có thì mặc định `j2me`, không thẻ, mọi cỡ màn hình |
+| Worker thêm `GET /v1/stats.json?paths=...` (trả `id` + `dl`) | Một lần, bên Worker | Để mọi bài hiện lượt tải; tạm thời web chỉ hiện cho bài có icon trong `/v1/icons.json` |
 
 ## 6. Đăng bằng trang up file (khuyên dùng)
 

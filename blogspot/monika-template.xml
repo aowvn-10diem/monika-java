@@ -76,6 +76,40 @@ h1,h2,h3{margin:0}
 .pg{overflow:hidden;margin-top:8px;padding:10px 12px;background:var(--bar);color:var(--or);font-weight:700}
 .pg a{float:left}
 .pg a.o{float:right}
+/* huy hieu the (VH, MOD, 3D, VN...) va luot tai */
+.chips .tg,.it .chips .tg{background:#ffd23f;color:#2a1800;font-weight:700}
+.dlc{position:absolute;right:5px;bottom:5px;font-size:10px;line-height:1.6;padding:0 6px;border-radius:8px;background:rgba(0,0,0,.72);color:#fff}
+/* menu tha xuong (the loai tu API; khong co JS thi menu van la link nhan) */
+.nav .cr{margin-left:3px;font-size:11px}
+.dd{display:none;background:var(--bar);border-top:1px solid var(--ln);border-bottom:2px solid var(--sel1)}
+.dd.on{display:block}
+.dd-in{overflow:hidden}
+.dd a{float:left;width:50%;padding:9px 12px;font-size:13px;line-height:1.3;border-bottom:1px solid var(--ln)}
+.dd a:hover{background:var(--r2);color:var(--or)}
+.dd a.all{width:100%;font-weight:700;color:var(--or)}
+.dd a span{color:var(--mu);font-size:11px;margin-left:3px}
+.dd p{margin:0;padding:9px 12px;color:var(--mu);font-size:13px}
+/* trang Xep hang */
+.it.rkp{padding:12px 0}
+.it.rkp .pt{padding:0 12px 10px}
+.rk .nj{padding:20px 12px}
+.rk .nj a{color:var(--or);text-decoration:underline}
+.js .rk .nj{display:none}
+.rk .tabs{overflow:hidden}
+.rk .tabs a{float:left;width:20%;padding:9px 1px;text-align:center;font-size:12px;line-height:1.2;background:var(--r1);border-bottom:2px solid var(--ln)}
+.rk .tabs a:nth-child(even){background:var(--r2)}
+.rk .tabs a.on{background:var(--sel2);border-bottom-color:var(--or);font-weight:700}
+.rk .fl{padding:8px 12px 0;overflow:hidden}
+.rk .fl b{display:block;font-size:11px;font-weight:400;color:var(--mu);margin-bottom:3px}
+.rk .fb{display:inline-block;margin:0 4px 6px 0;padding:0 10px;line-height:26px;font-size:12px;border-radius:13px;background:#3b1a6b;color:var(--mu)}
+.rk .fb.on{background:var(--or);color:#1b0a38;font-weight:700}
+.rk .emp a{color:var(--or);text-decoration:underline}
+.it .rk .chips{height:19px;white-space:nowrap;margin:3px 0 0}
+.it .rk .chips a,.it .rk .chips span{margin:0 3px 0 0}
+.rkn{position:absolute;left:5px;top:5px;min-width:26px;height:26px;padding:0 5px;line-height:26px;text-align:center;border-radius:13px;font-size:13px;font-weight:700;background:#3b1a6b;color:#fff;border:1px solid #8f78bd}
+.rkn.r1{background:#ffd23f;color:#2a1800;border-color:#fff3b0}
+.rkn.r2{background:#dde1e7;color:#14161a;border-color:#fff}
+.rkn.r3{background:#e0954f;color:#1c0d00;border-color:#ffd9b0}
 /* item */
 .it{background:var(--r1);padding:12px}
 .pt{font-size:22px;line-height:1.25}
@@ -126,6 +160,13 @@ pre.mk-meta{display:none}
 .nav a.on,.nav a:hover{background:linear-gradient(var(--sel1),var(--sel2))}
 .nav svg{display:inline-block;margin:0 7px 0 0;width:18px;height:18px}
 .sf{margin-left:auto;padding:0;background:none;width:250px}
+.dd{position:absolute;left:0;right:0;top:100%;box-shadow:0 8px 14px rgba(0,0,0,.5)}
+.dd-in{max-width:1080px;margin:0 auto;padding:6px 12px}
+.dd a{width:20%;border:0;border-radius:4px}
+.dd a.all{width:100%}
+.rk .tabs a{width:auto;float:none;display:inline-block;padding:9px 18px}
+.it.rkp .pt{padding:0 18px 10px}
+.it.rkp .rk .fl{padding:8px 18px 0}
 .sf input{padding:6px 10px}
 .sf button{padding:6px 12px}
 .cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;padding:12px;align-items:start}
@@ -144,6 +185,7 @@ pre.mk-meta{display:none}
 <symbol id='i-game' viewBox='0 0 24 24'><rect height='11' rx='5' width='20' x='2' y='7'/><path d='M7 10v5M4.5 12.5h5'/><circle cx='15.5' cy='11.5' r='1'/><circle cx='18' cy='14' r='1'/></symbol>
 <symbol id='i-cat' viewBox='0 0 24 24'><path d='M12 3l9 5-9 5-9-5 9-5z'/><path d='M3 13l9 5 9-5'/></symbol>
 <symbol id='i-new' viewBox='0 0 24 24'><path d='M20 11a8 8 0 1 0-2.3 6.2'/><path d='M20 4v7h-7'/></symbol>
+<symbol id='i-top' viewBox='0 0 24 24'><path d='M6 20v-8M12 20V5M18 20v-5'/></symbol>
 <symbol id='i-go' viewBox='0 0 24 24'><path d='M9 5l7 7-7 7'/></symbol>
 </svg>
 
@@ -162,14 +204,15 @@ pre.mk-meta{display:none}
 </header>
 <div class='bar'>
 <nav class='nav'>
-<a href='/search/label/App'><svg><use href='#i-app'/></svg>Ứng dụng<svg class='go'><use href='#i-go'/></svg></a>
-<a href='/search/label/Game'><svg><use href='#i-game'/></svg>Trò chơi<svg class='go'><use href='#i-go'/></svg></a>
-<a href='#cats'><svg><use href='#i-cat'/></svg>Danh mục<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='game' href='/search/label/Game'><svg><use href='#i-game'/></svg>Game<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='app' href='/search/label/App'><svg><use href='#i-app'/></svg>App<svg class='go'><use href='#i-go'/></svg></a>
+<a href='/p/xep-hang.html'><svg><use href='#i-top'/></svg>Xếp hạng<svg class='go'><use href='#i-go'/></svg></a>
 <a href='/'><svg><use href='#i-new'/></svg>Mới<svg class='go'><use href='#i-go'/></svg></a>
 </nav>
 <form action='/search' class='sf' method='get'><input name='q' placeholder='Tìm app, game...' type='search'/><button type='submit'>Tìm</button></form>
 </div>
 </div>
+<div class='dd' id='dd'><div class='dd-in' id='dd-in'></div></div>
 </div>
 <b:section class='adslot wrap' id='ad-top' maxwidgets='1' showaddelement='yes'/>
 
@@ -198,7 +241,8 @@ pre.mk-meta{display:none}
 <article class='it'>
 <h1 class='pt'><data:post.title/></h1>
 <div class='chips'>
-<b:loop values='data:post.labels' var='label'><a expr:href='data:label.url'><data:label.name/></a></b:loop>
+<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name == "VH" or data:label.name == "MOD" or data:label.name == "3D" or data:label.name == "VN"'><a class='tg' expr:href='data:label.url'><data:label.name/></a></b:if></b:loop>
+<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name != "VH" and data:label.name != "MOD" and data:label.name != "3D" and data:label.name != "VN"'><a expr:href='data:label.url'><data:label.name/></a></b:if></b:loop>
 <span class='dt' expr:data-t='data:post.timestampValue'></span>
 </div>
 <div class='pb'><data:post.body/></div>
@@ -208,6 +252,9 @@ pre.mk-meta{display:none}
 <article class='it'>
 <h1 class='pt'><data:post.title/></h1>
 <div class='pb'><data:post.body/></div>
+<b:if cond='data:post.url contains "/p/xep-hang.html"'>
+<div class='rk' id='rk'><p class='emp nj'>Bật JavaScript để xem bảng xếp hạng. Hoặc xem theo nhãn: <a href='/search/label/Game'>Game</a> · <a href='/search/label/App'>App</a> · <a href='/'>Mới cập nhật</a></p></div>
+</b:if>
 </article>
 <b:else/>
 <article class='gc' expr:data-t='data:post.timestampValue'>
@@ -216,7 +263,8 @@ pre.mk-meta{display:none}
 <div class='gt'>
 <h2><a expr:href='data:post.url'><data:post.title/></a></h2>
 <div class='chips'>
-<b:loop values='data:post.labels' var='label'><span><data:label.name/></span></b:loop>
+<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name == "VH" or data:label.name == "MOD" or data:label.name == "3D" or data:label.name == "VN"'><span class='tg'><data:label.name/></span></b:if></b:loop>
+<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name != "VH" and data:label.name != "MOD" and data:label.name != "3D" and data:label.name != "VN"'><span><data:label.name/></span></b:if></b:loop>
 </div>
 </div>
 </div>
@@ -280,6 +328,23 @@ d.documentElement.className=d.documentElement.className.replace('nojs','js');
 function $$(s,r){return Array.prototype.slice.call((r||d).querySelectorAll(s))}
 function el(t,c,x){var e=d.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
 function del(e){if(e&&e.parentNode)e.parentNode.removeChild(e)}
+function clr(e){while(e.firstChild)e.removeChild(e.firstChild)}
+/* GET JSON bang XHR (Opera Mini 6 khong co fetch). API cho phep CORS */
+function get(u,ok,er){
+ var x=new XMLHttpRequest();
+ x.onreadystatechange=function(){
+  if(x.readyState!==4)return;
+  var j=null;if(x.status>=200&&x.status<300){try{j=JSON.parse(x.responseText)}catch(e){}}
+  if(j!==null)ok(j);else if(er)er()};
+ x.open('GET',u,true);x.send(null)}
+/* du lieu dung chung, moi loai chi tai mot lan */
+var Q={};
+function once(k,u,cb){
+ var q=Q[k]||(Q[k]={w:[]});
+ if(q.done){cb(q.v);return}
+ q.w.push(cb);if(q.w.length>1)return;
+ get(API+u,function(v){q.done=1;q.v=v;var w=q.w;q.w=[];for(var i=0;i<w.length;i++)w[i](v)},
+  function(){q.done=1;q.v=null;var w=q.w;q.w=[];for(var i=0;i<w.length;i++)w[i](null)})}
 function meta(pre){
  var t=pre.innerHTML.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div)>/gi,'\n').replace(/<[^>]+>/g,''),
   x=el('textarea');x.innerHTML=t;t=x.value;
@@ -288,6 +353,18 @@ function meta(pre){
 function sz(k){k=parseInt(k,10);if(!k)return'';return k>=1024?(k/1024).toFixed(1)+' MB':k+' KB'}
 function pad(n){return('0'+n).slice(-2)}
 function fd(t){var x=new Date(t);return isNaN(x.getTime())?'':pad(x.getDate())+'/'+pad(x.getMonth()+1)+'/'+x.getFullYear()}
+/* luot tai: <5 an, <1000 so that, tu 1000 dang 1,2k */
+function fdl(n){n=parseInt(n,10)||0;if(n<5)return'';if(n<1000)return''+n;var k=Math.floor(n/100)/10;return String(k).replace('.',',')+'k'}
+/* the: slug taxonomy hoac nhan ngan -> huy hieu */
+var TG={vh:'VH','viet-hoa':'VH',mod:'MOD','3d':'3D',vn:'VN','game-viet':'VN',touch:'TOUCH','cam-ung':'TOUCH',mp:'MP','nhieu-nguoi':'MP',net:'NET','can-mang':'NET'};
+var PL={j2me:'Java J2ME',s60v2:'Symbian S60 v1/v2',s60v3:'Symbian S60 v3',s60v5:'Symbian S60 v5',s3:'Symbian^3 / Belle'};
+function tg(s){return TG[String(s).toLowerCase().replace(/^\s+|\s+$/g,'')]||''}
+function tgList(s){var o=[],a=String(s||'').split(/[,;]/),i,t;for(i=0;i<a.length;i++){t=tg(a[i]);if(t&&o.indexOf(t)<0)o.push(t)}return o}
+/* them huy hieu vao dau hang chip, bo qua cai da co */
+function addTags(ch,list){
+ var have={},i;$$('.tg',ch).forEach(function(e){have[e.textContent]=1});
+ for(i=list.length-1;i>=0;i--)if(!have[list[i]]){ch.insertBefore(el('span','tg',list[i]),ch.firstChild)}
+ var t=$$('.tg',ch);for(i=t.length-1;i>=0;i--)ch.insertBefore(t[i],ch.firstChild)}
 /* anh Google/Blogger: thu nho vua khung (giu ti le, khong cat/meo), anh ngoai giu nguyen va CSS thu ve vua o */
 function gimg(u,w,h){
  if(!/googleusercontent|blogspot|ggpht/i.test(u))return u;
@@ -296,14 +373,55 @@ function gimg(u,w,h){
  if(/\/[swh]\d+[^\/]*\/[^\/]+$/i.test(u))return u.replace(/\/[swh]\d+[^\/]*\/([^\/]+)$/i,'/'+s+'/$1');
  return u}
 function fileKey(m){return m.file&&/^[0-9a-f]{10}$/i.test(m.file)?m.file.toLowerCase():((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(m.jar||'')||[])[1]||'').toLowerCase()}
+/* luot tai theo duong dan bai: id lay tu icons.json (/v1/ic/<id>-64.png); bai chua co id thi hoi stats.json?paths= (Worker tra {"<duong dan>":{"id":..,"dl":..}}) */
+function fillDl(list){
+ if(!list.length)return;
+ once('icons','/v1/icons.json',function(M){
+  M=M||{};
+  var byId={},ids=[],rest=[],i,x,m;
+  for(i=0;i<list.length;i++){x=list[i];m=/\/v1\/ic\/(\d+)-/.exec(M[x.path]||'');
+   if(m){if(!byId[m[1]]){byId[m[1]]=[];ids.push(m[1])}byId[m[1]].push(x)}else rest.push(x)}
+  if(ids.length)get(API+'/v1/stats.json?ids='+ids.slice(0,50).join(','),function(S){
+   for(var k in byId){if(S&&S[k])for(var j=0;j<byId[k].length;j++)byId[k][j].set(S[k].dl)}});
+  if(rest.length){var ps=[];for(i=0;i<rest.length&&i<50;i++)ps.push(rest[i].path);
+   get(API+'/v1/stats.json?paths='+encodeURIComponent(ps.join(',')),function(S){
+    for(var j=0;j<rest.length;j++){var r=S&&S[rest[j].path];if(r)rest[j].set(r.dl)}})}})}
 /* ngay dang (trang bai) */
 $$('.dt').forEach(function(e){e.textContent=fd(e.getAttribute('data-t'))});
 /* menu dang chon */
-$$('.nav a').forEach(function(a){if(!a.hash&&a.pathname===location.pathname)a.className='on'});
-/* luoi game: anh minh hoa + icon + huy hieu + ban, phien ban, dung luong */
-var need=[],GW=vw<600?200:256,GH=vw<600?150:192,now=new Date().getTime();
+$$('.nav a').forEach(function(a){if(!a.hash&&a.pathname.replace(/^\/?/,'/')===location.pathname)a.className=(a.className?a.className+' ':'')+'on'});
+/* menu the loai: Game / App mo danh sach the loai tu cats.json, moi muc la link nhan Blogger */
+var dd=d.getElementById('dd'),ddin=d.getElementById('dd-in'),ddk='';
+function ddFill(k,C){
+ clr(ddin);
+ var all=el('a','all',k==='game'?'Tất cả Game':'Tất cả App');all.href='/search/label/'+(k==='game'?'Game':'App');ddin.appendChild(all);
+ if(!C){ddin.appendChild(el('p','','Đang tải thể loại...'));return}
+ var n=0;
+ C.forEach(function(c){if(c.kind!==(k==='game'?1:2))return;n++;
+  var a=el('a','',c.name);a.href='/search/label/'+encodeURIComponent(c.name);
+  if(c.count)a.appendChild(el('span','',String(c.count)));ddin.appendChild(a)});
+ if(!n)ddin.appendChild(el('p','','Chưa có thể loại.'))}
+function ddClose(){if(!dd)return;dd.className=dd.className.replace(' on','');ddk='';$$('.nav a[data-dd]').forEach(function(a){a.setAttribute('aria-expanded','false')})}
+$$('.nav a[data-dd]').forEach(function(a){
+ var k=a.getAttribute('data-dd');
+ a.appendChild(el('span','cr','▾'));a.setAttribute('aria-haspopup','true');a.setAttribute('aria-expanded','false');
+ a.onclick=function(){
+  if(!dd)return true;
+  if(ddk===k){ddClose();return false}
+  ddClose();ddk=k;dd.className+=' on';a.setAttribute('aria-expanded','true');
+  ddFill(k,Q.cats&&Q.cats.done?Q.cats.v:null);
+  once('cats','/v1/cats.json',function(C){if(ddk===k)ddFill(k,C||[])});
+  return false}});
+d.onclick=function(e){
+ var t=e?e.target:window.event.srcElement;
+ while(t&&t!==d){if(t===dd||(t.getAttribute&&t.getAttribute('data-dd')))return;t=t.parentNode}
+ ddClose()};
+/* o game: dung chung cho luoi nhan/tim kiem va bang xep hang */
 function setIc(th,u,hasShot){
  var i2=el('img',hasShot?'ic2':'ic1');i2.alt='';i2.onerror=function(){del(i2)};i2.src=u;th.appendChild(i2)}
+function addDl(th,n){var t=fdl(n);if(t){var s=el('span','dlc','▼ '+t);th.appendChild(s)}}
+/* luoi game: anh minh hoa + icon + huy hieu + ban, phien ban, dung luong */
+var need=[],GW=vw<600?200:256,GH=vw<600?150:192,now=new Date().getTime(),dlq=[];
 $$('.gc').forEach(function(c){
  var r=c.querySelector('.raw'),th=c.querySelector('.th'),ch=c.querySelector('.chips'),
   pre=r.querySelector('pre.mk-meta'),m=pre?meta(pre):{},ph=th.querySelector('.ph'),k;
@@ -313,6 +431,7 @@ $$('.gc').forEach(function(c){
  if(sz(m.size))add.push(el('span','',sz(m.size)));
  if(m.net==='1')add.push(el('span','','Cần mạng'));
  for(k=0;k<add.length;k++)ch.insertBefore(add[k],ch.childNodes[k]||null);
+ addTags(ch,tgList(m.tags));
  /* anh minh hoa: meta img, hoac anh dau tien trong bai khong phai icon Monika (/v1/fi/) */
  var shot=m.img||'',ims=$$('img',r);
  for(k=0;!shot&&k<ims.length;k++){var u=ims[k].getAttribute('src')||'';if(u&&!/\/v1\/fi\//.test(u))shot=u}
@@ -323,28 +442,109 @@ $$('.gc').forEach(function(c){
  var t=new Date(c.getAttribute('data-t')).getTime();
  if(m.hot==='1')th.appendChild(el('span','bd h','HOT'));
  else if(!isNaN(t)&&now-t<6048e5)th.appendChild(el('span','bd','MỚI'));
+ dlq.push({path:th.pathname.replace(/^\/?/,'/'),set:function(n){addDl(th,n)}});
  del(r)});
 if($$('.st').length&&!$$('.gc').length&&$$('.gl').length){var gl=$$('.gl')[0];gl.parentNode.insertBefore(el('div','emp','Chưa có bài nào ở mục này.'),gl.nextSibling)}
 /* bai khong co meta file: lay icon trich tu JAR qua API (theo duong dan bai) */
-if(need.length&&window.fetch){fetch(API+'/v1/icons.json').then(function(r){return r.json()}).then(function(M){
- need.forEach(function(x){var u=M[x.path];if(u)setIc(x.th,API+u,x.shot)})}).catch(function(){})}
+if(need.length){once('icons','/v1/icons.json',function(M){
+ if(!M)return;
+ need.forEach(function(x){var u=M[x.path];if(u)setIc(x.th,API+u,x.shot)})})}
+fillDl(dlq);
 /* trang bai: bang thong tin + nut tai */
 $$('.pb pre.mk-meta').forEach(function(pre){
- var m=meta(pre),box=el('div','dlbox'),tb=el('table','info');
- [['Danh mục',m.cat],['Phiên bản',m.ver],['Dung lượng',sz(m.size)],['Cần mạng',m.net==='1'?'Có':''],['Giá',m.price&&m.price!=='0'?m.price:'']].forEach(function(p){
+ var m=meta(pre),box=el('div','dlbox'),tb=el('table','info'),
+  pl=[],ra=String(m.plat||'').split(/[,;]/),i,ch=d.querySelector('.it .chips'),dlt;
+ for(i=0;i<ra.length;i++){var pk=ra[i].replace(/\s+/g,'').toLowerCase();if(PL[pk])pl.push(PL[pk])}
+ [['Danh mục',m.cat],['Phiên bản',m.ver],['Dung lượng',sz(m.size)],['Nền tảng',pl.join(', ')],['Màn hình',m.res],['Cần mạng',m.net==='1'?'Có':''],['Giá',m.price&&m.price!=='0'?m.price:'']].forEach(function(p){
   if(!p[1])return;var tr=el('tr');tr.appendChild(el('th','',p[0]));tr.appendChild(el('td','',p[1]));tb.appendChild(tr)});
+ var tr=el('tr');tr.style.display='none';tr.appendChild(el('th','','Lượt tải'));dlt=el('td');tr.appendChild(dlt);tb.appendChild(tr);
+ if(ch)addTags(ch,tgList(m.tags));
  var fk=fileKey(m);
  if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){del(gi)};box.appendChild(gi)}
  box.appendChild(tb);
  if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','▼ Tải về (JAR)');a.href=m.jar;a.rel='nofollow noopener';box.appendChild(a)}
- pre.parentNode.insertBefore(box,pre);del(pre)});
+ pre.parentNode.insertBefore(box,pre);del(pre);
+ fillDl([{path:location.pathname,set:function(n){var t=fdl(n);if(t){dlt.textContent=t;tr.style.display=''}}}])});
+/* trang Xep hang (/p/xep-hang.html, trang tinh Blogger de trong): tab + loc + luoi tu list.json */
+if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
+ var rk=d.getElementById('rk'),art=d.querySelector('.it');
+ if(!rk&&art){rk=el('div','rk');rk.id='rk';art.appendChild(rk)}
+ if(!rk)return;
+ art.className+=' rkp';
+ var TABS=[['top1','Hôm nay'],['top7','Tuần'],['dl','Tải nhiều'],['hot','Hot'],['new','Mới']],
+  SC=[['all','Tất cả'],['game','Game'],['app','App']],
+  PF=[['','Mọi máy'],['1','Java'],['30','S60']],
+  S={k:'top7',s:'all',c:0,p:'',g:0},tok=0,cats=null,cur='';
+ function rd(){var h=location.hash.replace(/^#/,''),a=h.split('&'),i,kv,v;S.k='top7';S.s='all';S.c=0;S.p='';S.g=0;
+  for(i=0;i<a.length;i++){kv=a[i].split('=');v=decodeURIComponent(kv[1]||'');
+   if(kv[0]==='k'&&/^(top1|top7|dl|hot|new)$/.test(v))S.k=v;
+   else if(kv[0]==='s'&&/^(all|game|app)$/.test(v))S.s=v;
+   else if(kv[0]==='c'&&/^\d+$/.test(v))S.c=parseInt(v,10);
+   else if(kv[0]==='p'&&/^(1|30)?$/.test(v))S.p=v;
+   else if(kv[0]==='g'&&/^\d+$/.test(v))S.g=parseInt(v,10)}}
+ function hs(o){var n={k:S.k,s:S.s,c:S.c,p:S.p,g:0},x;for(x in o)n[x]=o[x];
+  return '#k='+n.k+'&s='+n.s+'&c='+n.c+'&p='+n.p+'&g='+n.g}
+ function key(){var b=S.c?'c'+S.c:(S.s==='all'?'':S.s),k=b?b+'.'+S.k:S.k;if(S.p)k+='.p'+S.p;return k}
+ function lk(box,txt,cls,o){var a=el('a',cls,txt);a.href=hs(o);
+  a.onclick=function(){for(var x in o)S[x]=o[x];if(o.s!==undefined&&o.c===undefined)S.c=0;if(o.g===undefined)S.g=0;
+   try{location.hash=hs({g:S.g})}catch(e){}draw();return false};
+  box.appendChild(a);return a}
+ var tabs=el('div','tabs'),f1=el('div','fl'),f2=el('div','fl'),f3=el('div','fl'),
+  st=el('div'),gl=el('div','gl'),pg=el('div','pg');
+ clr(rk);[tabs,f1,f2,f3,st,gl,pg].forEach(function(e){rk.appendChild(e)});
+ function filt(box,title,rows,cur,name,extra){
+  clr(box);if(!rows.length){box.style.display='none';return}box.style.display='';
+  box.appendChild(el('b','',title));
+  rows.forEach(function(r){var o={};o[name]=r[0];if(extra)for(var x in extra)o[x]=extra[x];lk(box,r[1],'fb'+(String(cur)===String(r[0])?' on':''),o)})}
+ function drawCtl(){
+  clr(tabs);TABS.forEach(function(t){lk(tabs,t[1],S.k===t[0]?'on':'',{k:t[0]})});
+  filt(f1,'Loại',SC,S.s,'s',{c:0});
+  var cr=[];if(S.s!=='all'&&cats){cats.forEach(function(c){if(c.kind===(S.s==='game'?1:2))cr.push([c.id,c.name])});if(cr.length)cr.unshift([0,'Mọi thể loại'])}
+  filt(f2,'Thể loại',cr,S.c,'c');
+  filt(f3,'Nền tảng',PF,S.p,'p')}
+ function cell(it,i){
+  var c=el('div','gc'),b=el('div','gcb'),th=el('a','th'),g=el('div','gt'),h=el('h2'),a=el('a','',it.title||''),ch=el('div','chips'),
+   rank=S.g*15+i+1,tgs=[],j,ts=it.tags||[];
+  th.href=it.url||'#';th.title=it.title||'';th.appendChild(el('span','ph','M'));
+  if(it.shot){var im=el('img','sc');im.alt='';im.onerror=function(){del(im);th.className=th.className.replace(' has','')};im.src=API+it.shot;th.appendChild(im);th.className+=' has'}
+  if(it.icon)setIc(th,API+it.icon,!!it.shot);
+  if(S.k!=='new')th.appendChild(el('span','rkn'+(S.g===0&&i<3?' r'+rank:''),String(rank)));
+  if(it.flags&8)th.appendChild(el('span','bd h','HOT'));else if(it.flags&1)th.appendChild(el('span','bd','MỚI'));
+  addDl(th,it.dl);
+  a.href=it.url||'#';h.appendChild(a);
+  for(j=0;j<ts.length;j++){var t=tg(ts[j]);if(t&&tgs.indexOf(t)<0){tgs.push(t);ch.appendChild(el('span','tg',t))}}
+  if(it.ver)ch.appendChild(el('span','v','v'+it.ver));
+  if(sz(it.sizeKb))ch.appendChild(el('span','',sz(it.sizeKb)));
+  if(it.catName)ch.appendChild(el('span','',it.catName));
+  g.appendChild(h);g.appendChild(ch);b.appendChild(th);b.appendChild(g);c.appendChild(b);return c}
+ function draw(){
+  var my=++tok;cur=location.hash;drawCtl();clr(gl);clr(pg);clr(st);
+  st.appendChild(el('div','emp','Đang tải bảng xếp hạng...'));
+  get(API+'/v1/list.json?key='+encodeURIComponent(key())+'&page='+S.g,function(R){
+   if(my!==tok)return;clr(st);
+   var L=(R&&R.items)||[],i;
+   if(!L.length){st.appendChild(el('div','emp',S.g?'Hết bảng xếp hạng.':'Chưa có mục nào trong bảng này.'));
+    if(S.g)lk(pg,'‹ Về trang đầu','',{g:0});return}
+   for(i=0;i<L.length;i++)gl.appendChild(cell(L[i],i));
+   if(S.g>0)lk(pg,'‹ Trang trước','',{g:S.g-1});
+   var more=R.total!=null?(S.g+1)*15<R.total:L.length>=15;
+   if(more)lk(pg,'Trang sau ›','o',{g:S.g+1});
+   if(!pg.firstChild)pg.style.display='none';else pg.style.display=''},
+  function(){if(my!==tok)return;clr(st);
+   var e=el('div','emp','Không tải được bảng xếp hạng. '),a=el('a','','Thử lại');a.href=hs({g:S.g});a.onclick=function(){draw();return false};
+   e.appendChild(a);st.appendChild(e)})}
+ rd();draw();
+ window.onhashchange=function(){if(location.hash!==cur){rd();draw()}};
+ once('cats','/v1/cats.json',function(C){cats=C||[];drawCtl()})
+})()}
 /* banner: chung du lieu voi app Java. Banner dau trang: trong header (man nho) hoac dau cot noi dung (PC), chi nap cai dang hien */
 var pc=vw>=900,slots=$$('.bn[data-slot]').filter(function(s){
  if(/\bbn-top2\b/.test(s.className))return pc;
  if(/\bbn-top\b/.test(s.className))return !pc;
  return true});
-if(slots.length&&window.fetch){
- fetch(API+'/v1/banners.json').then(function(r){return r.json()}).then(function(L){
+if(slots.length){
+ once('banners','/v1/banners.json',function(L){
+  if(!L)return;
   slots.forEach(function(s){
    var sl=s.getAttribute('data-slot'),c=L.filter(function(x){return x.slot===sl});
    if(!c.length)return;
@@ -352,8 +552,7 @@ if(slots.length&&window.fetch){
    img.alt=b.alt||'';img.src=vw<600?API+b.img:(b.src||API+b.img2);
    var h=el(b.href?'a':'div');if(b.href){h.href=b.href;h.rel='nofollow'}
    h.appendChild(img);s.appendChild(h);s.className+=' on';
-   if(/\bbn-top\b/.test(s.className)){var hd=d.querySelector('.hd');if(hd)hd.className+=' hb'}});
- }).catch(function(){})}
+   if(/\bbn-top\b/.test(s.className)){var hd=d.querySelector('.hd');if(hd)hd.className+=' hb'}})})}
 })();
 //]]>
 </script>
