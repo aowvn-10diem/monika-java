@@ -44,11 +44,12 @@ h1,h2,h3{margin:0}
 .nav a.on,.nav a:hover{background:#cc580c;background:linear-gradient(#cc580c,#b44606);font-weight:700}
 .nav svg{display:block;margin:0 auto 2px;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .nav .go{display:none}
+.cr{display:inline-block;width:0;height:0;margin-left:4px;border:4px solid transparent;border-top-color:#cdbfe8;border-bottom:0;vertical-align:middle}
 .sf{display:flex;gap:6px;overflow:hidden;padding:8px 12px;background:#140729}
 .sf input{float:left;width:68%;flex:1;min-width:0;padding:8px 10px;border:1px solid #4a2a7a;border-radius:4px;background:#1f0b3d;color:#fff;font:inherit}
 .sf button{float:right;padding:8px 14px;border:0;border-radius:4px;background:#cc580c;background:linear-gradient(#cc580c,#b44606);color:#fff;font:inherit;font-weight:700;cursor:pointer}
 /* tieu de muc + luoi game: 2 o moi hang tren Nokia/dien thoai */
-.st,.widget h2{padding:8px 12px;background:#cc580c;background:linear-gradient(90deg,#cc580c,#b44606);font-size:14px;font-weight:700}
+.st,.widget>h2{padding:8px 12px;background:#cc580c;background:linear-gradient(90deg,#cc580c,#b44606);font-size:14px;font-weight:700}
 .gl{overflow:hidden}
 .gc{float:left;width:50%;padding:8px 4px 0}
 .gcb{background:#250e48;border:1px solid #3a1a66;border-radius:8px;overflow:hidden}
@@ -72,7 +73,7 @@ h1,h2,h3{margin:0}
 .it .chips a,.it .chips span{margin:0 4px 4px 0}
 .raw{display:none}
 .emp{padding:20px 12px;text-align:center;color:#cdbfe8}
-.pg{overflow:hidden;margin-top:8px;padding:10px 12px;background:#140729;color:#ff7a1a;font-weight:700}
+.pg{overflow:hidden;margin-top:8px;padding:8px 12px;background:#140729;color:#ff7a1a;font-weight:700}
 .pg a{float:left}
 .pg a.o{float:right}
 /* huy hieu the (VH, MOD, 3D, VN...) va luot tai */
@@ -274,7 +275,7 @@ pre.mk-meta{display:none}
 </div>
 <b:if cond='data:blog.pageType != "static_page"'>
 <div class='pg'>
-<b:if cond='data:newerPageUrl'><a expr:href='data:newerPageUrl'>‹ Mới hơn</a><b:else/><span></span></b:if>
+<b:if cond='data:newerPageUrl'><a expr:href='data:newerPageUrl'>‹ Mới hơn</a></b:if>
 <b:if cond='data:olderPageUrl'><a class='o' expr:href='data:olderPageUrl'>Cũ hơn ›</a></b:if>
 </div>
 </b:if>
@@ -403,7 +404,7 @@ function ddFill(k,C){
 function ddClose(){if(!dd)return;dd.className=dd.className.replace(' on','');ddk='';$$('.nav a[data-dd]').forEach(function(a){a.setAttribute('aria-expanded','false')})}
 $$('.nav a[data-dd]').forEach(function(a){
  var k=a.getAttribute('data-dd');
- a.appendChild(el('span','cr','▾'));a.setAttribute('aria-haspopup','true');a.setAttribute('aria-expanded','false');
+ a.appendChild(el('span','cr'));a.setAttribute('aria-haspopup','true');a.setAttribute('aria-expanded','false');
  a.onclick=function(){
   if(!dd)return true;
   if(ddk===k){ddClose();return false}
@@ -418,7 +419,7 @@ d.onclick=function(e){
 /* o game: dung chung cho luoi nhan/tim kiem va bang xep hang */
 function setIc(th,u,hasShot){
  var i2=el('img',hasShot?'ic2':'ic1');i2.alt='';i2.onerror=function(){del(i2)};i2.src=u;th.appendChild(i2)}
-function addDl(th,n){var t=fdl(n);if(t){var s=el('span','dlc','▼ '+t);th.appendChild(s)}}
+function addDl(th,n){var t=fdl(n);if(t){var s=el('span','dlc',t);th.appendChild(s)}}
 /* luoi game: anh minh hoa + icon + huy hieu + ban, phien ban, dung luong */
 var need=[],GW=vw<600?200:256,GH=vw<600?150:192,now=new Date().getTime(),dlq=[];
 $$('.gc').forEach(function(c){
@@ -461,7 +462,7 @@ $$('.pb pre.mk-meta').forEach(function(pre){
  var fk=fileKey(m);
  if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){del(gi)};box.appendChild(gi)}
  box.appendChild(tb);
- if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','▼ Tải về (JAR)');a.href=m.jar;a.rel='nofollow noopener';box.appendChild(a)}
+ if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','Tải về (JAR)');a.href=m.jar;a.rel='nofollow noopener';box.appendChild(a)}
  pre.parentNode.insertBefore(box,pre);del(pre);
  fillDl([{path:location.pathname,set:function(n){var t=fdl(n);if(t){dlt.textContent=t;tr.style.display=''}}}])});
 /* trang Xep hang (/p/xep-hang.html, trang tinh Blogger de trong): tab + loc + luoi tu list.json */

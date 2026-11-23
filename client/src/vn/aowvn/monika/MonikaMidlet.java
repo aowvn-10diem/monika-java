@@ -33,7 +33,7 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.4.1";
+    static final String VERSION = "0.4.2";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -388,7 +388,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         if (err != null) {
             if (!homeAlerted && display.getCurrent() == home) {
                 homeAlerted = true;
-                alert("Thông báo", "Không vào được mạng (" + err + "). Bật WiFi hoặc dữ liệu di động rồi mở lại app. Nếu máy không hỏi chọn mạng, vào cài đặt của app trong Quản lý ứng dụng, đặt điểm truy cập là Hỏi mỗi lần hoặc chọn WLAN. Xem máy chủ: Tùy chọn > Thông tin máy.",
+                alert("Thông báo", "Không vào được mạng (" + err + "). Chi tiết: " + Net.lastDiag + ". Nếu máy không hỏi chọn mạng (WiFi/3G), kiểm tra quyền truy cập mạng và điểm truy cập trong cài đặt của app. Chụp màn hình này gửi AowVN.",
                     home);
             }
             return;
@@ -934,6 +934,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         fInfo.append(line("Dữ liệu", repo.source + (repo.stale ? " (mạng lỗi)" : "")));
         fInfo.append(line("Lọc màn hình", store.fitScreen ? screenSize() : "tắt"));
         fInfo.append(line("Máy chủ", repo.online() ? repo.base() : "(chưa cấu hình)"));
+        fInfo.append(line("Lỗi mạng", Net.lastDiag.length() == 0 ? "chưa có" : Net.lastDiag));
         fInfo.append(line("Monika", VERSION));
         fInfo.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
         fInfo.setCommandListener(this);
