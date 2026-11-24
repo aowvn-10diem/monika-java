@@ -1,6 +1,7 @@
 // Monika API (Cloudflare Worker + D1). Contract: memory "monika-api-contract".
 // Nguồn dữ liệu: feed Blogger (BLOG_URL). Cron quét từng trang 40 bài, xóa mục mất khỏi blog sau mỗi vòng quét.
 
+import { pdDirect, upstream } from "./pd.js";
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
 import { resolveCat, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson } from "./rank.js";
@@ -108,7 +109,7 @@ function directJar(u) {
   if (m) return "https://drive.usercontent.google.com/download?export=download&confirm=t&id=" + m[1];
   m = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/i.exec(u);
   if (m) return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
-  return u;
+  return pdDirect(u);
 }
 
 // ---------- sync ----------
@@ -346,7 +347,7 @@ async function download(env, ctx, req, n, ext) {
   }
   const h = {};
   const rg = req.headers.get("range"); if (rg) h.range = rg;
-  const r = await fetch(it.jar, { headers: { ...h, "user-agent": "MonikaDl/1" } });
+  const r = await upstream(env, it.jar, { headers: { ...h, "user-agent": "MonikaDl/1" } });
   if (!r.ok && r.status !== 206) return text("upstream " + r.status, 502);
   const hd = new Headers({ "content-type": "application/java-archive", "cache-control": "public, max-age=300", "accept-ranges": "bytes", "content-disposition": `attachment; filename="monika-${n}.jar"` });
   for (const k of ["content-length", "content-range"]) if (r.headers.get(k)) hd.set(k, r.headers.get(k));

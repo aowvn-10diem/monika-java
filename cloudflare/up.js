@@ -1,5 +1,6 @@
 // Luồng up file: nhận JAR -> trích tên/icon -> chống trùng -> lưu kho -> tạo mục cho app -> sinh HTML bài Blogspot.
 import { analyzeJar, makeIcons, sha256hex, slugify, cleanVer, manifestToJad, b64, unb64 } from "./jar.js";
+import { upstream } from "./pd.js";
 import { putFile, serveFile, delFile, storeInfo } from "./store.js";
 import { resolveCat, catName } from "./rank.js";
 
@@ -144,7 +145,7 @@ export async function iconsJson(env) {
 
 // ---------- JAR ở link ngoài: trích icon + dựng JAD (dùng cho mục viết bài với jar: link) ----------
 export async function ingestExternal(env, it, origin) {
-  const r = await fetch(it.jar, { headers: { "user-agent": "MonikaSync/1" } });
+  const r = await upstream(env, it.jar, { headers: { "user-agent": "MonikaSync/1" } });
   if (!r.ok) throw new Error("jar " + r.status);
   const cl = parseInt(r.headers.get("content-length") || "0", 10);
   if (cl > MAX_UP) throw new Error("jar quá lớn");

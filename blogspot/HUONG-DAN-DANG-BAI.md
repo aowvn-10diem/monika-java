@@ -79,7 +79,8 @@ alt: Tên banner
 Worker tải file JAR từ link rồi phát lại qua HTTP cho máy Java cũ, nên link phải cho phép máy chủ tải.
 
 - Dùng được: GitHub (link `blob` hoặc `raw`, Releases), Google Drive (link chia sẻ "bất kỳ ai có liên kết", dạng `drive.google.com/file/d/ID/view` tự đổi sang link tải), host riêng.
-- Không dùng được: Pixeldrain (chặn hotlink, trả 403), Maven Central.
+- Pixeldrain của sếp: dùng được qua Worker (khóa `PD_KEY` giữ ở phía máy chủ). Ghi `jar: https://pixeldrain.com/u/<ID>` trong `mk-meta`; Worker tự đổi sang API kèm khóa và phát lại qua `/v1/j/<id>.jar`. Người dùng không bao giờ thấy link Pixeldrain.
+- Không dùng được: Maven Central.
 - Gợi ý lâu dài: bật Cloudflare R2 (miễn phí 10GB) rồi nhờ tôi nối vào Worker.
 
 ## 4. Bài của chính app Monika (tự cập nhật)

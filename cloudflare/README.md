@@ -8,7 +8,7 @@ Host: `http://api.justmonika.top` (HTTP cổng 80 cho máy Java cũ). Worker `mo
 - Cách đăng bài: `../blogspot/HUONG-DAN-DANG-BAI.md`.
 
 Biến cấu hình: `API_HOST`, `BLOG_URL` (plain text), `SYNC_TOKEN` (secret, dùng cho `/v1/sync?t=` chạy tay một lượt quét).
-Link JAR: GitHub, Google Drive, host riêng. Pixeldrain chặn hotlink nên không dùng được.
+Link JAR: GitHub, Google Drive, host riêng. Pixeldrain chặn hotlink nên Worker gọi API kèm secret `PD_KEY` (`cloudflare/pd.js`): `jar: https://pixeldrain.com/u/<ID>` dùng được.
 
 ## Up file, icon, kho lưu trữ
 
