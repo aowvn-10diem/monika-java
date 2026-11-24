@@ -39,7 +39,7 @@ h1,h2,h3{margin:0}
 .adslot .widget{margin:0 0 12px}
 /* nav: 4 o ngang tren man nho */
 .nav{background:#140729;overflow:hidden}
-.nav a{float:left;width:25%;padding:7px 2px 6px;text-align:center;font-size:12px;line-height:1.2;background:#250e48;border-bottom:1px solid #3a1a66}
+.nav a{float:left;width:33.333%;padding:7px 2px 6px;text-align:center;font-size:12px;line-height:1.2;background:#250e48;border-bottom:1px solid #3a1a66}
 .nav a:nth-child(even){background:#290f4f}
 .nav a.on,.nav a:hover{background:#cc580c;background:linear-gradient(#cc580c,#b44606);font-weight:700}
 .nav svg{display:block;margin:0 auto 2px;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -66,6 +66,7 @@ h1,h2,h3{margin:0}
 .gt h2{height:2.6em;overflow:hidden;font-size:13px;line-height:1.3}
 .gt h2 a:hover{color:#ff7a1a}
 .chips{margin:3px 0 0;max-height:42px;overflow:hidden}
+.gt .chips{height:40px}
 .chips span,.chips a{display:inline-block;max-width:100%;font-size:11px;line-height:17px;padding:0 6px;margin:0 3px 2px 0;border-radius:8px;background:#3b1a6b;color:#cdbfe8}
 .chips .v{background:#dc1a70;color:#fff}
 .dt{font-size:11px;color:#a58bd0}
@@ -89,6 +90,38 @@ h1,h2,h3{margin:0}
 .dd a.all{width:100%;font-weight:700;color:#ff7a1a}
 .dd a span{color:#cdbfe8;font-size:11px;margin-left:3px}
 .dd p{margin:0;padding:9px 12px;color:#cdbfe8;font-size:13px}
+/* trang chu: De xuat hom nay + Top tai nhieu (float, khong flex/grid) */
+.hm .st,.tp .st{margin-top:8px}
+.stm{float:right;font-size:12px;font-weight:400;color:#ffe2c9}
+.hm .gl .gc{padding-bottom:0}
+.tpt{overflow:hidden;background:#140729}
+.tpt a{float:left;width:33.333%;padding:8px 2px;text-align:center;font-size:12px;line-height:1.2;background:#250e48;border-bottom:2px solid #3a1a66}
+.tpt a:nth-child(even){background:#290f4f}
+.tpt a.on{background:#b44606;border-bottom-color:#ff7a1a;font-weight:700}
+.tpr{display:block;overflow:hidden;padding:6px 10px;background:#250e48;border-bottom:1px solid #3a1a66}
+.tpr:nth-child(odd){background:#290f4f}
+.tpr:hover{background:#3a1a66}
+.tpn{float:left;width:24px;height:24px;margin:8px 8px 0 0;line-height:22px;text-align:center;border-radius:12px;font-size:12px;font-weight:700;background:#3b1a6b;color:#fff;border:1px solid #8f78bd}
+.tpn.r1{background:#ffd23f;color:#2a1800;border-color:#fff3b0}
+.tpn.r2{background:#dde1e7;color:#14161a;border-color:#fff}
+.tpn.r3{background:#e0954f;color:#1c0d00;border-color:#ffd9b0}
+.tpi{float:left;width:40px;height:40px;margin:0 8px 0 0;border-radius:8px;background:#3b1a6b;overflow:hidden}
+.tpi img{display:block;width:40px;height:40px;border:0}
+.tpd{float:right;margin:12px 0 0 6px;font-size:11px;color:#cdbfe8}
+.tpx{display:block;overflow:hidden}
+.tpx b{display:block;max-height:2.6em;overflow:hidden;font-size:13px;line-height:1.3;font-weight:400}
+.tpx i{display:block;font-size:11px;font-style:normal;color:#a58bd0;height:1.3em;overflow:hidden}
+.tpr:hover b{color:#ff7a1a}
+.tpm{display:block;padding:9px 12px;text-align:center;color:#ff7a1a;font-weight:700;background:#140729}
+.tpe{padding:14px 12px;text-align:center;color:#cdbfe8;font-size:13px;background:#250e48}
+/* phan trang so: 1 2 3 4 5 6 ... cuoi (JS dung tu Worker /v1/pager.json; khong co JS van con lien ket Moi hon / Cu hon) */
+.pn{display:none;overflow:hidden;margin-top:8px;padding:6px 4px 2px;background:#140729;text-align:center}
+.pn.on{display:block}
+.pn a,.pn span{display:inline-block;min-width:34px;height:34px;line-height:32px;margin:0 2px 4px;padding:0 6px;border-radius:6px;background:#250e48;border:1px solid #3a1a66;font-size:14px;font-weight:700;color:#fff}
+.pn a:hover{border-color:#ff7a1a;color:#ff7a1a}
+.pn span.cur{background:#cc580c;background:linear-gradient(#cc580c,#b44606);border-color:#ff7a1a}
+.pn span.dot{background:none;border:0;min-width:16px;padding:0;color:#a58bd0}
+.pg.hide{display:none}
 /* trang Xep hang */
 .it.rkp{padding:12px 0}
 .it.rkp .pt{padding:0 12px 10px}
@@ -155,14 +188,15 @@ pre.mk-meta{display:none}
 .by{margin:0 0 0 10px}
 .bar{flex:1;min-width:0;display:flex;align-items:center;margin-left:22px}
 .nav{background:none;overflow:visible;display:flex}
-.nav a{float:none;width:auto;display:flex;align-items:center;padding:7px 13px;margin-right:2px;font-size:14px;background:none;border:0;border-radius:6px;text-align:left}
+.nav a{float:none;width:auto;display:flex;align-items:center;padding:7px 11px;margin-right:2px;font-size:14px;background:none;border:0;border-radius:6px;text-align:left}
 .nav a:nth-child(even){background:none}
 .nav a.on,.nav a:hover{background:#cc580c;background:linear-gradient(#cc580c,#b44606)}
-.nav svg{display:inline-block;margin:0 7px 0 0;width:18px;height:18px}
-.sf{margin-left:auto;padding:0;background:none;width:250px}
+.nav svg{display:none}
+.sf{margin-left:auto;padding:0;background:none;width:220px}
+.by{display:none}
 .dd{position:absolute;left:0;right:0;top:100%;box-shadow:0 8px 14px rgba(0,0,0,.5)}
 .dd-in{max-width:1080px;margin:0 auto;padding:6px 12px}
-.dd a{width:20%;border:0;border-radius:4px}
+.dd a{width:25%;border:0;border-radius:4px}
 .dd a.all{width:100%}
 .rk .tabs a{width:auto;float:none;display:inline-block;padding:9px 18px}
 .it.rkp .pt{padding:0 18px 10px}
@@ -177,6 +211,10 @@ pre.mk-meta{display:none}
 .pt{font-size:26px}
 .pb a.dlbtn{display:inline-block;padding:12px 28px}
 }
+@media (min-width:1060px){
+.by{display:block}
+.sf{width:240px}
+}
 ]]></b:skin>
 </head>
 <body>
@@ -187,6 +225,9 @@ pre.mk-meta{display:none}
 <symbol id='i-new' viewBox='0 0 24 24'><path d='M20 11a8 8 0 1 0-2.3 6.2'/><path d='M20 4v7h-7'/></symbol>
 <symbol id='i-top' viewBox='0 0 24 24'><path d='M6 20v-8M12 20V5M18 20v-5'/></symbol>
 <symbol id='i-go' viewBox='0 0 24 24'><path d='M9 5l7 7-7 7'/></symbol>
+<symbol id='i-img' viewBox='0 0 24 24'><rect height='16' rx='2' width='18' x='3' y='4'/><circle cx='9' cy='10' r='1.6'/><path d='M3 17l5-4 4 3 3-2 6 4'/></symbol>
+<symbol id='i-snd' viewBox='0 0 24 24'><path d='M9 18V6l10-2v12'/><circle cx='6.5' cy='18' r='2.5'/><circle cx='16.5' cy='16' r='2.5'/></symbol>
+<symbol id='i-book' viewBox='0 0 24 24'><path d='M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2z'/><path d='M4 20a2 2 0 0 0 2 2h13'/></symbol>
 </svg>
 
 <div class='top'>
@@ -204,10 +245,12 @@ pre.mk-meta{display:none}
 </header>
 <div class='bar'>
 <nav class='nav'>
-<a data-dd='game' href='/search/label/Game'><svg><use href='#i-game'/></svg>Game<svg class='go'><use href='#i-go'/></svg></a>
-<a data-dd='app' href='/search/label/App'><svg><use href='#i-app'/></svg>App<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='1' href='/search/label/Game'><svg><use href='#i-game'/></svg>Game<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='2' href='/search/label/App'><svg><use href='#i-app'/></svg>Phần mềm<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='4' href='/search/label/Giao%20di%E1%BB%87n'><svg><use href='#i-img'/></svg>Giao diện<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='5' href='/search/label/%C3%82m%20thanh'><svg><use href='#i-snd'/></svg>Âm thanh<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='3' href='/search/label/B%C3%A0i%20vi%E1%BA%BFt'><svg><use href='#i-book'/></svg>Truyện &amp; Mẹo<svg class='go'><use href='#i-go'/></svg></a>
 <a href='/p/xep-hang.html'><svg><use href='#i-top'/></svg>Xếp hạng<svg class='go'><use href='#i-go'/></svg></a>
-<a href='/'><svg><use href='#i-new'/></svg>Mới<svg class='go'><use href='#i-go'/></svg></a>
 </nav>
 <form action='/search' class='sf' method='get'><input name='q' placeholder='Tìm app, game...' type='search'/><button type='submit'>Tìm</button></form>
 </div>
@@ -219,6 +262,7 @@ pre.mk-meta{display:none}
 <div class='cols wrap'>
 <main class='main'>
 <div class='bn bn-top2' data-slot='top'></div>
+<div class='hm' id='hm'></div>
 <b:section class='main-sec' id='main' showaddelement='no'>
 <b:widget id='Blog1' locked='true' title='Bài đăng trên blog' type='Blog' version='1'>
 <b:includable id='main' var='top'>
@@ -278,6 +322,7 @@ pre.mk-meta{display:none}
 <b:if cond='data:newerPageUrl'><a expr:href='data:newerPageUrl'>‹ Mới hơn</a></b:if>
 <b:if cond='data:olderPageUrl'><a class='o' expr:href='data:olderPageUrl'>Cũ hơn ›</a></b:if>
 </div>
+<div class='pn' id='pn'></div>
 </b:if>
 </b:if>
 </b:includable>
@@ -288,6 +333,7 @@ pre.mk-meta{display:none}
 
 <aside class='side'>
 <div class='bn bn-list' data-slot='list'></div>
+<div class='tp' id='tp'></div>
 <b:section class='adslot' id='ad-side' maxwidgets='1' showaddelement='yes'/>
 <div id='cats'></div>
 <b:section class='side-sec' id='side' preferred='yes' showaddelement='yes'>
@@ -392,17 +438,20 @@ function fillDl(list){
 $$('.dt').forEach(function(e){e.textContent=fd(e.getAttribute('data-t'))});
 /* menu dang chon */
 $$('.nav a').forEach(function(a){if(!a.hash&&a.pathname.replace(/^\/?/,'/')===location.pathname)a.className=(a.className?a.className+' ':'')+'on'});
-/* menu the loai: Game / App mo danh sach the loai tu cats.json, moi muc la link nhan Blogger */
+/* menu nhom: Game / Phan mem / Giao dien / Am thanh / Truyen & Meo, danh sach the loai lay tu /v1/menu.json (nhom + the loai co bai), moi muc la link nhan Blogger */
 var dd=d.getElementById('dd'),ddin=d.getElementById('dd-in'),ddk='';
-function ddFill(k,C){
+function lab(n){return '/search/label/'+encodeURIComponent(n)}
+function kindOf(M,k){var i;if(M&&M.kinds)for(i=0;i<M.kinds.length;i++)if(String(M.kinds[i].kind)===k)return M.kinds[i];return null}
+function ddFill(k,M){
  clr(ddin);
- var all=el('a','all',k==='game'?'Tất cả Game':'Tất cả App');all.href='/search/label/'+(k==='game'?'Game':'App');ddin.appendChild(all);
- if(!C){ddin.appendChild(el('p','','Đang tải thể loại...'));return}
- var n=0;
- C.forEach(function(c){if(c.kind!==(k==='game'?1:2))return;n++;
-  var a=el('a','',c.name);a.href='/search/label/'+encodeURIComponent(c.name);
+ var K=kindOf(M,k),all=el('a','all',K?'Tất cả '+K.name:'Tất cả');
+ all.href=lab(K?K.label:({1:'Game',2:'App',3:'Bài viết',4:'Giao diện',5:'Âm thanh'})[k]||'');ddin.appendChild(all);
+ if(!K){ddin.appendChild(el('p','',M===null?'Chưa tải được thể loại.':'Đang tải thể loại...'));return}
+ if(k==='1'){var vh=el('a','','Game Việt hóa');vh.href=lab('VH');ddin.appendChild(vh)}
+ K.cats.forEach(function(c){
+  var a=el('a','',c.name);a.href=lab(c.name);
   if(c.count)a.appendChild(el('span','',String(c.count)));ddin.appendChild(a)});
- if(!n)ddin.appendChild(el('p','','Chưa có thể loại.'))}
+ if(!K.cats.length)ddin.appendChild(el('p','','Chưa có bài trong nhóm này.'))}
 function ddClose(){if(!dd)return;dd.className=dd.className.replace(' on','');ddk='';$$('.nav a[data-dd]').forEach(function(a){a.setAttribute('aria-expanded','false')})}
 $$('.nav a[data-dd]').forEach(function(a){
  var k=a.getAttribute('data-dd');
@@ -411,17 +460,37 @@ $$('.nav a[data-dd]').forEach(function(a){
   if(!dd)return true;
   if(ddk===k){ddClose();return false}
   ddClose();ddk=k;dd.className+=' on';a.setAttribute('aria-expanded','true');
-  ddFill(k,Q.cats&&Q.cats.done?Q.cats.v:null);
-  once('cats','/v1/cats.json',function(C){if(ddk===k)ddFill(k,C||[])});
+  ddFill(k,Q.menu&&Q.menu.done?Q.menu.v:undefined);
+  once('menu','/v1/menu.json',function(M){if(ddk===k)ddFill(k,M)});
   return false}});
 d.onclick=function(e){
  var t=e?e.target:window.event.srcElement;
  while(t&&t!==d){if(t===dd||(t.getAttribute&&t.getAttribute('data-dd')))return;t=t.parentNode}
  ddClose()};
+/* nhom chua co bai nao (Giao dien, Am thanh, Truyen & Meo) thi giau khoi menu cho gon */
+once('menu','/v1/menu.json',function(M){
+ if(!M||!M.kinds)return;
+ $$('.nav a[data-dd]').forEach(function(a){var K=kindOf(M,a.getAttribute('data-dd'));if(K&&!K.count&&K.kind>2)del(a)})});
 /* o game: dung chung cho luoi nhan/tim kiem va bang xep hang */
 function setIc(th,u,hasShot){
  var i2=el('img',hasShot?'ic2':'ic1');i2.alt='';i2.onerror=function(){del(i2)};i2.src=u;th.appendChild(i2)}
 function addDl(th,n){var t=fdl(n);if(t){var s=el('span','dlc',t);th.appendChild(s)}}
+/* o game tu list.json: dung chung cho bang xep hang va khoi De xuat tren trang chu. rk = hang (0 = khong hien) */
+function mkCell(it,rk){
+ var c=el('div','gc'),b=el('div','gcb'),th=el('a','th'),g=el('div','gt'),h=el('h2'),a=el('a','',it.title||''),ch=el('div','chips'),
+  tgs=[],j,ts=it.tags||[];
+ th.href=it.url||'#';th.title=it.title||'';th.appendChild(el('span','ph','M'));
+ if(it.shot){var im=el('img','sc');im.alt='';var ph2=th.querySelector('.ph');im.onerror=function(){del(im);th.className=th.className.replace(' has','');if(ph2)ph2.style.display=''};im.src=API+it.shot;th.appendChild(im);th.className+=' has';if(ph2)ph2.style.display='none'}
+ if(it.icon)setIc(th,API+it.icon,!!it.shot);
+ if(rk)th.appendChild(el('span','rkn'+(rk<=3?' r'+rk:''),String(rk)));
+ if(it.flags&8)th.appendChild(el('span','bd h','HOT'));else if(it.flags&1)th.appendChild(el('span','bd','MỚI'));
+ addDl(th,it.dl);
+ a.href=it.url||'#';h.appendChild(a);
+ for(j=0;j<ts.length;j++){var t=tg(ts[j]);if(t&&tgs.indexOf(t)<0){tgs.push(t);ch.appendChild(el('span','tg',t))}}
+ if(it.ver)ch.appendChild(el('span','v','v'+it.ver));
+ if(sz(it.sizeKb))ch.appendChild(el('span','',sz(it.sizeKb)));
+ if(it.catName)ch.appendChild(el('span','',it.catName));
+ g.appendChild(h);g.appendChild(ch);b.appendChild(th);b.appendChild(g);c.appendChild(b);return c}
 /* luoi game: anh minh hoa + icon + huy hieu + ban, phien ban, dung luong */
 var need=[],GW=vw<600?200:256,GH=vw<600?150:192,now=new Date().getTime(),dlq=[];
 $$('.gc').forEach(function(c){
@@ -504,21 +573,7 @@ if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
   var cr=[];if(S.s!=='all'&&cats){cats.forEach(function(c){if(c.kind===(S.s==='game'?1:2))cr.push([c.id,c.name])});if(cr.length)cr.unshift([0,'Mọi thể loại'])}
   filt(f2,'Thể loại',cr,S.c,'c');
   filt(f3,'Nền tảng',PF,S.p,'p')}
- function cell(it,i){
-  var c=el('div','gc'),b=el('div','gcb'),th=el('a','th'),g=el('div','gt'),h=el('h2'),a=el('a','',it.title||''),ch=el('div','chips'),
-   rank=S.g*15+i+1,tgs=[],j,ts=it.tags||[];
-  th.href=it.url||'#';th.title=it.title||'';th.appendChild(el('span','ph','M'));
-  if(it.shot){var im=el('img','sc');im.alt='';var ph2=th.querySelector('.ph');im.onerror=function(){del(im);th.className=th.className.replace(' has','');if(ph2)ph2.style.display=''};im.src=API+it.shot;th.appendChild(im);th.className+=' has';if(ph2)ph2.style.display='none'}
-  if(it.icon)setIc(th,API+it.icon,!!it.shot);
-  if(S.k!=='new')th.appendChild(el('span','rkn'+(S.g===0&&i<3?' r'+rank:''),String(rank)));
-  if(it.flags&8)th.appendChild(el('span','bd h','HOT'));else if(it.flags&1)th.appendChild(el('span','bd','MỚI'));
-  addDl(th,it.dl);
-  a.href=it.url||'#';h.appendChild(a);
-  for(j=0;j<ts.length;j++){var t=tg(ts[j]);if(t&&tgs.indexOf(t)<0){tgs.push(t);ch.appendChild(el('span','tg',t))}}
-  if(it.ver)ch.appendChild(el('span','v','v'+it.ver));
-  if(sz(it.sizeKb))ch.appendChild(el('span','',sz(it.sizeKb)));
-  if(it.catName)ch.appendChild(el('span','',it.catName));
-  g.appendChild(h);g.appendChild(ch);b.appendChild(th);b.appendChild(g);c.appendChild(b);return c}
+ function cell(it,i){return mkCell(it,S.k!=='new'?S.g*15+i+1:0)}
  function draw(){
   var my=++tok;cur=location.hash;drawCtl();clr(gl);clr(pg);clr(st);
   st.appendChild(el('div','emp','Đang tải bảng xếp hạng...'));
@@ -541,6 +596,71 @@ if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
 })()}
 $$('.pb img').forEach(function(i){var u=i.getAttribute('src')||'',v=lo(u);if(v!==u)i.src=v});
 $$('.pb a').forEach(function(a){var u=a.getAttribute('href')||'',v=lo(u);if(v!==u)a.href=v});
+/* trang chu (chi trang dau, khong phai tim kiem/nhan/trang 2+): De xuat hom nay + Top tai nhieu. PC: Top o cot ben; man nho: Top ngay duoi De xuat */
+if(/^\/(index\.html)?$/.test(location.pathname)&&!/[?&](q|updated-max|start)=/.test(location.search)&&$$('.gl').length){(function(){
+ var hm=d.getElementById('hm'),tp=d.getElementById('tp');
+ if(!hm)return;
+ var pbox=el('div'),tbox=el('div','tp'),big=vw>=900;
+ hm.appendChild(pbox);(big&&tp?tp:hm).appendChild(tbox);
+ /* De xuat hom nay: Worker chon cho ca ngay (doi luc nua dem gio Viet Nam) */
+ get(API+'/v1/list.json?key=pick&page=0',function(R){
+  var L=(R&&R.items)||[];if(!L.length)return;
+  L=L.slice(0,vw<600?2:4);
+  var h=el('h2','st','Đề xuất hôm nay'),gl=el('div','gl'),t=new Date();
+  h.appendChild(el('span','stm',pad(t.getDate())+'/'+pad(t.getMonth()+1)));
+  L.forEach(function(it){gl.appendChild(mkCell(it,0))});
+  pbox.appendChild(h);pbox.appendChild(gl)});
+ /* Top tai nhieu: game, tab Hom nay / Tuan / Moi luc */
+ var TT=[['game.top1','Hôm nay'],['game.top7','Tuần'],['game.dl','Mọi lúc']],cur='game.dl',tok=0,head=el('h2','st','Top tải nhiều'),tabs=el('div','tpt'),body=el('div');
+ tbox.style.display='none';[head,tabs,body].forEach(function(e){tbox.appendChild(e)});
+ function thumb(it){
+  var b=el('span','tpi');var u=it.icon?API+it.icon:(it.shot?API+it.shot.replace(/-\d+x\d+\.jpg$/,'-80x60.jpg'):'');
+  if(u){var im=el('img');im.alt='';im.width=40;im.height=40;im.onerror=function(){del(im)};im.src=u;b.appendChild(im)}
+  return b}
+ function row(it,i){
+  var a=el('a','tpr'),n=el('span','tpn'+(i<3?' r'+(i+1):''),String(i+1)),x=el('span','tpx'),t=fdl(it.dl),sub=[];
+  a.href=it.url||'#';a.appendChild(n);a.appendChild(thumb(it));
+  if(t)a.appendChild(el('span','tpd','↓ '+t));
+  x.appendChild(el('b','',it.title||''));
+  if(it.catName)sub.push(it.catName);if(it.ver)sub.push('v'+it.ver);
+  x.appendChild(el('i','',sub.join(' · ')));a.appendChild(x);return a}
+ function draw(){
+  var my=++tok;clr(tabs);
+  TT.forEach(function(t){var a=el('a',t[0]===cur?'on':'',t[1]);a.href='#top';a.onclick=function(){cur=t[0];draw();return false};tabs.appendChild(a)});
+  get(API+'/v1/list.json?key='+cur+'&page=0',function(R){
+   if(my!==tok)return;
+   var L=((R&&R.items)||[]).slice(0,big?10:5),i;
+   if(!L.length){if(!body.firstChild)return;clr(body);body.appendChild(el('div','tpe','Chưa có dữ liệu tải.'));return}
+   clr(body);tbox.style.display='';
+   for(i=0;i<L.length;i++)body.appendChild(row(L[i],i));
+   var m=el('a','tpm','Xem bảng xếp hạng đầy đủ ›');m.href='/p/xep-hang.html';body.appendChild(m)})}
+ draw()
+})()}
+/* phan trang so cho trang chu / nhan / tim kiem: Worker tra moc updated-max cua tung trang tu feed Blogger */
+if($$('.gc').length&&d.getElementById('pn')){(function(){
+ var pn=d.getElementById('pn'),pg=$$('.pg')[0],q=location.search,
+  ms=/[?&]start=(\d+)/.exec(q),mr=/[?&]max-results=(\d+)/.exec(q),n=mr?parseInt(mr[1],10):$$('.gc').length,
+  cur=ms&&n?Math.floor(parseInt(ms[1],10)/n)+1:1,path=location.pathname,scope='',base='/',lm=/^\/search\/label\/([^\/]+)/.exec(path),qm=/[?&]q=([^&]*)/.exec(q),qs='';
+ if(!n)return;
+ function dec(x){try{return decodeURIComponent(x.replace(/\+/g,' '))}catch(e){return x}}
+ if(lm){scope='label:'+dec(lm[1]);base=path}
+ else if(qm){scope='q:'+dec(qm[1]);qs='q='+qm[1]+'&';base='/search?q='+qm[1]}
+ if(!lm&&!qm&&!/^\/(index\.html|search)?$/.test(path))return;
+ var W=vw<600?4:6;
+ get(API+'/v1/pager.json?scope='+encodeURIComponent(scope)+'&n='+n+'&cur='+cur+'&w='+W,function(R){
+  if(!R||!R.items||R.pages<2)return;
+  var M={},L=R.items,i,last=0;
+  for(i=0;i<L.length;i++)M[L[i].p]=L[i].m;
+  function href(p){if(p<2)return base;var u=M[p];return u?(lm?path:'/search')+'?'+qs+'updated-max='+encodeURIComponent(u)+'&max-results='+R.n+'&start='+((p-1)*R.n)+'&by-date=false':''}
+  function add(t,c,p){var h=p?href(p):'',e=h?el('a',c,t):el('span',c||'dot',t);if(h)e.href=h;pn.appendChild(e)}
+  clr(pn);
+  if(R.cur>1)add('‹','',R.cur-1);
+  for(i=0;i<L.length;i++){var p=L[i].p;if(last&&p>last+1)add('…','dot',0);
+   if(p===R.cur)pn.appendChild(el('span','cur',String(p)));else add(String(p),'',p);last=p}
+  if(R.cur<R.pages)add('›','',R.cur+1);
+  pn.className+=' on';if(pg)pg.className+=' hide'},
+ function(){})
+})()}
 /* banner: chung du lieu voi app Java. Banner dau trang: trong header (man nho) hoac dau cot noi dung (PC), chi nap cai dang hien */
 var pc=vw>=900,slots=$$('.bn[data-slot]').filter(function(s){
  if(/\bbn-top2\b/.test(s.className))return pc;

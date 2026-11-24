@@ -14,25 +14,51 @@ export const normK = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g,
 
 // ---------- taxonomy ----------
 export const CATS = new Map(T.cats.map((c) => [c.id, c]));
+// alias -> danh sách id (alias trùng giữa các nhóm, ví dụ "Khác", được chọn theo loại bài)
 const CAT_ALIAS = new Map();
 for (const c of T.cats) {
   for (const a of [c.name, c.slug.replace(/-/g, " "), ...(c.alias || [])]) {
     const k = normK(a);
-    if (k && !CAT_ALIAS.has(k)) CAT_ALIAS.set(k, c.id);
+    if (!k) continue;
+    const l = CAT_ALIAS.get(k) || [];
+    if (!l.includes(c.id)) l.push(c.id);
+    CAT_ALIAS.set(k, l);
   }
 }
-const OTHERS = new Set([T.other.game, T.other.app]);
+// loại bài trong D1 <-> nhóm (kind) của danh mục: game 1, app 2, post 3, media 4 và 5
+const TYPE_KINDS = { game: [1], app: [2], post: [3], media: [4, 5] };
+export const ITEM_TYPES = ["game", "app", "media", "post"];
+export const RANKED_TYPES = ["game", "app"]; // Mới/Hot/Tải nhiều/Đề xuất chỉ xét game và app (media, bài viết không có lượt tải JAR)
+const typeOfKind = (kind) => (kind === 3 ? "post" : kind >= 4 ? "media" : kind === 2 ? "app" : "game");
+const LABEL_TYPE = new Map(T.kinds.map((k) => [normK(k.label), k.type]));
+for (const t of ITEM_TYPES) LABEL_TYPE.set(t, t);
+
+// Loại bài suy ra từ nhãn Blogger khi bài không khai `type`: nhãn nhóm (Giao diện, Âm thanh, Bài viết...) hoặc nhãn là tên một danh mục
+// chỉ thuộc nhóm 3, 4, 5 (ví dụ "Truyện cười", "Nhạc chuông"). Nhãn game/app giữ nguyên cách cũ (cần `type` hoặc nhãn Game/App).
+export function typeFromLabels(labels) {
+  for (const l of labels) { const t = LABEL_TYPE.get(normK(l)); if (t) return t; }
+  for (const l of labels) {
+    const ids = CAT_ALIAS.get(normK(l));
+    if (ids && ids.every((id) => CATS.get(id).kind >= 3)) return typeOfKind(CATS.get(ids[0]).kind);
+  }
+  return "";
+}
 
 // -> { id, unknown }: id luôn là id chuẩn hoặc null (không khai cat). Tên lạ rơi vào "Khác" của loại, kèm unknown để ghi lại.
 export function resolveCat(name, type) {
   const raw = String(name || "").trim();
-  const fallback = T.other[type === "app" ? "app" : "game"];
+  const ty = TYPE_KINDS[type] ? type : "game";
+  const fallback = T.other[ty];
   if (!raw) return { id: null };
-  let id = CAT_ALIAS.get(normK(raw));
-  if (id === undefined) return { id: fallback, unknown: raw };
-  if (OTHERS.has(id)) id = fallback; // "Khác" khớp theo loại bài
-  return { id };
+  const ids = CAT_ALIAS.get(normK(raw));
+  if (!ids) return { id: fallback, unknown: raw };
+  const ok = ids.filter((id) => TYPE_KINDS[ty].includes(CATS.get(id).kind));
+  if (ok.length) return { id: ok[0] };
+  // game gắn nhầm thể loại app (và ngược lại) vẫn nhận như cũ; bài viết/giao diện/âm thanh gắn tên danh mục của nhóm khác thì rơi vào "Khác"
+  if (ty === "game" || ty === "app") { const o = ids.find((id) => CATS.get(id).kind <= 2); if (o) return { id: o }; }
+  return { id: fallback, unknown: raw };
 }
+export const isTypeLabel = (l) => LABEL_TYPE.has(normK(l)) || /^(banner|self)$/i.test(String(l).trim());
 
 const bitsOf = (list, s) => {
   let b = 0;
@@ -139,32 +165,49 @@ export function hotlinked(env, req) {
 }
 
 // ---------- khóa danh sách ----------
-const KEY_RE = /^(new|upd|hot|dl|top1|top7|app|game|c(\d+)|i(\d+))((?:\.(?:new|upd|hot|dl|top1|top7|p\d+|r\d+x\d+|t\d+))*)$/;
+const KEY_RE = /^(new|upd|hot|dl|top1|top7|pick|app|game|k([345])|c(\d+)|i(\d+))((?:\.(?:new|upd|hot|dl|top1|top7|p\d+|r\d+x\d+|t\d+))*)$/;
 const SORTS = new Set(["new", "upd", "hot", "dl", "top1", "top7"]);
 
-// -> { where, binds, sort } hoặc null nếu khóa sai. Dùng cho /v1/l, /v1/l2, /v1/list.json.
+// -> { where, binds, sort, types } hoặc null nếu khóa sai. Dùng cho /v1/l, /v1/l2, /v1/list.json.
+// Khóa gốc: new|upd|hot|dl|top1|top7 (game và app), pick (đề xuất hôm nay, game), game, app, k3|k4|k5 (cả nhóm bài viết, giao diện, âm thanh), c<id>, i<id>.
 export function parseKey(key) {
   const m = KEY_RE.exec(String(key || "").toLowerCase());
   if (!m) return null;
   const base = m[1];
   const where = [], binds = [];
-  let sort = SORTS.has(base) ? base : "new";
-  if (m[3]) { where.push("i.n=?"); binds.push(parseInt(m[3], 10)); }
-  else if (m[2]) { where.push("i.cat_n=?"); binds.push(parseInt(m[2], 10)); }
+  let sort = SORTS.has(base) ? base : base === "pick" ? "pick" : "new";
+  let types = RANKED_TYPES;
+  if (m[4]) { where.push("i.n=?"); binds.push(parseInt(m[4], 10)); types = ITEM_TYPES; }
+  else if (m[3]) {
+    const id = parseInt(m[3], 10);
+    where.push("i.cat_n=?"); binds.push(id);
+    const c = CATS.get(id);
+    if (c && c.kind >= 3) types = [typeOfKind(c.kind)];
+  }
+  else if (m[2]) {
+    const kind = parseInt(m[2], 10);
+    where.push("i.cat_n IN (SELECT n FROM cats WHERE kind=?)"); binds.push(kind);
+    types = [typeOfKind(kind)];
+  }
   else if (base === "app" || base === "game") { where.push("i.type=?"); binds.push(base); }
-  for (const mod of (m[4] || "").split(".").filter(Boolean)) {
+  else if (base === "pick") { where.push("i.type='game'"); types = ["game"]; }
+  for (const mod of (m[5] || "").split(".").filter(Boolean)) {
     if (SORTS.has(mod)) sort = mod;
     else if (mod[0] === "p") { where.push("(i.plat & ?) <> 0"); binds.push(Math.min(parseInt(mod.slice(1), 10), 255)); }
     else if (mod[0] === "t") { where.push("(i.tags & ?) <> 0"); binds.push(Math.min(parseInt(mod.slice(1), 10), 65535)); }
     else if (mod[0] === "r") { where.push("(i.res = '' OR (',' || i.res || ',') LIKE ?)"); binds.push("%," + mod.slice(1) + ",%"); }
   }
-  if (sort === "hot" || sort === "top1" || sort === "top7") where.push("i.hold = 0");
+  if (sort === "hot" || sort === "top1" || sort === "top7" || sort === "pick") where.push("i.hold = 0");
   if (sort === "upd") where.push("i.updated - i.published > " + DAY);
-  return { where: where.length ? where.join(" AND ") : "1=1", binds, sort };
+  return { where: where.length ? where.join(" AND ") : "1=1", binds, sort, types };
 }
+
+// Đề xuất hôm nay: thứ tự xáo theo ngày (giờ Việt Nam), cả ngày giữ nguyên, qua ngày mới đổi. Ưu tiên mục có ảnh minh họa.
+export const pickOrder = (now = Date.now()) => `(CASE WHEN i.img IS NOT NULL AND i.img <> '' THEN 0 ELSE 1 END), ((i.n * 1103515245 + ${Math.floor((now + TZ) / DAY) * 805306457}) % 2147483647)`;
 
 export async function orderFor(env, sort) {
   switch (sort) {
+    case "pick": return pickOrder();
     case "upd": return "i.updated DESC";
     case "dl": return "i.dl DESC, i.published DESC";
     case "top1": return "i.d1 DESC, i.d7 DESC, i.dl DESC, i.published DESC";
@@ -183,11 +226,12 @@ export const LIST_COLS = `i.n,i.type,i.flags,i.size_kb,i.price,i.ver,i.title,i.d
   i.dl,i.d1,i.d7,i.tags,i.plat,(i.d7 >= 10 AND i.hold = 0) hot,
   (i.ic32 IS NOT NULL OR f.ic32 IS NOT NULL) hasic, (i.img IS NOT NULL AND i.img <> '') hasimg`;
 
-export async function fetchRows(env, where, binds, page, order, pageSize) {
+export async function fetchRows(env, where, binds, page, order, pageSize, types = RANKED_TYPES) {
   const db = env.DB;
-  const total = (await db.prepare(`SELECT COUNT(*) c FROM items i WHERE i.type IN ('game','app') AND ${where}`).bind(...binds).first()).c;
+  const tin = types.filter((t) => ITEM_TYPES.includes(t)).map((t) => `'${t}'`).join(",") || "'game'";
+  const total = (await db.prepare(`SELECT COUNT(*) c FROM items i WHERE i.type IN (${tin}) AND ${where}`).bind(...binds).first()).c;
   const rows = (await db.prepare(
-    `SELECT ${LIST_COLS} FROM items i LEFT JOIN files f ON f.k=i.file_h WHERE i.type IN ('game','app') AND ${where} ORDER BY ${order} LIMIT ${pageSize} OFFSET ${page * pageSize}`
+    `SELECT ${LIST_COLS} FROM items i LEFT JOIN files f ON f.k=i.file_h WHERE i.type IN (${tin}) AND ${where} ORDER BY ${order} LIMIT ${pageSize} OFFSET ${page * pageSize}`
   ).bind(...binds).all()).results;
   return { total, rows };
 }
@@ -270,7 +314,18 @@ export async function statsJson(env, ids, paths) {
 
 export async function catsJson(env) {
   const rows = (await env.DB.prepare(
-    "SELECT c.n,c.kind,c.slug,c.sort,COUNT(i.n) cnt FROM cats c JOIN items i ON i.cat_n=c.n AND i.type IN ('game','app') WHERE c.kind IS NOT NULL GROUP BY c.n ORDER BY c.kind,c.sort"
+    "SELECT c.n,c.kind,c.slug,c.sort,COUNT(i.n) cnt FROM cats c JOIN items i ON i.cat_n=c.n AND i.type IN ('game','app','media','post') WHERE c.kind IS NOT NULL GROUP BY c.n ORDER BY c.kind,c.sort"
   ).all()).results;
   return rows.map((r) => ({ id: r.n, kind: r.kind, slug: r.slug, name: catName(r.n), count: r.cnt }));
+}
+
+// Menu web/app: các nhóm (theo thứ tự trong taxonomy) kèm danh mục có mục. `label` là nhãn Blogger của cả nhóm ("Tất cả ...").
+export async function menuJson(env) {
+  const cats = await catsJson(env);
+  return {
+    kinds: T.kinds.map((k) => {
+      const list = cats.filter((c) => c.kind === k.kind).sort((a, b) => (CATS.get(a.id) ? T.cats.indexOf(CATS.get(a.id)) : 0) - (CATS.get(b.id) ? T.cats.indexOf(CATS.get(b.id)) : 0));
+      return { kind: k.kind, slug: k.slug, name: k.name, label: k.label, type: k.type, count: list.reduce((n, c) => n + c.count, 0), cats: list };
+    }),
+  };
 }

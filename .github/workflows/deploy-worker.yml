@@ -52,6 +52,7 @@ jobs:
         run: |
           node tools/gen-taxonomy.mjs --check
           node cloudflare/test/rank.test.mjs
+          node cloudflare/test/v3.test.mjs
           node cloudflare/test/ext.test.mjs
           node cloudflare/test/shot.test.mjs
       - name: Deploy Worker
@@ -68,7 +69,7 @@ jobs:
         run: |
           sleep 10
           fail=0
-          for p in "v1/cats.json" "v1/home2.bin" "v1/list.json?key=top7" "v1/stats.json" "v1/l/new/0.bin"; do
+          for p in "v1/cats.json" "v1/menu.json" "v1/home2.bin" "v1/home3.bin" "v1/list.json?key=pick" "v1/list.json?key=top7" "v1/stats.json" "v1/l/new/0.bin"; do
             code=$(curl -s -m 20 -o /dev/null -w "%{http_code}" "https://api.justmonika.top/$p")
             echo "$p -> $code"
             [ "$code" = "200" ] || fail=1
