@@ -108,6 +108,16 @@ final class AppInfo {
         return whole + "," + tenth + suffix;
     }
 
+    /** Hai cỡ màn hình tiêu biểu mà game có bản đúng cỡ (Worker gửi trong bit 64/128 của plat): 240x320 trước, 320x240 sau. */
+    String[] screenBadges() {
+        boolean a = (plat & 64) != 0;
+        boolean b = (plat & 128) != 0;
+        if (a && b) {
+            return new String[] {"240x320", "320x240"};
+        }
+        return a ? new String[] {"240x320"} : b ? new String[] {"320x240"} : new String[0];
+    }
+
     /** Nhãn thẻ ngắn theo thứ tự ưu tiên (VH, MOD trước), tối đa max nhãn; bỏ GỐC và NET (đã có cờ riêng). */
     String[] tagBadges(int max) {
         String[] r = new String[Math.min(max, TAG_BITS.length)];

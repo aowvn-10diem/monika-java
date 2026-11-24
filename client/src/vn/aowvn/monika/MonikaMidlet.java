@@ -27,7 +27,7 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.7.0";
+    static final String VERSION = "0.7.1";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -36,6 +36,9 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     private static final int LIST_FAVS = 4;
     /** Mã dòng "Đề xuất hôm nay" trong menu Danh mục (không trùng id nhóm 1..5). */
     private static final int PICK_ID = 99;
+    /** Mục ảo ở nhóm Game: lọc theo hai cỡ màn hình tiêu biểu (khóa .x<W>x<H> của Worker). */
+    private static final int SCR_240_ID = 97;
+    private static final int SCR_320_ID = 96;
 
     private static final int MAX_PROMOS = 3;
 
@@ -669,6 +672,13 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             } else {
                 openGroup(lc.ids[k]);
             }
+        } else if (lc.kind == 1 && (lc.ids[k] == SCR_240_ID || lc.ids[k] == SCR_320_ID)) {
+            String res = lc.ids[k] == SCR_240_ID ? "240x320" : "320x240";
+            String[] keys = new String[RANK_SORTS.length];
+            for (int i = 0; i < keys.length; i++) {
+                keys[i] = "game.x" + res + "." + RANK_SORTS[i];
+            }
+            openList("Game " + res, keys[0], keys);
         } else if (lc.kind == 1 && hdata.kindOfCat(lc.ids[k]) >= Home.KIND_READ) {
             // bài viết, giao diện, âm thanh: không có lượt tải nên không có tab xếp hạng
             int id = lc.ids[k];
@@ -758,7 +768,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     }
 
     private void fillCats(ListCanvas lc) {
-        int[] sel = new int[Math.max(hdata.catId.length, 7)];
+        int[] sel = new int[Math.max(hdata.catId.length, 7) + 3];
         String[] nm = new String[sel.length];
         int[] cnt = new int[sel.length];
         int n = 0;
@@ -779,6 +789,15 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
                 }
             }
         } else {
+            if (lc.group == Home.KIND_GAME) {
+                // theo màn hình: người dùng máy cũ quan tâm cỡ màn hình ngang với thể loại
+                sel[n] = SCR_240_ID;
+                nm[n] = "Game 240x320";
+                cnt[n++] = 0;
+                sel[n] = SCR_320_ID;
+                nm[n] = "Game 320x240";
+                cnt[n++] = 0;
+            }
             for (int i = 0; i < hdata.catId.length; i++) {
                 if (hdata.catKind[i] == lc.group) {
                     sel[n] = hdata.catId[i];

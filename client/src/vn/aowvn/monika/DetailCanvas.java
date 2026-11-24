@@ -62,6 +62,14 @@ final class DetailCanvas extends BaseCanvas {
             }
             sb.append('\n');
         }
+        String[] sc = a.screenBadges();
+        if (sc.length > 0) {
+            sb.append(Vi.tr("Màn hình: "));
+            for (int i = 0; i < sc.length; i++) {
+                sb.append(i > 0 ? ", " : "").append(sc[i]);
+            }
+            sb.append('\n');
+        }
         if (catName != null && catName.length() > 0) {
             sb.append(Vi.tr("Thể loại: ")).append(catName).append('\n');
         }

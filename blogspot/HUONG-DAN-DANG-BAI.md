@@ -151,3 +151,7 @@ Biến môi trường Worker liên quan: `UP_TOKEN` (bắt buộc), `R2` (bindin
 - Bài có các dòng `v1..vN` trong `mk-meta` hiện **bảng 3 cột** (Máy / màn hình, Dung lượng, Tải về), dùng bảng HTML thường nên máy cũ vẫn thẳng cột. Dòng khớp màn hình máy đang xem được xếp đầu và gắn "Hợp máy bạn".
 - Lượt tải luôn hiện kể cả 0. Bài viết (truyện, thủ thuật) không có lượt tải.
 - "Đề xuất hôm nay" tự ưu tiên game đúng cỡ màn hình (240x320 thì game 240x320; máy lớn, Android, iPhone thì bản smartphone). Danh sách bài do Blogger dựng sẵn không đổi thứ tự được.
+
+## 1e. Tag màn hình 240x320 / 320x240
+
+Template tự hiện tag xanh dương cho hai cỡ tiêu biểu, lấy từ dòng `res:` và các dòng `v1..vN` trong `mk-meta` (chỉ hai cỡ này, cỡ khác không hiện tag). Muốn bấm vào tag ra danh sách thì bài phải có nhãn Blogger đúng tên cỡ: `240x320` và/hoặc `320x240`. Menu Game có mục "Theo màn hình" lấy số lượng từ Worker.

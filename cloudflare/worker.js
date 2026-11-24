@@ -4,7 +4,7 @@
 import { pdDirect, upstream, pdServe, pdImage, pdIds, pdAlias, ALIAS_RE } from "./pd.js";
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
-import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson } from "./rank.js";
+import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson, resBits } from "./rank.js";
 import { pagerJson } from "./pager.js";
 import { r2Allow, r2Note, r2Tick, ecoOn, PLACEHOLDER_JPG } from "./r2guard.js";
 import { submit as fbSubmit, formPage as fbForm, challengeBin as fbChallenge, adminList as fbAdmin, flush as fbFlush } from "./feedback.js";
@@ -261,7 +261,7 @@ async function list2(env, where, binds, page, order, types) {
   const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE, types, true); // app: không có mục Port
   const o = new Out().i32(0x4d4b4c32).u8(2).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
   for (const r of rows) {
-    o.i32(r.n).u8(r.cat).u8(flagsOf(r, now)).u16(Math.min(r.size_kb || 0, 65535)).i32(r.price || 0).i32(r.dl || 0).u16(r.tags || 0).u8(r.plat || 1)
+    o.i32(r.n).u8(r.cat).u8(flagsOf(r, now)).u16(Math.min(r.size_kb || 0, 65535)).i32(r.price || 0).i32(r.dl || 0).u16(r.tags || 0).u8((r.plat || 1) | resBits(r.res))
       .utf(r.ver).utf(r.title).utf(clip(r.descr, 120)).utf(`/v1/j/${r.n}.jad`);
   }
   return bin(o.bytes());

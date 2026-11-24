@@ -165,7 +165,7 @@ export function hotlinked(env, req) {
 }
 
 // ---------- khóa danh sách ----------
-const KEY_RE = /^(new|upd|hot|dl|top1|top7|pick|app|game|k([345])|c(\d+)|i(\d+))((?:\.(?:new|upd|hot|dl|top1|top7|p\d+|r\d+x\d+|s\d+x\d+|t\d+))*)$/;
+const KEY_RE = /^(new|upd|hot|dl|top1|top7|pick|app|game|k([345])|c(\d+)|i(\d+))((?:\.(?:new|upd|hot|dl|top1|top7|p\d+|r\d+x\d+|x\d+x\d+|s\d+x\d+|t\d+))*)$/;
 const SORTS = new Set(["new", "upd", "hot", "dl", "top1", "top7"]);
 
 // -> { where, binds, sort, types } hoặc null nếu khóa sai. Dùng cho /v1/l, /v1/l2, /v1/list.json.
@@ -197,6 +197,7 @@ export function parseKey(key) {
     else if (mod[0] === "p") { where.push("(i.plat & ?) <> 0"); binds.push(Math.min(parseInt(mod.slice(1), 10), 255)); }
     else if (mod[0] === "t") { where.push("(i.tags & ?) <> 0"); binds.push(Math.min(parseInt(mod.slice(1), 10), 65535)); }
     else if (mod[0] === "s") { const w = /^s(\d{2,4})x(\d{2,4})$/.exec(mod); if (w) screen = { w: +w[1], h: +w[2] }; }
+    else if (mod[0] === "x") { where.push("(',' || i.res || ',') LIKE ?"); binds.push("%," + mod.slice(1) + ",%"); } // đúng cỡ màn hình, bỏ qua bài chưa rõ cỡ
     else if (mod[0] === "r") { where.push("(i.res = '' OR (',' || i.res || ',') LIKE ?)"); binds.push("%," + mod.slice(1) + ",%"); }
   }
   if (sort === "hot" || sort === "top1" || sort === "top7" || sort === "pick") where.push("i.hold = 0");
@@ -245,7 +246,7 @@ async function baseOrder(env, sort) {
 }
 
 export const LIST_COLS = `i.n,i.type,i.flags,i.size_kb,i.price,i.ver,i.title,i.descr,i.url,i.published,i.updated,COALESCE(i.cat_n,0) cat,
-  i.dl,i.d1,i.d7,i.tags,i.plat,(i.d7 >= 10 AND i.hold = 0) hot,
+  i.dl,i.d1,i.d7,i.tags,i.plat,i.res,(i.d7 >= 10 AND i.hold = 0) hot,
   (i.ic32 IS NOT NULL OR f.ic32 IS NOT NULL) hasic, (i.img IS NOT NULL AND i.img <> '') hasimg`;
 
 // noPort: danh sách cho app loại các mục Port (cờ 256, game port chỉ chạy trên giả lập, chỉ hiện trên web).
@@ -264,7 +265,7 @@ export async function fetchRows(env, where, binds, page, order, pageSize, types 
 export function jsonItem(r, pos, flags) {
   return {
     id: r.n, title: r.title, url: r.url || "", cat: r.cat, catName: catName(r.cat), ver: r.ver || "", sizeKb: r.size_kb || 0, price: r.price || 0,
-    dl: r.dl || 0, d7: r.d7 || 0, tags: tagSlugs(r.tags || 0), plat: platSlugs(r.plat || 1), flags, port: (r.flags & 256) ? 1 : 0,
+    dl: r.dl || 0, d7: r.d7 || 0, tags: tagSlugs(r.tags || 0), plat: platSlugs(r.plat || 1), res: r.res ? String(r.res).split(",") : [], flags, port: (r.flags & 256) ? 1 : 0,
     icon: r.hasic ? `/v1/ic/${r.n}-64.png` : "", shot: r.hasimg ? `/v1/sc/${r.n}-240x320.jpg` : "", pos,
   };
 }
@@ -345,9 +346,20 @@ export async function catsJson(env, noPort = false) {
 }
 
 // Menu web/app: các nhóm (theo thứ tự trong taxonomy) kèm danh mục có mục. `label` là nhãn Blogger của cả nhóm ("Tất cả ...").
+// Hai tỉ lệ màn hình tiêu biểu của máy Java: giao diện luôn hiện nhãn này khi game có bản đúng cỡ.
+export const SCREEN_MAIN = ["240x320", "320x240"];
+// Bit gửi cho app trong byte plat của l2 (bit 64 = có bản 240x320, 128 = có bản 320x240); DB không lưu các bit này.
+export const resBits = (res) => { const s = "," + String(res || "") + ","; return (s.includes(",240x320,") ? 64 : 0) | (s.includes(",320x240,") ? 128 : 0); };
+const SCREEN_MENU = ["240x320", "320x240", "176x220", "176x208", "128x160", "128x128", "240x240", "360x640", "480x800"];
+async function screenCounts(env) {
+  const sums = SCREEN_MENU.map((r, i) => `SUM(CASE WHEN (',' || res || ',') LIKE '%,${r},%' THEN 1 ELSE 0 END) c${i}`).join(",");
+  const row = (await env.DB.prepare(`SELECT ${sums} FROM items WHERE type='game' AND res <> ''`).first()) || {};
+  return SCREEN_MENU.map((r, i) => ({ res: r, count: row["c" + i] || 0 })).filter((x, i) => x.count > 0 || i < 2);
+}
 export async function menuJson(env) {
   const cats = await catsJson(env);
   return {
+    screens: await screenCounts(env),
     kinds: T.kinds.map((k) => {
       const list = cats.filter((c) => c.kind === k.kind).sort((a, b) => (CATS.get(a.id) ? T.cats.indexOf(CATS.get(a.id)) : 0) - (CATS.get(b.id) ? T.cats.indexOf(CATS.get(b.id)) : 0));
       return { kind: k.kind, slug: k.slug, name: k.name, label: k.label, type: k.type, count: list.reduce((n, c) => n + c.count, 0), cats: list };

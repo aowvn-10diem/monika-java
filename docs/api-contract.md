@@ -150,7 +150,16 @@ Chống spam, theo thứ tự rẻ trước (lỗi captcha và vượt giới h�
 
 Gửi email: binding `send_email` (`EMAIL`, Cloudflare Email Service, gửi tới địa chỉ đã xác minh trong Email Routing, miễn phí gói Free) hoặc dự phòng secret `RESEND_KEY` (Resend, 100 email/ngày miễn phí). Biến `FB_TO`, `FB_FROM` trong `wrangler.jsonc`.
 
-## v5: game Port và khóa tải ổn định (nguồn bisduckopath)
+
+## v5: tag màn hình tiêu biểu 240x320 / 320x240 (app 0.7.1, template 2026-11-24)
+
+- `GET /v1/list.json` mỗi mục có thêm `res`: mảng cỡ màn hình đã khai ("WxH"), rỗng nếu chưa rõ. Giao diện chỉ hiện tag cho hai cỡ tiêu biểu `240x320` và `320x240`, và chỉ cái nào game thật sự có.
+- `GET /v1/l2/<khóa>` (MKL2): trong byte `plat` bit 64 = có bản 240x320, bit 128 = có bản 320x240 (DB không lưu hai bit này, Worker gắn khi xuất). App cũ bỏ qua hai bit này.
+- Khóa danh sách thêm bộ lọc chặt `.x<W>x<H>` (ví dụ `game.x240x320.dl`): chỉ game có đúng cỡ, KHÔNG lấy bài chưa khai cỡ. `.r` giữ nguyên nghĩa cũ (lấy cả bài chưa khai cỡ), `.s` vẫn là ưu tiên mềm.
+- `GET /v1/menu.json` thêm `screens: [{res, count}]` (số game theo cỡ, hai cỡ tiêu biểu luôn đứng đầu).
+- Web: tag là liên kết tới nhãn Blogger cùng tên (`/search/label/240x320`), nên bài phải có nhãn `240x320` / `320x240`. Menu Game có mục "Theo màn hình" và "Theo thể loại". App: Danh mục > Game có "Game 240x320" và "Game 320x240".
+
+## v6: game Port và khóa tải ổn định (nguồn bisduckopath)
 
 - **Port:** game được port xuống Java nhưng chỉ chạy trên giả lập. Dòng `port: 1` trong `mk-meta` đặt cờ 256 trong cột `items.flags` (không đi ra `flags` ubyte của app). Mọi endpoint nhị phân của app (`/v1/l`, `/v1/l2`, `/v1/s`, `home*.bin` gồm số mục mới và số mục theo danh mục) **loại** mục Port; endpoint JSON cho web (`/v1/list.json`, `/v1/cats.json`, `/v1/menu.json`, `/v1/pager.json`) vẫn có và `list.json` thêm trường `port` (0/1). Web: nhãn Blogger `PORT` hiện thành chip như VH, MOD; bài có đoạn ghi chú Port ở đầu.
 - **Khóa tải ổn định:** link trong bài dạng `/v1/p/b<10 hex>/<tên>.jar`. Khóa trỏ tới tệp Pixeldrain hiện hành theo bản đồ JSON công khai (mặc định `https://raw.githubusercontent.com/santa-monika/monika-v1/bdk-data/bdk-aliases.json`, đổi bằng biến `BDK_ALIASES_URL`), cache 5 phút. Workflow crawl-bisducko cập nhật bản đồ khi nguồn ra bản vá, nên link trong bài không phải sửa. Khóa lạ hoặc chưa có trong bản đồ: 404. Tiền tố tệp Pixeldrain được phát thêm `bdk-<số>-`.
