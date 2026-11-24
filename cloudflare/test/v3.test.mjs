@@ -239,6 +239,13 @@ const call = async (path, headers = {}) => { const r = await w.fetch(new Request
   const sc = Object.fromEntries(mj.screens.map((x) => [x.res, x.count]));
   assert.equal(sc["240x320"], 2); assert.equal(sc["320x240"], 2); assert.equal(sc["176x220"], 1);
   assert.deepEqual(mj.screens.slice(0, 2).map((x) => x.res), ["240x320", "320x240"], "hai cỡ tiêu biểu luôn đứng đầu");
+  // parseRes: tối đa 12 cỡ, luôn giữ hai cỡ tiêu biểu dù bài có 17 cỡ
+  const many = ["128x128","128x160","132x176","176x208","176x220","208x208","240x240","240x320","240x400","240x432","320x240","320x320","320x480","352x416","360x640","480x800","480x854"].join(", ");
+  const pr = R.parseRes(many).split(",");
+  assert.equal(pr.length, 12); assert.ok(pr.includes("240x320") && pr.includes("320x240"));
+  assert.equal(R.parseRes("240x320, 320x240").split(",").length, 2);
+  assert.equal(R.parseRes("00x320, 240x320"), "240x320", "cỡ hỏng 00x320 bị bỏ");
+  assert.equal(R.parseRes("Phần 2 240x320 VH, Phần 3 320x240"), "240x320,320x240", "nhãn nhiều phần vẫn lấy được cỡ");
   console.log("ok tag màn hình");
 }
 console.log("v3.test ok");

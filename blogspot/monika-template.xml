@@ -606,11 +606,13 @@ $$('.pb pre.mk-meta').forEach(function(pre){
  if(vr.length){
   var vt=el('table','vtb'),vh=el('tr');['Máy / màn hình','Dung lượng','Tải về'].forEach(function(x){vh.appendChild(el('th','',x))});vt.appendChild(vh);
   var mine=SC.w+'x'+SC.h,mine2=SC.h+'x'+SC.w,rows=[],ex=false;
-  vr.forEach(function(p){if((p[0]||'').replace(/\s+/g,'')===mine)ex=true});
+  /* nhan dong v co the la "240x320" hoac "Phan 2 240x320 VH": lay co WxH trong nhan de so voi may */
+  function vkey(l){var x=/(\d{2,4})\s*[x\u00d7]\s*(\d{2,4})/.exec(l||'');return x?x[1]+'x'+x[2]:''}
+  vr.forEach(function(p){if(vkey(p[0])===mine)ex=true});
   vr.forEach(function(p){
    var tr=el('tr'),c0=el('td'),c2=el('td'),ls=p.slice(2),ok=false,j;
    c0.appendChild(el('b','',(p[0]||'').replace(/^\s+|\s+$/g,'')));
-   var k0=(p[0]||'').replace(/\s+/g,'');
+   var k0=vkey(p[0]);
    if(SC.w&&(k0===mine||(!ex&&k0===mine2))){ok=true;c0.appendChild(el('i','fit',' Hợp máy bạn'))}
    tr.appendChild(c0);tr.appendChild(el('td','',/^\d+$/.test((p[1]||'').replace(/\s+/g,''))?sz(p[1].replace(/\s+/g,'')):''));
    for(j=0;j<ls.length;j++){var mm=/^\s*([^=<>"]{1,20})=(https?:\/\/\S+)\s*$/.exec(ls[j]);if(mm){var la=el('a','',mm[1]);la.href=lo(mm[2]);la.rel='nofollow noopener';c2.appendChild(la);c2.appendChild(d.createTextNode(' '))}}

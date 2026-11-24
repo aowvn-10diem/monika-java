@@ -78,17 +78,23 @@ export function guessTags(title) {
   if (/\b(mod|crack|hack)\b/.test(t)) b |= 4;
   return b;
 }
-// "240x320, 320x240" hoặc cỡ ở tên file/link -> "240x320,320x240" (sắp xếp, bỏ trùng, tối đa 6; chỉ nhận 64..800)
+// "240x320, 320x240" hoặc cỡ ở tên file/link -> "240x320,320x240" (sắp xếp, bỏ trùng, tối đa 12; chỉ nhận 64..800).
+// Quá 12 cỡ (game Worms Reloaded có 17) thì hai cỡ tiêu biểu 240x320 / 320x240 luôn được giữ, bỏ bớt cỡ lạ.
 export function parseRes(...parts) {
   const set = new Set();
   const re = /(\d{2,3})\s*[x×]\s*(\d{2,3})/g;
   let m;
   const s = parts.join(" ");
-  while ((m = re.exec(s)) && set.size < 6) {
+  while ((m = re.exec(s))) {
     const w = +m[1], h = +m[2];
     if (w >= 64 && w <= 800 && h >= 64 && h <= 800) set.add(w + "x" + h);
   }
-  return [...set].sort().join(",");
+  let all = [...set].sort();
+  if (all.length > 12) {
+    const main = all.filter((x) => x === "240x320" || x === "320x240");
+    all = all.filter((x) => !main.includes(x)).slice(0, 12 - main.length).concat(main).sort();
+  }
+  return all.join(",");
 }
 export const tagSlugs = (bits) => T.tags.filter((x) => bits & x.bit).map((x) => x.slug);
 export const platSlugs = (bits) => T.plats.filter((x) => bits & x.bit).map((x) => x.slug);
