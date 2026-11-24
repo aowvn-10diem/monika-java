@@ -88,6 +88,74 @@ final class Net {
         throw last;
     }
 
+    /** Mã HTTP của lần {@link #post} gần nhất (0 nếu chưa nhận được trả lời). */
+    static int postCode;
+
+    /**
+     * POST dạng application/x-www-form-urlencoded, trả nội dung trả lời (tối đa maxBytes). Khác {@link #get}: mã 4xx vẫn trả
+     * nội dung kèm {@link #postCode} để người gọi đọc lý do; chỉ thử lại khi chưa nhận được trả lời (máy chủ chống gửi trùng bằng token).
+     */
+    static byte[] post(String url, String suffix, String ua, byte[] body, int maxBytes) throws IOException {
+        IOException last = new IOException("E12");
+        for (int attempt = 0; attempt < 2; attempt++) {
+            HttpConnection c = null;
+            InputStream in = null;
+            java.io.OutputStream os = null;
+            postCode = 0;
+            try {
+                String u = (suffix == null || suffix.length() == 0) ? url : url + suffix;
+                c = (HttpConnection) Connector.open(u);
+                c.setRequestMethod(HttpConnection.POST);
+                c.setRequestProperty("User-Agent", ua);
+                c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                c.setRequestProperty("Content-Length", Integer.toString(body.length));
+                os = c.openOutputStream();
+                os.write(body);
+                os.flush();
+                postCode = c.getResponseCode();
+                in = c.openInputStream();
+                return readAll(in, maxBytes);
+            } catch (IOException e) {
+                if (postCode != 0) {
+                    return new byte[0];
+                }
+                diag(e, url);
+                last = new IOException("E12");
+            } catch (SecurityException e) {
+                diag(e, url);
+                throw new IOException("E20");
+            } finally {
+                if (os != null) {
+                    try {
+                        os.close();
+                    } catch (IOException ignore) {
+                        // bỏ qua
+                    }
+                }
+                if (in != null) {
+                    try {
+                        in.close();
+                    } catch (IOException ignore) {
+                        // bỏ qua
+                    }
+                }
+                if (c != null) {
+                    try {
+                        c.close();
+                    } catch (IOException ignore) {
+                        // bỏ qua
+                    }
+                }
+            }
+            try {
+                Thread.sleep(500L);
+            } catch (InterruptedException ie) {
+                break;
+            }
+        }
+        throw last;
+    }
+
     /** Một lần thử kết nối để chẩn đoán: trả về "OK mã (ms)" hoặc tên lỗi, không thử lại. */
     static String probe(String url, String ua) {
         long t = System.currentTimeMillis();

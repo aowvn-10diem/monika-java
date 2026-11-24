@@ -36,6 +36,10 @@ final class Panel extends BaseCanvas {
     static final int A_NATIVE = 5;
 
     private static final int MAXLEN = 60;
+    /** Số ký tự tối đa của ô nhập (mặc định 60; góp ý dùng dài hơn). */
+    int maxLen = MAXLEN;
+    /** Ô nhập số: gõ số trực tiếp (không bấm nhiều lần như nhắn tin), ô nhập gốc dùng bàn phím số. */
+    boolean numeric;
     private static final String[] MT = {
         " 0", ".,'-?!1@/:_", "abc2", "def3", "ghi4", "jkl5", "mno6", "pqrs7", "tuv8", "wxyz9"
     };
@@ -175,6 +179,11 @@ final class Panel extends BaseCanvas {
         text = new StringBuffer(t == null ? "" : t);
         mtKey = -1;
         repaint();
+    }
+
+    void setDirect(boolean on) {
+        numeric = on;
+        qwerty = on;
     }
 
     String inputText() {
@@ -405,25 +414,33 @@ final class Panel extends BaseCanvas {
             g.drawString(fit(fs, hint, w - 16), 8, y, Graphics.TOP | Graphics.LEFT);
             y += fs.getHeight() + 6;
         }
-        int fh = f.getHeight() + 12;
+        int avail = w - 12 - 14;
+        String s = text.toString();
+        // văn bản dài: gói dòng, hiện tối đa 6 dòng cuối để người dùng đọc lại được điều đang gõ
+        String[] tl = s.length() == 0 ? new String[] {""} : wrap(f, s, avail);
+        int nl = Math.min(tl.length, 6);
+        int fh = nl * f.getHeight() + 12;
         g.setColor(Theme.BAR_BG);
         g.fillRoundRect(6, y, w - 12, fh, 8, 8);
         g.setColor(Theme.ORANGE);
         g.drawRoundRect(6, y, w - 12, fh, 8, 8);
         g.setFont(f);
         g.setColor(Theme.TEXT);
-        String s = text.toString();
-        int avail = w - 12 - 14;
-        int from = 0;
-        while (from < s.length() && f.substringWidth(s, from, s.length() - from) > avail) {
-            from++;
+        String shown = "";
+        for (int i = tl.length - nl; i < tl.length; i++) {
+            shown = tl[i];
+            g.drawString(shown, 13, y + 6 + (i - (tl.length - nl)) * f.getHeight(), Graphics.TOP | Graphics.LEFT);
         }
-        String shown = s.substring(from);
-        g.drawString(shown, 13, y + 6, Graphics.TOP | Graphics.LEFT);
         int cx = 13 + f.stringWidth(shown);
+        int cy = y + 5 + (nl - 1) * f.getHeight();
         g.setColor(Theme.ORANGE);
-        g.fillRect(cx + 1, y + 5, 2, f.getHeight() + 2);
-        y += fh + 8;
+        g.fillRect(cx + 1, cy, 2, f.getHeight() + 2);
+        if (maxLen > MAXLEN) {
+            g.setFont(fs);
+            g.setColor(Theme.DIM);
+            g.drawString(s.length() + "/" + maxLen, w - 8, y + fh + 1, Graphics.TOP | Graphics.RIGHT);
+        }
+        y += fh + 8 + (maxLen > MAXLEN ? fs.getHeight() : 0);
         g.setFont(fs);
         g.setColor(Theme.DIM);
         String mode = qwerty ? Vi.tr("Gõ bằng bàn phím") : Vi.tr("Bấm phím số như nhắn tin, # đổi chữ/số");
@@ -597,7 +614,7 @@ final class Panel extends BaseCanvas {
             app.panelAction(this, A_LEFT, 0);
             return;
         }
-        if (code == Canvas.KEY_POUND) {
+        if (code == Canvas.KEY_POUND && !numeric) {
             qwerty = !qwerty;
             mtKey = -1;
             repaint();
@@ -611,7 +628,7 @@ final class Panel extends BaseCanvas {
             multitap(code - '0');
             return;
         }
-        if (code >= 32 && code != 127 && text.length() < MAXLEN) {
+        if (code >= 32 && code != 127 && text.length() < maxLen) {
             text.append((char) code);
             mtKey = -1;
             repaint();
@@ -624,7 +641,7 @@ final class Panel extends BaseCanvas {
         if (d == mtKey && now - mtTime < 1000 && text.length() > 0) {
             mtIdx = (mtIdx + 1) % set.length();
             text.setCharAt(text.length() - 1, set.charAt(mtIdx));
-        } else if (text.length() < MAXLEN) {
+        } else if (text.length() < maxLen) {
             mtIdx = 0;
             text.append(set.charAt(0));
         }

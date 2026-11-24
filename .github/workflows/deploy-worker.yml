@@ -56,6 +56,7 @@ jobs:
           node cloudflare/test/ext.test.mjs
           node cloudflare/test/shot.test.mjs
           node cloudflare/test/shot-pi.test.mjs
+          node cloudflare/test/feedback.test.mjs
       - name: Deploy Worker
         if: ${{ inputs.mode != 'seed-pic' }}
         working-directory: cloudflare

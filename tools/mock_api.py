@@ -266,6 +266,8 @@ class H(BaseHTTPRequestHandler):
             items = select2(key)
             if items is not None:
                 body = page_bytes2(items, int(pg))
+        elif p == "/v1/fb/c.bin":
+            body = utf("7 + 5 = ?") + utf("tok.0123456789ab.sig")
         elif p == "/v1/home.bin":
             body = home_bytes()
         elif p.startswith("/v1/l/") and p.endswith(".bin"):
@@ -307,6 +309,19 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
         sys.stderr.write("200 %s %d\n" % (self.path, len(body)))
+
+    def do_POST(self):
+        # góp ý / báo lỗi: đáp án đúng là 12 và nội dung >= 5 ký tự (giống Worker, bản rút gọn)
+        n = int(self.headers.get("Content-Length", "0"))
+        f = urllib.parse.parse_qs(self.rfile.read(n).decode("utf-8"))
+        ok = self.path == "/v1/fb" and f.get("a", [""])[0] == "12" and len(f.get("m", [""])[0]) >= 5
+        sys.stderr.write("POST %s %s\n" % (self.path, {k: v[0] for k, v in f.items()}))
+        body = (b"ok" if ok else b"err:bad_captcha")
+        self.send_response(200 if ok else 400)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def log_message(self, *a):
         pass

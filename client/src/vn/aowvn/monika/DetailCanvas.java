@@ -15,6 +15,7 @@ final class DetailCanvas extends BaseCanvas {
     final Command cmdInstall;
     final Command cmdFav;
     final Command cmdSearch;
+    final Command cmdReport;
     final Command cmdBack;
 
     final AppInfo info;
@@ -30,6 +31,8 @@ final class DetailCanvas extends BaseCanvas {
     private int btnH;
     private int favY;
     private int favH;
+    private int repY;
+    private int repH;
     private int textY;
     private int barH;
     private String[] lines = new String[0];
@@ -72,6 +75,7 @@ final class DetailCanvas extends BaseCanvas {
         cmdInstall = new Command(Vi.tr(a.has(AppInfo.F_POST) ? "Mở bài" : a.has(AppInfo.F_MEDIA) ? "Mở trang tải" : "Tải về"), Command.OK, 1);
         cmdFav = new Command(Vi.tr("Yêu thích"), Command.ITEM, 2);
         cmdSearch = new Command(Vi.tr("Tìm ứng dụng"), Command.SCREEN, 3);
+        cmdReport = new Command(Vi.tr("Báo lỗi / góp ý"), Command.ITEM, 4);
         cmdBack = new Command(Vi.tr("Quay lại"), Command.BACK, 1);
         setFullScreenMode(full);
         if (!full) {
@@ -80,6 +84,7 @@ final class DetailCanvas extends BaseCanvas {
             }
             addCommand(cmdFav);
             addCommand(cmdSearch);
+            addCommand(cmdReport);
             addCommand(cmdBack);
         }
     }
@@ -104,7 +109,9 @@ final class DetailCanvas extends BaseCanvas {
         btnH = Math.max(f.getHeight() + 10, 26);
         favY = btnY + btnH + 4;
         favH = Math.max(f.getHeight() + 4, 20);
-        textY = favY + favH + 6;
+        repY = favY + favH + 3;
+        repH = Math.max(fs.getHeight() + 4, 16);
+        textY = repY + repH + 5;
         lineW = w - 16;
         lines = wrap(f, body, lineW);
     }
@@ -165,6 +172,16 @@ final class DetailCanvas extends BaseCanvas {
             Graphics.TOP | Graphics.HCENTER);
         g.setFont(fs);
         g.drawString(numNav ? "3" : "2", 12, favY + (favH - fs.getHeight()) / 2, Graphics.TOP | Graphics.LEFT);
+
+        // nút báo lỗi / góp ý (nhỏ hơn, phím 9)
+        g.setColor(Theme.LINE);
+        g.fillRect(6, repY, w - 12, repH);
+        g.setFont(fs);
+        g.setColor(Theme.TEXT);
+        g.drawString(Vi.tr("Báo lỗi / góp ý game này"), w / 2, repY + (repH - fs.getHeight()) / 2,
+            Graphics.TOP | Graphics.HCENTER);
+        g.setColor(Theme.DIM);
+        g.drawString("9", 12, repY + (repH - fs.getHeight()) / 2, Graphics.TOP | Graphics.LEFT);
 
         // phần chữ cuộn
         int viewH = h - textY - barH;
@@ -238,6 +255,10 @@ final class DetailCanvas extends BaseCanvas {
             app.detailFav(this);
             return;
         }
+        if (d == 9) {
+            app.detailReport(this);
+            return;
+        }
         if (isStar(code)) {
             app.listSearch();
             return;
@@ -303,6 +324,8 @@ final class DetailCanvas extends BaseCanvas {
             install();
         } else if (y >= favY && y < favY + favH) {
             app.detailFav(this);
+        } else if (y >= repY && y < repY + repH) {
+            app.detailReport(this);
         } else if (y >= textY) {
             int step = Theme.body().getHeight() * 3;
             if (y < textY + (h - textY - barH) / 2) {

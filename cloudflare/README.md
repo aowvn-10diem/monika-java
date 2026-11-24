@@ -44,3 +44,9 @@ Workflow `.github/workflows/deploy-worker.yml` chạy test rồi `wrangler deplo
 - Test mới: `node cloudflare/test/v3.test.mjs` (migration 005, phân giải danh mục, đồng bộ bài media/post, đề xuất đổi theo ngày giờ Việt Nam, phân trang số).
 
 - **Pixeldrain (migration 006, `pd_links`)**: dòng `v1..vN` chứa `…/v1/p/<ID>/…` được đồng bộ vào bảng `pd_links(pd, src)`; route `/v1/p/<ID>/<tên>.jar` tra ra mục của bài rồi `countDownload` (mọi độ phân giải cộng vào cùng một mục). Chưa chạy migration thì route vẫn phát file, chỉ không đếm. Thử: `node cloudflare/test/rank.test.mjs`, `node cloudflare/test/pd.test.mjs`.
+
+## Góp ý / báo lỗi game (v4)
+
+`feedback.js`: nhận góp ý từ app (`POST /v1/fb`) và web (`/fb`), lưu D1, cron gom lại gửi email cho `FB_TO` (`vuminh2612@gmail.com`). Chống spam bằng phép tính ký HMAC, giới hạn tần suất, trần theo máy và toàn site, ô bẫy; không dùng Turnstile vì máy cũ không chạy được. Chi tiết: `docs/api-contract.md` mục v4. Test: `node cloudflare/test/feedback.test.mjs`.
+
+**Bật gửi email (làm một lần, tài khoản Cloudflare của Monika Java):** (1) Email Service > Email Routing > Destination addresses: thêm `vuminh2612@gmail.com` rồi bấm liên kết xác minh trong email Cloudflare gửi tới; (2) Email Service > Email Sending > Onboard Domain: chọn `justmonika.top` (bản ghi DNS chỉ thêm vào subdomain `cf-bounce`, không đụng MX và SPF của Oxmail ở gốc miền); (3) deploy Worker (binding `EMAIL` có sẵn trong `wrangler.jsonc`). Chưa làm bước 1-2 thì tin vẫn nằm trong D1, xem bằng `GET /v1/admin/feedback` (Bearer `UP_TOKEN`).

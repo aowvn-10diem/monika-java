@@ -177,6 +177,7 @@ pre.mk-meta{display:none}
 .widget li span{float:right;color:#cdbfe8;font-size:12px}
 .ft{background:#140729;margin-top:12px;padding:12px;text-align:center;color:#cdbfe8;font-size:12px}
 .ft a{text-decoration:underline}
+.fbk{margin:14px 0 4px;font-size:13px}.fbk a{color:#cdbfe8;text-decoration:underline}
 .ft .widget{margin:0}
 .ft .widget li{text-align:center;background:none;border:0;justify-content:center;padding:2px}
 /* thong bao ung ho (hien sau khi tai 2 game): man nho la khoi dat o dau trang, PC la lop phu giua man hinh */
@@ -315,6 +316,7 @@ pre.mk-meta{display:none}
 <span class='dt' expr:data-t='data:post.timestampValue'></span>
 </div>
 <div class='pb'><data:post.body/></div>
+<p class='fbk'><a rel='nofollow' expr:href='"http://api.justmonika.top/fb?p=" + data:post.id'>Báo lỗi / góp ý về bài này</a></p>
 <div class='bn bn-item' data-slot='item'></div>
 </article>
 <b:elseif cond='data:blog.pageType == "static_page"'/>
@@ -379,7 +381,7 @@ pre.mk-meta{display:none}
 <div class='wrap'>
 <div class='bn bn-foot' data-slot='foot'></div>
 <b:section class='adslot' id='ad-foot' maxwidgets='1' showaddelement='yes'/>
-<p>© Monika by AOW.VN · Kho ứng dụng và game Java cho điện thoại</p>
+<p>© Monika by AOW.VN · Kho ứng dụng và game Java cho điện thoại · <a rel='nofollow' href='http://api.justmonika.top/fb'>Góp ý / báo lỗi</a></p>
 <b:section class='foot-sec' id='footer' showaddelement='no'>
 <b:widget id='Attribution1' locked='false' title='' type='Attribution' version='1'>
 <b:widget-settings>
