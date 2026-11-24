@@ -25,11 +25,13 @@ const ITEMS = NAMES.map((n, i) => {
   const plat = i % 5 === 0 ? ['s60v3'] : i % 7 === 0 ? ['j2me', 's60v2'] : ['j2me'];
   return { id, title: n, url: `http://m.test/2026/11/item-${id}.html`, path: `/2026/11/item-${id}.html`, cat: cc.id, catName: cc.name, kind,
     ver: (1 + i % 3) + '.' + (i % 10), sizeKb: [120, 245, 980, 1500][i % 4], price: 0, dl: DLS[i % DLS.length], d7: 10 + i, tags: TAGP[i % TAGP.length],
-    plat, flags: (i % 9 === 0 ? 8 : 0) | (i % 6 === 0 ? 1 : 0), hasIcon: i % 8 !== 7, hasShot: i % 5 !== 4 };
+    plat, flags: (i % 9 === 0 ? 8 : 0) | (i % 6 === 0 ? 1 : 0), hasIcon: i % 8 !== 7, hasShot: i % 5 !== 4,
+    /* i%3: 0 = cả hai, 1 = chỉ 240x320, 2 = chỉ 320x240 (+ cỡ lạ không phải tag tiêu biểu) */
+    res: [['240x320', '320x240', '176x220'], ['240x320'], ['320x240', '128x160']][i % 3] };
 });
 function shapeItem(it, pos) {
   return { id: it.id, title: it.title, url: it.url, cat: it.cat, catName: it.catName, ver: it.ver, sizeKb: it.sizeKb, price: 0, dl: it.dl, d7: it.d7,
-    tags: it.tags, plat: it.plat, flags: it.flags, icon: it.hasIcon ? `/v1/ic/${it.id}-64.png` : '', shot: it.hasShot ? `/v1/sc/${it.id}-240x320.jpg` : '', pos };
+    tags: it.tags, plat: it.plat, res: it.res, flags: it.flags, icon: it.hasIcon ? `/v1/ic/${it.id}-64.png` : '', shot: it.hasShot ? `/v1/sc/${it.id}-240x320.jpg` : '', pos };
 }
 function listJson(key, page, fail) {
   const parts = key.split('.');
@@ -56,7 +58,7 @@ function menuJson(opts) {
     const count = k.kind === 5 || (opts && opts.menuEmpty && k.kind > 2) ? 0 : cats.reduce((n, c) => n + c.count, 0);
     return { kind: k.kind, slug: k.slug, name: k.name, label: k.label, type: k.type, count, cats: count ? cats : [] };
   });
-  return { kinds };
+  return { screens: [{ res: '240x320', count: 21 }, { res: '320x240', count: 14 }, { res: '176x220', count: 5 }], kinds };
 }
 /* phan trang so: tong 200 bai; trang p co moc updated-max = 'M<p>' */
 function pagerJson(q) {
@@ -79,7 +81,7 @@ function statsJson(q) {
 }
 function postOf(it, i) {
   const lab = [it.kind === 1 ? 'Game' : 'App', it.catName].concat(it.tags.map(t => ({ vh: 'VH', mod: 'MOD', '3d': '3D', 'game-viet': 'VN' }[t])).filter(Boolean));
-  const meta = `<pre class="mk-meta">\nver: ${it.ver}\nsize: ${it.sizeKb}\ncat: ${it.catName}\ntags: ${it.tags.join(', ')}\nplat: ${it.plat.join(', ')}\nres: 240x320\njar: http://api.justmonika.top/v1/f/x-abcdef0123.jar\nfile: ${it.hasIcon ? 'abcdef0123' : ''}\n${i % 9 === 0 ? 'hot: 1' : ''}</pre>`;
+  const meta = `<pre class="mk-meta">\nver: ${it.ver}\nsize: ${it.sizeKb}\ncat: ${it.catName}\ntags: ${it.tags.join(', ')}\nplat: ${it.plat.join(', ')}\nres: ${it.res.join(', ')}\njar: http://api.justmonika.top/v1/f/x-abcdef0123.jar\nfile: ${it.hasIcon ? 'abcdef0123' : ''}\n${i % 9 === 0 ? 'hot: 1' : ''}</pre>`;
   return { title: it.title, url: it.url, body: meta + (it.hasShot ? `<img src="http://m.test/img/shot-${it.id}.svg"/>` : '') + `<p>Mô tả ${it.title}.</p>`,
     timestampValue: new Date(Date.now() - i * 864e5 * 2).toISOString(), labels: lab.map(n => ({ name: n, url: '/search/label/' + encodeURIComponent(n) })) };
 }
@@ -176,6 +178,13 @@ async function setup(ctx, opts) {
     const tgs = await pg.$$eval('.gc .tg', e => e.map(x => x.textContent));
     ok(tgs.indexOf('VH') >= 0 && tgs.indexOf('MOD') >= 0 && tgs.indexOf('3D') >= 0 && tgs.indexOf('VN') >= 0, n + ' home tags ' + tgs);
     ok(!(await pg.$$eval('.gc .chips .tg', e => e.some(x => x.textContent === 'VH' && x.parentNode.querySelectorAll('.tg').length > 4))), n + ' tag trung');
+    /* tag man hinh tieu bieu: chi 240x320 / 320x240, dung theo cai game co; 240x320 dung truoc 320x240 */
+    const srs = await pg.$$eval('.gc .chips', e => e.map(c => [].map.call(c.querySelectorAll('a.sr'), a => a.textContent + '>' + a.getAttribute('href')).join(',')));
+    const srAll = srs.join(',').split(',').filter(Boolean);
+    ok(srAll.length > 0 && srAll.every(x => x === '240x320>/search/label/240x320' || x === '320x240>/search/label/320x240'), n + ' tag man hinh chi 2 co tieu bieu ' + srs.slice(0, 6));
+    ok(srs.some(x => x === '240x320>/search/label/240x320,320x240>/search/label/320x240') && srs.some(x => x === '240x320>/search/label/240x320') && srs.some(x => x === '320x240>/search/label/320x240'), n + ' co o hien du 2, chi 240x320, chi 320x240 ' + srs.slice(0, 6));
+    ok(!(await pg.$$eval('.gc .chips', e => e.some(c => c.querySelectorAll('a.sr').length > 2 || /176x220|128x160/.test(c.textContent)))), n + ' khong hien co man hinh khac');
+    ok(await pg.$$eval('#hm .gc .chips', e => e.some(c => c.querySelector('a.sr')) ), n + ' o de xuat (mkCell) cung co tag man hinh');
     ok(await pg.$$eval('.nav a', e => e.length === 5 && e.map(x => x.textContent.trim().replace(/\s+/g, ' ')).join('|') === 'Game|Phần mềm|Giao diện|Truyện & Mẹo|Xếp hạng'), n + ' nav 5 muc (nhom Am thanh rong bi an) ' + await pg.$$eval('.nav a', e => e.map(x => x.textContent)));
     /* De xuat hom nay + Top tai nhieu */
     const nPick = vp[1] < 600 ? 2 : 4, nTop = vp[1] >= 900 ? 10 : 5;
@@ -199,7 +208,8 @@ async function setup(ctx, opts) {
     /* menu tha xuong */
     await pg.click('.nav a[data-dd="1"]'); await pg.waitForTimeout(250);
     const gl = await pg.$$eval('#dd-in a', e => e.map(x => [x.textContent, x.getAttribute('href')]));
-    ok(gl.length === 2 + tax.cats.filter(c => c.kind === 1).length && gl[0][1] === '/search/label/Game' && gl[1][1] === '/search/label/VH' && gl[2][1] === '/search/label/' + encodeURIComponent('Hành động') && gl.some(x => /Kiếm hiệp/.test(x[0])), n + ' dd game ' + JSON.stringify(gl.slice(0, 3)));
+    ok(gl.length === 2 + 3 + tax.cats.filter(c => c.kind === 1).length && gl[0][1] === '/search/label/Game' && gl[1][1] === '/search/label/VH' && gl[2][1] === '/search/label/240x320' && gl[3][1] === '/search/label/320x240' && gl[5][1] === '/search/label/' + encodeURIComponent('Hành động') && gl.some(x => /Kiếm hiệp/.test(x[0])), n + ' dd game ' + JSON.stringify(gl.slice(0, 6)));
+    ok(await pg.$$eval('#dd-in h4', e => e.map(x => x.textContent).join('|') === 'Theo màn hình|Theo thể loại'), n + ' dd game co 2 muc con');
     await pg.screenshot({ path: path.join(OUT, `menu-game-${n}.png`), fullPage: false });
     await pg.click('.nav a[data-dd="2"]'); await pg.waitForTimeout(250);
     ok(await pg.$$eval('#dd-in a', (e, k) => e.length === 1 + k && e[0].getAttribute('href') === '/search/label/App', tax.cats.filter(c => c.kind === 2).length), n + ' dd app');
@@ -214,6 +224,7 @@ async function setup(ctx, opts) {
     ({ ctx, pg } = await open(vp, '/2026/11/item-107.html'));
     const row = await pg.$$eval('.info tr', e => e.filter(x => x.style.display !== 'none').map(x => x.textContent));
     ok(row.some(x => /Lượt tải1,2k/.test(x)) && row.some(x => /Nền tảng/.test(x)) && row.some(x => /Màn hình/.test(x)), n + ' item info ' + row);
+    ok((await pg.$$eval('.it .chips a.sr', e => e.map(x => x.textContent))).join() === '240x320', n + ' item 107 chi tag 240x320');
     await shot(pg, `item-${n}`); await ctx.close();
     /* bai co dong v1..vN: bang cot Man hinh / Dung luong / Tai ve, dong hop man hinh dung dau */
     ({ ctx, pg } = await open(vp, '/2026/11/item-v.html'));
@@ -221,11 +232,13 @@ async function setup(ctx, opts) {
     ok(vt.length === 7 && vt[0].t.length === 3 && /^TH:Dung/.test(vt[0].t[1]), n + ' bang v: 3 cot ' + JSON.stringify(vt[0]));
     ok(vt[1].c === 'fitr' && vt[1].t[0].indexOf('Hợp máy bạn') > 0 && vt[1].t[0].indexOf(n === '1280' ? '1280x800' : vp[1] + 'x' + vp[2]) >= 0, n + ' dong hop man hinh len dau ' + JSON.stringify(vt[1]));
     ok(vt.filter(x => x.c === 'fitr').length === 1, n + ' chi 1 dong duoc danh dau');
+    ok((await pg.$$eval('.it .chips a.sr', e => e.map(x => x.textContent))).join() === '240x320,320x240', n + ' bai co ca 2 ban -> 2 tag (tu dong v) ');
     ok(await pg.$$eval('.vtb a', e => e.length === 7 && e.every(a => /^http:\/\/h\.test\//.test(a.href))), n + ' link trong bang v');
     await shot(pg, `vtable-${n}`); await ctx.close();
     /* bai khong co icon: dung stats?paths */
     ({ ctx, pg } = await open(vp, '/2026/11/item-103.html'));
     ok((await pg.$$eval('.it .chips .tg', e => e.map(x => x.textContent))).join() === '3D', n + ' item tag 3D, khong trung');
+    ok((await pg.$$eval('.it .chips a.sr', e => e.map(x => x.textContent))).join() === '240x320,320x240' && await pg.$eval('.it .chips a.sr', e => e.getAttribute('href') === '/search/label/240x320'), n + ' item 103 hien du 2 tag man hinh');
     ok(await pg.$$eval('.info tr', e => e.filter(x => x.style.display !== 'none' && /Lượt tải5 lượt$/.test(x.textContent)).length === 1), n + ' item dl 5 qua icons+ids'); await ctx.close();
     /* xep hang */
     ({ ctx, pg } = await open(vp, '/p/xep-hang.html'));

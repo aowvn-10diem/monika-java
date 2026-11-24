@@ -262,6 +262,7 @@ abstract class BaseCanvas extends Canvas {
 
     /** Màu nền huy hiệu thẻ: VH xanh lá, MOD tím, còn lại xanh dương. */
     static int tagColor(String label) {
-        return "VH".equals(label) ? 0x178A4C : "MOD".equals(label) ? 0x7B3FE4 : 0x1F6FB5;
+        // cỡ màn hình (240x320, 320x240): xanh ngọc để tách khỏi thẻ VH/MOD
+        return label.indexOf('x') > 0 ? 0x0E7FA8 : "VH".equals(label) ? 0x178A4C : "MOD".equals(label) ? 0x7B3FE4 : 0x1F6FB5;
     }
 }

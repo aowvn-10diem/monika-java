@@ -781,6 +781,22 @@ final class ListCanvas extends BaseCanvas {
                     rr -= bw + 2;
                 }
             }
+            // tag màn hình tiêu biểu (240x320, 320x240): hàng riêng dưới huy hiệu thẻ; chỉ vẽ cỡ nào vừa chỗ
+            String[] sc = ai.screenBadges();
+            if (sc.length > 0) {
+                int sy = ry + (tg.length > 0 ? bh + 2 : 0);
+                if (sy + bh / 2 <= ty + thH - 3) {
+                    int sr = bright;
+                    for (int i = sc.length - 1; i >= 0; i--) {
+                        int bw = Math.max(fs.stringWidth(sc[i]) + 8, bh);
+                        if (sr - bw < lim) {
+                            break;
+                        }
+                        pill(g, fs, sc[i], sr, sy, tagColor(sc[i]));
+                        sr -= bw + 2;
+                    }
+                }
+            }
             String dt = AppInfo.dlText(ai.dl);
             if (dt.length() > 0 && thH >= bh + 8 && !ai.has(AppInfo.F_POST | AppInfo.F_MEDIA)) {
                 dlPill(g, fs, dt, tx + thW - 3, ty + thH - 3);
