@@ -7,6 +7,15 @@ export function pdDirect(u) {
   return m ? `https://pixeldrain.com/api/file/${m[1]}` : u;
 }
 
+// ID Pixeldrain trong các dòng v1..vN (…/v1/p/<ID>/… hoặc link pixeldrain.com) của một bài.
+export function pdIds(lines) {
+  const ids = new Set();
+  for (const l of lines || []) {
+    for (const m of String(l).matchAll(/\/v1\/p\/([A-Za-z0-9]{6,12})\/|pixeldrain\.(?:com|dev)\/(?:u|api\/file)\/([A-Za-z0-9]{6,12})/gi)) ids.add(m[1] || m[2]);
+  }
+  return [...ids];
+}
+
 // fetch tới host nguồn: thêm Basic auth khi là Pixeldrain và Worker có PD_KEY.
 export function upstream(env, url, init = {}) {
   if (PD_RE.test(url) && env.PD_KEY) {

@@ -35,3 +35,8 @@ assert.equal(r.status, 503);
 await upstream({}, "https://pixeldrain.com/api/file/X", {});
 assert.equal(calls.at(-1).auth, null);
 console.log("pd.test OK");
+
+import { pdIds } from "../pd.js";
+assert.deepEqual(pdIds(["240x320|407|JAR=http://api.justmonika.top/v1/p/s3DH8sJs/a_240x320.jar", "320x240|9|JAR=https://pixeldrain.com/u/VdThMV2b", "x|1|JAR=http://a.b/c.jar"]), ["s3DH8sJs", "VdThMV2b"]);
+assert.deepEqual(pdIds([]), []);
+console.log("pdIds OK");

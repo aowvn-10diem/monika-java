@@ -1,7 +1,7 @@
 // Monika API (Cloudflare Worker + D1). Contract: memory "monika-api-contract".
 // Nguồn dữ liệu: feed Blogger (BLOG_URL). Cron quét từng trang 40 bài, xóa mục mất khỏi blog sau mỗi vòng quét.
 
-import { pdDirect, upstream, pdServe } from "./pd.js";
+import { pdDirect, upstream, pdServe, pdIds } from "./pd.js";
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
 import { resolveCat, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson } from "./rank.js";
@@ -83,7 +83,7 @@ function parseEntry(e) {
     src, type, title, alt, img, cat, catId: rc.id, catUnknown: rc.unknown || "", tags, plat: parsePlat(meta.plat), res: parseRes(meta.res || "", meta.jar || "", title), meta,
     fileK: (/^[0-9a-f]{10}$/i.test(meta.file || "") ? meta.file : ((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(meta.jar || "") || [])[1] || "")).toLowerCase(),
     ver: meta.ver || meta.version || "", size: num(meta.size), price: num(meta.price),
-    jar: directJar(meta.jar || ""), descr: meta.desc || descr,
+    pds: pdIds(ext), jar: directJar(meta.jar || ""), descr: meta.desc || descr,
     flags: (meta.net === "1" || /^(y|yes|true)$/i.test(meta.net || "") ? 4 : 0) | (meta.hot === "1" ? 8 : 0),
     published: Date.parse(e.published && e.published.$t) || 0,
     updated: Date.parse(e.updated && e.updated.$t) || 0,
@@ -142,6 +142,7 @@ async function syncStep(env) {
       ).bind(p.src, (p.meta.slot || "top").toLowerCase(), p.img, p.meta.link || "", p.meta.alt || p.title, p.updated, sweep));
       continue;
     }
+    for (const id of p.pds || []) st.push(db.prepare("INSERT INTO pd_links(pd,src) VALUES(?,?) ON CONFLICT(pd) DO UPDATE SET src=excluded.src").bind(id, p.src));
     if (p.catUnknown) st.push(db.prepare("INSERT OR IGNORE INTO meta(k,v) VALUES(?,?)").bind("unk:" + p.catUnknown.slice(0, 60), p.alt || p.src));
     st.push(db.prepare(
       `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,img,file_h,tags,plat,res)
@@ -164,6 +165,7 @@ async function syncStep(env) {
       st.push(db.prepare("DELETE FROM items WHERE sweep < ?").bind(sweep));
       st.push(db.prepare("DELETE FROM items WHERE src LIKE 'up-%' AND file_h IN (SELECT file_h FROM items WHERE src NOT LIKE 'up-%' AND file_h IS NOT NULL)"));
       st.push(db.prepare("DELETE FROM banners WHERE sweep < ?").bind(sweep));
+      st.push(db.prepare("DELETE FROM pd_links WHERE src NOT IN (SELECT src FROM items)"));
       st.push(setMetaStmt(db, "sweep", sweep + 1));
     }
     st.push(setMetaStmt(db, "cursor", 1));
@@ -399,6 +401,11 @@ export default {
       if ((m = /^\/v1\/p\/([A-Za-z0-9]{6,12})\/([^/]{1,120}\.jar)$/.exec(p))) {
         if (hotlinked(env, req)) return Response.redirect(env.BLOG_URL || `http://${env.API_HOST}/`, 302);
         if (await tooFast(env, req, "RL_DL")) return tooMany();
+        // đếm lượt vào đúng mục nếu ID đã có trong pd_links (chưa có bảng/ánh xạ thì chỉ phục vụ, không đếm)
+        try {
+          const row = await env.DB.prepare("SELECT i.n FROM pd_links l JOIN items i ON i.src=l.src WHERE l.pd=?").bind(m[1]).first();
+          if (row) ctx.waitUntil(countDownload(env, req, row.n));
+        } catch (_) {}
         return await pdServe(env, req, m[1], decodeURIComponent(m[2]), text);
       }
       if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
