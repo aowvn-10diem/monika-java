@@ -97,7 +97,7 @@ const PAGES = {
   '/search/label/Game': () => renderHtml('label', POSTS16.filter(p => p.labels[0].name === 'Game')),
   '/search': () => renderHtml('home', POSTS16),
   '/2026/11/item-103.html': () => renderHtml('item', [postOf(ITEMS[3], 3)]),
-  '/2026/11/item-v.html': () => { const p = postOf(ITEMS[40 % ITEMS.length], 4); p.body = p.body.replace(/jar: [^\n]*\n/, '') .replace('</pre>', ['v1: 176x220|50|JAR=http://h.test/a176.jar', 'v2: 240x320|90|JAD=http://h.test/a240.jad|JAR=http://h.test/a240.jar', 'v3: 320x240|88|JAR=http://h.test/a320.jar', 'v4: 360x640|120|JAR=http://h.test/a360.jar', 'v5: 1280x800|400|APK=http://h.test/a.apk', 'v6: 768x1024|300|APK=http://h.test/b.apk'].join('\n') + '</pre>'); return renderHtml('item', [p]); },
+  '/2026/11/item-v.html': () => { const p = postOf(ITEMS[40 % ITEMS.length], 4); p.body = p.body.replace(/jar: [^\n]*\n/, '') .replace('</pre>', ['v1: 176x220|50|JAR=http://h.test/a176.jar', 'v2: 240x320|90|JAD=http://h.test/a240.jad|JAR=http://h.test/a240.jar', 'v3: Phần 3 320x240 VH|88|JAR=http://h.test/a320.jar', 'v4: 360x640|120|JAR=http://h.test/a360.jar', 'v5: 1280x800|400|APK=http://h.test/a.apk', 'v6: 768x1024|300|APK=http://h.test/b.apk'].join('\n') + '</pre>'); return renderHtml('item', [p]); },
   '/2026/11/item-107.html': () => renderHtml('item', [postOf(ITEMS[7], 7)]),
   '/p/xep-hang.html': () => renderHtml('static', [{ title: 'Xếp hạng', url: 'http://m.test/p/xep-hang.html', body: '', labels: [], timestampValue: '' }]),
   '/p/gioi-thieu.html': () => renderHtml('static', [{ title: 'Giới thiệu', url: 'http://m.test/p/gioi-thieu.html', body: '<p>Monika.</p>', labels: [], timestampValue: '' }]),
