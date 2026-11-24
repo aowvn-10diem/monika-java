@@ -79,6 +79,9 @@ h1,h2,h3{margin:0}
 .pg a.o{float:right}
 /* huy hieu the (VH, MOD, 3D, VN...) va luot tai */
 .chips .tg,.it .chips .tg{background:#ffd23f;color:#2a1800;font-weight:700}
+/* tag man hinh tieu bieu 240x320 / 320x240 */
+.chips a.sr,.it .chips a.sr{background:#2fb7ff;color:#04202e;font-weight:700;text-decoration:none}
+.dd h4{clear:both;margin:0;padding:8px 12px 2px;font-size:12px;color:#cdbfe8;font-weight:400}
 .dlc{position:absolute;right:5px;bottom:5px;font-size:10px;line-height:1.6;padding:0 6px;border-radius:8px;background:rgba(0,0,0,.72);color:#fff}
 /* menu tha xuong (the loai tu API; khong co JS thi menu van la link nhan) */
 .nav .cr{margin-left:3px;font-size:11px}
@@ -457,6 +460,17 @@ function addTags(ch,list){
  var have={},i;$$('.tg',ch).forEach(function(e){have[e.textContent]=1});
  for(i=list.length-1;i>=0;i--)if(!have[list[i]]){ch.insertBefore(el('span','tg',list[i]),ch.firstChild)}
  var t=$$('.tg',ch);for(i=t.length-1;i>=0;i--)ch.insertBefore(t[i],ch.firstChild)}
+/* hai man hinh tieu bieu: chi hien cai game thuc su co (240x320 truoc, 320x240 sau). nguon: chuoi "240x320, 320x240" hoac mang */
+var SCM=['240x320','320x240'];
+function scrList(src){
+ var a=src&&src.join?src.join(','):String(src||''),o=[],re=/(\d{2,3})\s*[x\u00d7]\s*(\d{2,3})/g,m,k;
+ while((m=re.exec(a))){k=m[1]+'x'+m[2];if(k===SCM[0]||k===SCM[1]){if(o.indexOf(k)<0)o.push(k)}}
+ o.sort(function(x,y){return SCM.indexOf(x)-SCM.indexOf(y)});return o}
+/* them tag man hinh ngay sau cac huy hieu the, bo qua cai da co */
+function addScr(ch,list){
+ var have={},i,at=null,t=$$('.tg',ch);$$('.sr',ch).forEach(function(e){have[e.textContent]=1});
+ if(t.length)at=t[t.length-1].nextSibling;else at=ch.firstChild;
+ for(i=0;i<list.length;i++)if(!have[list[i]]){var a=el('a','sr',list[i]);a.href=lab(list[i]);a.title='Game màn hình '+list[i];ch.insertBefore(a,at)}}
 /* anh Google/Blogger: thu nho vua khung (giu ti le, khong cat/meo), anh ngoai giu nguyen va CSS thu ve vua o */
 function gimg(u,w,h){
  if(!/googleusercontent|blogspot|ggpht/i.test(u))return u;
@@ -494,6 +508,10 @@ function ddFill(k,M){
  all.href=lab(K?K.label:({1:'Game',2:'App',3:'Bài viết',4:'Giao diện',5:'Âm thanh'})[k]||'');ddin.appendChild(all);
  if(!K){ddin.appendChild(el('p','',M===null?'Chưa tải được thể loại.':'Đang tải thể loại...'));return}
  if(k==='1'){var vh=el('a','','Game Việt hóa');vh.href=lab('VH');ddin.appendChild(vh)}
+ if(k==='1'&&M.screens&&M.screens.length){
+  ddin.appendChild(el('h4','','Theo màn hình'));
+  M.screens.forEach(function(x){var a=el('a','',x.res);a.href=lab(x.res);if(x.count)a.appendChild(el('span','',String(x.count)));ddin.appendChild(a)});
+  ddin.appendChild(el('h4','','Theo thể loại'))}
  K.cats.forEach(function(c){
   var a=el('a','',c.name);a.href=lab(c.name);
   if(c.count)a.appendChild(el('span','',String(c.count)));ddin.appendChild(a)});
@@ -533,6 +551,7 @@ function mkCell(it,rk){
  addDl(th,it.dl);
  a.href=it.url||'#';h.appendChild(a);
  for(j=0;j<ts.length;j++){var t=tg(ts[j]);if(t&&tgs.indexOf(t)<0){tgs.push(t);ch.appendChild(el('span','tg',t))}}
+ var sl=scrList(it.res);for(j=0;j<sl.length;j++){var sa=el('a','sr',sl[j]);sa.href=lab(sl[j]);ch.appendChild(sa)}
  if(it.ver)ch.appendChild(el('span','v','v'+it.ver));
  if(sz(it.sizeKb))ch.appendChild(el('span','',sz(it.sizeKb)));
  if(it.catName)ch.appendChild(el('span','',it.catName));
@@ -549,6 +568,7 @@ $$('.gc').forEach(function(c){
  if(m.net==='1')add.push(el('span','','Cần mạng'));
  for(k=0;k<add.length;k++)ch.insertBefore(add[k],ch.childNodes[k]||null);
  addTags(ch,tgList(m.tags));
+ addScr(ch,scrList(m.res));
  /* anh minh hoa: meta img, hoac anh dau tien trong bai khong phai icon Monika (/v1/fi/) */
  var shot=m.img||'',ims=$$('img',r);
  for(k=0;!shot&&k<ims.length;k++){var u=ims[k].getAttribute('src')||'';if(u&&!/\/v1\/fi\//.test(u))shot=u}
@@ -575,7 +595,8 @@ $$('.pb pre.mk-meta').forEach(function(pre){
  [['Danh mục',m.cat],['Phiên bản',m.ver],['Dung lượng',sz(m.size)],['Nền tảng',pl.join(', ')],['Màn hình',m.res],['Cần mạng',m.net==='1'?'Có':''],['Giá',m.price&&m.price!=='0'?m.price:'']].forEach(function(p){
   if(!p[1])return;var tr=el('tr');tr.appendChild(el('th','',p[0]));tr.appendChild(el('td','',p[1]));tb.appendChild(tr)});
  var tr=el('tr');tr.style.display='none';tr.appendChild(el('th','','Lượt tải'));dlt=el('td');tr.appendChild(dlt);tb.appendChild(tr);
- if(ch)addTags(ch,tgList(m.tags));
+ var vsr=[],vq;for(vq in m){if(/^v\d*$/.test(vq)&&m[vq])vsr.push(m[vq].split('|')[0]||'')}
+ if(ch){addTags(ch,tgList(m.tags));addScr(ch,scrList((m.res||'')+','+vsr.join(',')))}
  var fk=fileKey(m);
  if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){del(gi)};box.appendChild(gi)}
  box.appendChild(tb);

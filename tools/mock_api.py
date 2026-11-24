@@ -77,9 +77,14 @@ for n, it in enumerate(ITEMS):
     it["seq"] = n
 
 
+def res_bits(res):
+    """Bit 64 = có bản 240x320, 128 = có bản 320x240 (khớp Worker resBits)."""
+    return (64 if "240x320" in res else 0) | (128 if "320x240" in res else 0)
+
+
 def item_bytes2(it):
     return (struct.pack(">iBBHiiHB", it["id"], it["cat2"], it["flags"], it["kb"], it["price"], it["dl"],
-                        it["tags"], it["plat"])
+                        it["tags"], it["plat"] | res_bits(it["res"]))
             + utf(it["ver"]) + utf(it["name"]) + utf(it["desc"]) + utf(it["path"]))
 
 
@@ -116,6 +121,8 @@ def select2(key):
             items = [i for i in items if i["tags"] & bit]
         elif m[:1] == "s" and "x" in m[1:]:
             screen = m[1:]
+        elif m[:1] == "x" and "x" in m[1:]:
+            items = [i for i in items if m[1:] in i["res"]]
         elif m[:1] == "r" and "x" in m[1:]:
             items = [i for i in items if not i["res"] or m[1:] in i["res"]]
         else:

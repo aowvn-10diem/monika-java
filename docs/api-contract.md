@@ -149,3 +149,11 @@ Mọi tin lưu D1 (bảng `feedback`, `fb_rl`, Worker tự tạo ở lần nhậ
 Chống spam, theo thứ tự rẻ trước (lỗi captcha và vượt giới hạn **không ghi D1**, giữ hạn mức 100.000 hàng ghi/ngày của gói Free): ô bẫy, phép tính ký HMAC, binding `RL_FB` (3 lần/phút/IP), độ dài, trần 8 tin/ngày/máy (IP băm có muối; Opera Mini dùng `X-Forwarded-For` vì cả nước đi chung vài IP Singapore), trần 300 tin/ngày toàn site, chống trùng. Mỗi tin nhận thật tốn 5 hàng ghi D1. Không lưu IP thô.
 
 Gửi email: binding `send_email` (`EMAIL`, Cloudflare Email Service, gửi tới địa chỉ đã xác minh trong Email Routing, miễn phí gói Free) hoặc dự phòng secret `RESEND_KEY` (Resend, 100 email/ngày miễn phí). Biến `FB_TO`, `FB_FROM` trong `wrangler.jsonc`.
+
+## v5: tag màn hình tiêu biểu 240x320 / 320x240 (app 0.7.1, template 2026-11-24)
+
+- `GET /v1/list.json` mỗi mục có thêm `res`: mảng cỡ màn hình đã khai ("WxH"), rỗng nếu chưa rõ. Giao diện chỉ hiện tag cho hai cỡ tiêu biểu `240x320` và `320x240`, và chỉ cái nào game thật sự có.
+- `GET /v1/l2/<khóa>` (MKL2): trong byte `plat` bit 64 = có bản 240x320, bit 128 = có bản 320x240 (DB không lưu hai bit này, Worker gắn khi xuất). App cũ bỏ qua hai bit này.
+- Khóa danh sách thêm bộ lọc chặt `.x<W>x<H>` (ví dụ `game.x240x320.dl`): chỉ game có đúng cỡ, KHÔNG lấy bài chưa khai cỡ. `.r` giữ nguyên nghĩa cũ (lấy cả bài chưa khai cỡ), `.s` vẫn là ưu tiên mềm.
+- `GET /v1/menu.json` thêm `screens: [{res, count}]` (số game theo cỡ, hai cỡ tiêu biểu luôn đứng đầu).
+- Web: tag là liên kết tới nhãn Blogger cùng tên (`/search/label/240x320`), nên bài phải có nhãn `240x320` / `320x240`. Menu Game có mục "Theo màn hình" và "Theo thể loại". App: Danh mục > Game có "Game 240x320" và "Game 320x240".

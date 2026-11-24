@@ -214,4 +214,31 @@ const call = async (path, headers = {}) => { const r = await w.fetch(new Request
   assert.equal((rowsH[1].match(/<td>/g) || []).length, (rowsH[0].match(/<td>/g) || []).length, "mọi dòng cùng số cột");
   console.log("ok ưu tiên màn hình");
 }
+// ---------- 8. tag màn hình tiêu biểu 240x320 / 320x240 ----------
+{
+  const R = await import("../rank.js");
+  assert.equal(R.resBits("240x320"), 64); assert.equal(R.resBits("176x220,320x240"), 128);
+  assert.equal(R.resBits("240x320,320x240,176x220"), 192); assert.equal(R.resBits(""), 0); assert.equal(R.resBits(null), 0);
+  assert.equal(R.resBits("1240x3200"), 0, "không khớp nhầm đuôi/đầu số");
+  assert.deepEqual(R.SCREEN_MAIN, ["240x320", "320x240"]);
+  assert.deepEqual(R.jsonItem({ n: 1, title: "A", res: "240x320,320x240" }, 0, "http://x").res, ["240x320", "320x240"]);
+  assert.deepEqual(R.jsonItem({ n: 1, title: "A", res: "" }, 0, "http://x").res, []);
+  const k = parseKey("game.x240x320.dl"); assert.ok(k && k.sort === "dl");
+  assert.equal(parseKey("game.xabc"), null);
+  const db3 = new DatabaseSync(":memory:"); db3.exec(rd("../schema.sql"));
+  const ins3 = db3.prepare("INSERT INTO items(src,type,title,published,updated,res,plat,hold) VALUES(?,?,?,?,?,?,?,0)");
+  ins3.run("a", "game", "Both", 5, 5, "240x320,320x240", 1); ins3.run("b", "game", "Only240", 4, 4, "240x320", 1);
+  ins3.run("c", "game", "Only320", 3, 3, "320x240,128x160", 1); ins3.run("d", "game", "Unknown", 2, 2, "", 1); ins3.run("e", "game", "Other", 1, 1, "176x220", 1);
+  const sel = (key) => db3.prepare(`SELECT title FROM items i WHERE ${parseKey(key).where}`.replace("?", "?")).all(...parseKey(key).binds).map((r) => r.title).sort().join(",");
+  assert.equal(sel("game.x240x320"), "Both,Only240", ".x chỉ lấy game có đúng cỡ, bỏ bài chưa rõ cỡ");
+  assert.equal(sel("game.x320x240"), "Both,Only320");
+  assert.equal(sel("game.r240x320"), "Both,Only240,Unknown", ".r cũ vẫn lấy bài chưa rõ cỡ");
+  // menu.json: số game theo cỡ màn hình
+  const env = { DB: { prepare: (sql) => { const st = db3.prepare(sql); return { first: async () => st.get(), all: async () => ({ results: st.all() }), bind: (...b) => ({ first: async () => st.get(...b), all: async () => ({ results: st.all(...b) }) }) }; } } };
+  const mj = await R.menuJson(env);
+  const sc = Object.fromEntries(mj.screens.map((x) => [x.res, x.count]));
+  assert.equal(sc["240x320"], 2); assert.equal(sc["320x240"], 2); assert.equal(sc["176x220"], 1);
+  assert.deepEqual(mj.screens.slice(0, 2).map((x) => x.res), ["240x320", "320x240"], "hai cỡ tiêu biểu luôn đứng đầu");
+  console.log("ok tag màn hình");
+}
 console.log("v3.test ok");
