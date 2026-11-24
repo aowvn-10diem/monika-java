@@ -44,6 +44,15 @@ jobs:
             echo
             echo 'Ngân sách: JAR bản đầy đủ tối đa 150 KB (153600 byte).'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Kiểm ngân sách kích thước JAR
+        run: |
+          size=$(wc -c < dist/Monika.jar)
+          max=153600
+          if [ "$size" -gt "$max" ]; then
+            echo "::error title=JAR vượt ngân sách::Monika.jar $size byte, tối đa $max byte (150 KB)"
+            exit 1
+          fi
+          echo "Monika.jar $size / $max byte"
       - uses: actions/upload-artifact@v4
         with:
           name: monika-client
