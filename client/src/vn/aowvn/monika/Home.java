@@ -20,8 +20,15 @@ import java.io.IOException;
 final class Home {
     static final int MAGIC = 0x4D4B4831;
     static final int MAGIC2 = 0x4D4B4832;
+    /** home3.bin: cùng bố cục v2 nhưng kind 1..5 (3 bài viết, 4 giao diện, 5 âm thanh). */
+    static final int MAGIC3 = 0x4D4B4833;
     static final int KIND_GAME = 1;
     static final int KIND_APP = 2;
+    static final int KIND_READ = 3;
+    static final int KIND_SKIN = 4;
+    static final int KIND_SOUND = 5;
+    /** Thứ tự nhóm trong menu Danh mục. */
+    static final int[] KIND_ORDER = {KIND_GAME, KIND_APP, KIND_SKIN, KIND_SOUND, KIND_READ};
 
     int newCount;
     String latest = "";
@@ -39,11 +46,11 @@ final class Home {
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(data));
         try {
             int magic = in.readInt();
-            if (magic != MAGIC && magic != MAGIC2) {
+            if (magic != MAGIC && magic != MAGIC2 && magic != MAGIC3) {
                 throw new IOException("E14");
             }
-            boolean two = magic == MAGIC2;
-            if (in.readUnsignedByte() != (two ? 2 : 1)) {
+            boolean two = magic != MAGIC;
+            if (in.readUnsignedByte() != (magic == MAGIC3 ? 3 : two ? 2 : 1)) {
                 throw new IOException("E15");
             }
             Home h = new Home();
@@ -59,7 +66,8 @@ final class Home {
             for (int i = 0; i < n; i++) {
                 h.catId[i] = in.readUnsignedByte();
                 if (two) {
-                    h.catKind[i] = in.readUnsignedByte() == KIND_GAME ? KIND_GAME : KIND_APP;
+                    int k = in.readUnsignedByte();
+                    h.catKind[i] = magic == MAGIC3 ? (k >= 1 && k <= 5 ? k : KIND_APP) : (k == KIND_GAME ? KIND_GAME : KIND_APP);
                 }
                 h.catName[i] = in.readUTF();
                 h.catCount[i] = in.readUnsignedShort();
@@ -118,6 +126,31 @@ final class Home {
             }
         }
         return n;
+    }
+
+    /** Nhóm của danh mục (1 game, 2 app, 3 bài viết, 4 giao diện, 5 âm thanh); không biết thì 0. */
+    int kindOfCat(int id) {
+        for (int i = 0; i < catId.length; i++) {
+            if (catId[i] == id) {
+                return catKind[i];
+            }
+        }
+        return 0;
+    }
+
+    static String kindName(int kind) {
+        switch (kind) {
+            case KIND_GAME:
+                return "Trò chơi";
+            case KIND_APP:
+                return "Ứng dụng";
+            case KIND_SKIN:
+                return "Hình nền & Theme";
+            case KIND_SOUND:
+                return "Nhạc & Video";
+            default:
+                return "Truyện & Mẹo";
+        }
     }
 
     String nameOfCat(int id) {

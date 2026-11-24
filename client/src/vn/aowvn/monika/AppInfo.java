@@ -14,6 +14,10 @@ final class AppInfo {
     static final int F_ICON = 16;
     /** Có ảnh minh họa: lấy ở /v1/sc/&lt;id&gt;-&lt;w&gt;x&lt;h&gt;.jpg (cắt giữa đúng cỡ). */
     static final int F_SHOT = 32;
+    /** Bài viết (truyện, thủ thuật): nút Mở chuyển tới trang bài, không có JAR. */
+    static final int F_POST = 64;
+    /** Giao diện / âm thanh (hình nền, theme, nhạc chuông): nút mở trang chọn bản tải. */
+    static final int F_MEDIA = 128;
 
     static final int CAT_GAME = 1;
 
@@ -81,9 +85,9 @@ final class AppInfo {
         return a;
     }
 
-    /** Số lượt tải để hiện: dưới 5 ẩn (""), dưới 1000 số thật, từ 1000 dạng 1,2k. */
+    /** Số lượt tải để hiện: luôn hiện (0 cũng hiện), dưới 1000 số thật, từ 1000 dạng 1,2k. */
     static String dlText(int dl) {
-        if (dl < 5) {
+        if (dl < 0) {
             return "";
         }
         if (dl < 1000) {

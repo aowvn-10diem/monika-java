@@ -165,7 +165,7 @@ export function hotlinked(env, req) {
 }
 
 // ---------- khóa danh sách ----------
-const KEY_RE = /^(new|upd|hot|dl|top1|top7|pick|app|game|k([345])|c(\d+)|i(\d+))((?:\.(?:new|upd|hot|dl|top1|top7|p\d+|r\d+x\d+|t\d+))*)$/;
+const KEY_RE = /^(new|upd|hot|dl|top1|top7|pick|app|game|k([345])|c(\d+)|i(\d+))((?:\.(?:new|upd|hot|dl|top1|top7|p\d+|r\d+x\d+|s\d+x\d+|t\d+))*)$/;
 const SORTS = new Set(["new", "upd", "hot", "dl", "top1", "top7"]);
 
 // -> { where, binds, sort, types } hoặc null nếu khóa sai. Dùng cho /v1/l, /v1/l2, /v1/list.json.
@@ -175,6 +175,7 @@ export function parseKey(key) {
   if (!m) return null;
   const base = m[1];
   const where = [], binds = [];
+  let screen = null;
   let sort = SORTS.has(base) ? base : base === "pick" ? "pick" : "new";
   let types = RANKED_TYPES;
   if (m[4]) { where.push("i.n=?"); binds.push(parseInt(m[4], 10)); types = ITEM_TYPES; }
@@ -195,17 +196,38 @@ export function parseKey(key) {
     if (SORTS.has(mod)) sort = mod;
     else if (mod[0] === "p") { where.push("(i.plat & ?) <> 0"); binds.push(Math.min(parseInt(mod.slice(1), 10), 255)); }
     else if (mod[0] === "t") { where.push("(i.tags & ?) <> 0"); binds.push(Math.min(parseInt(mod.slice(1), 10), 65535)); }
+    else if (mod[0] === "s") { const w = /^s(\d{2,4})x(\d{2,4})$/.exec(mod); if (w) screen = { w: +w[1], h: +w[2] }; }
     else if (mod[0] === "r") { where.push("(i.res = '' OR (',' || i.res || ',') LIKE ?)"); binds.push("%," + mod.slice(1) + ",%"); }
   }
   if (sort === "hot" || sort === "top1" || sort === "top7" || sort === "pick") where.push("i.hold = 0");
   if (sort === "upd") where.push("i.updated - i.published > " + DAY);
-  return { where: where.length ? where.join(" AND ") : "1=1", binds, sort, types };
+  return { where: where.length ? where.join(" AND ") : "1=1", binds, sort, types, screen };
+}
+
+// Màn hình lớn thì coi là smartphone (J2ME tối đa 360x640 cảm ứng; cỡ lớn hơn là Android/iOS).
+export const isSmart = (w, h) => Math.min(w, h) >= 480 || (Math.min(w, h) >= 360 && Math.max(w, h) >= 800);
+
+// Ưu tiên mềm theo màn hình (không loại mục nào): cỡ khớp đúng lên đầu; máy smartphone thì tiếp theo là bản Android; mục không khai cỡ; cùng bề rộng; còn lại.
+// Chỉ áp cho danh sách thường (mới, đề xuất, thể loại); bảng xếp hạng giữ nguyên thứ tự theo lượt tải.
+export function screenOrder(screen) {
+  if (!screen || !(screen.w > 0) || !(screen.h > 0)) return "";
+  const w = Math.min(screen.w, 9999), h = Math.min(screen.h, 9999);
+  const exact = `(',' || i.res || ',') LIKE '%,${w}x${h},%'`;
+  const same = `(',' || i.res || ',') LIKE '%,${w}x%'`;
+  if (isSmart(w, h)) return `(CASE WHEN ${exact} THEN 0 WHEN (i.plat & 32) <> 0 THEN 1 WHEN i.res = '' THEN 2 ELSE 3 END), `;
+  return `(CASE WHEN ${exact} THEN 0 WHEN i.res = '' THEN 1 WHEN ${same} THEN 2 ELSE 3 END), `;
 }
 
 // Đề xuất hôm nay: thứ tự xáo theo ngày (giờ Việt Nam), cả ngày giữ nguyên, qua ngày mới đổi. Ưu tiên mục có ảnh minh họa.
 export const pickOrder = (now = Date.now()) => `(CASE WHEN i.img IS NOT NULL AND i.img <> '' THEN 0 ELSE 1 END), ((i.n * 1103515245 + ${Math.floor((now + TZ) / DAY) * 805306457}) % 2147483647)`;
 
-export async function orderFor(env, sort) {
+export async function orderFor(env, sort, screen) {
+  const o = await baseOrder(env, sort);
+  return RANK_SORTS.has(sort) ? o : screenOrder(screen) + o;
+}
+const RANK_SORTS = new Set(["dl", "top1", "top7", "hot"]);
+
+async function baseOrder(env, sort) {
   switch (sort) {
     case "pick": return pickOrder();
     case "upd": return "i.updated DESC";

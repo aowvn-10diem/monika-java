@@ -294,6 +294,20 @@ final class Repo {
         v2 = true;
         IOException err = null;
         try {
+            // v3: thêm nhóm giao diện, âm thanh, bài viết; máy chủ cũ không có thì rơi xuống v2
+            byte[] b = Net.get(base + "/v1/home3.bin", suffix, ua, 16 * 1024);
+            Home h = Home.parse(b);
+            if (!h.v2) {
+                throw new IOException("E14");
+            }
+            store.cachePut("home3", b);
+            stale = false;
+            source = "mạng (v3)";
+            return h;
+        } catch (IOException e) {
+            // thử v2
+        }
+        try {
             byte[] b = Net.get(base + "/v1/home2.bin", suffix, ua, 16 * 1024);
             Home h = Home.parse(b);
             if (!h.v2) {
@@ -322,8 +336,9 @@ final class Repo {
                 err = e;
             }
         }
-        for (int i = 0; i < 2; i++) {
-            byte[] c = store.cacheGet(i == 0 ? "home2" : "home");
+        String[] ckeys = {"home3", "home2", "home"};
+        for (int i = 0; i < ckeys.length; i++) {
+            byte[] c = store.cacheGet(ckeys[i]);
             if (c != null) {
                 try {
                     Home h = Home.parse(c);

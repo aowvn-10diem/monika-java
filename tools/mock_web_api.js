@@ -39,7 +39,8 @@ function listJson(key, page, fail) {
   else if (base === 'app') { f = f.filter(x => x.kind === 2); order = 'new'; }
   else if (m = /^c(\d+)$/.exec(base)) { f = f.filter(x => x.cat === +m[1]); order = 'new'; }
   mods.forEach(x => {
-    if (m = /^p(\d+)$/.exec(x)) f = f.filter(it => it.plat.some(p => (({ j2me: 1, s60v2: 2, s60v3: 4, s60v5: 8, s3: 16 })[p] & +m[1])));
+    if (/^s\d+x\d+$/.test(x)) return;
+    else if (m = /^p(\d+)$/.exec(x)) f = f.filter(it => it.plat.some(p => (({ j2me: 1, s60v2: 2, s60v3: 4, s60v5: 8, s3: 16 })[p] & +m[1])));
     else order = x;
   });
   const seed = { top1: 3, top7: 5, dl: 7, hot: 11, new: 13 }[order] || 1;
@@ -94,6 +95,7 @@ const PAGES = {
   '/search/label/Game': () => renderHtml('label', POSTS16.filter(p => p.labels[0].name === 'Game')),
   '/search': () => renderHtml('home', POSTS16),
   '/2026/11/item-103.html': () => renderHtml('item', [postOf(ITEMS[3], 3)]),
+  '/2026/11/item-v.html': () => { const p = postOf(ITEMS[40 % ITEMS.length], 4); p.body = p.body.replace(/jar: [^\n]*\n/, '') .replace('</pre>', ['v1: 176x220|50|JAR=http://h.test/a176.jar', 'v2: 240x320|90|JAD=http://h.test/a240.jad|JAR=http://h.test/a240.jar', 'v3: 320x240|88|JAR=http://h.test/a320.jar', 'v4: 360x640|120|JAR=http://h.test/a360.jar', 'v5: 1280x800|400|APK=http://h.test/a.apk', 'v6: 768x1024|300|APK=http://h.test/b.apk'].join('\n') + '</pre>'); return renderHtml('item', [p]); },
   '/2026/11/item-107.html': () => renderHtml('item', [postOf(ITEMS[7], 7)]),
   '/p/xep-hang.html': () => renderHtml('static', [{ title: 'Xếp hạng', url: 'http://m.test/p/xep-hang.html', body: '', labels: [], timestampValue: '' }]),
   '/p/gioi-thieu.html': () => renderHtml('static', [{ title: 'Giới thiệu', url: 'http://m.test/p/gioi-thieu.html', body: '<p>Monika.</p>', labels: [], timestampValue: '' }]),
@@ -123,6 +125,7 @@ async function setup(ctx, opts) {
       if (p === '/v1/stats.json') return j(statsJson(u.searchParams));
       if (p === '/v1/banners.json') return j([]);
       if (p === '/v1/list.json') {
+        (opts.listLog || []).push(u.searchParams.get('key'));
         if (opts.empty) return j({ total: 0, page: 0, items: [] });
         if (opts.delay) await new Promise(r => setTimeout(r, opts.delay));
         return j(listJson(u.searchParams.get('key'), +u.searchParams.get('page') || 0));
@@ -153,10 +156,12 @@ async function setup(ctx, opts) {
   for (const vp of VPS) {
     const n = vp[0];
     /* trang chu */
-    let { ctx, pg } = await open(vp, '/');
+    const LL = [];
+    let { ctx, pg } = await open(vp, '/', { listLog: LL });
+    ok(LL.indexOf('pick.s' + vp[1] + 'x' + vp[2]) >= 0 || (n === '1280' && LL.indexOf('pick.s1280x800') >= 0), n + ' Đề xuất gửi khóa màn hình ' + LL);
     const dl = await pg.$$eval('.gc .dlc', e => e.map(x => x.textContent));
     ok(dl.indexOf('1,2k') >= 0 && dl.indexOf('12,3k') >= 0 && dl.indexOf('87') >= 0 && dl.indexOf('999') >= 0 && dl.indexOf('1k') >= 0, n + ' home dl ' + dl);
-    ok(!dl.some(x => /^[0-4]$/.test(x)), n + ' home dl<5 hien');
+    ok(dl.indexOf('0') >= 0 && dl.indexOf('3') >= 0 && dl.indexOf('4') >= 0, n + ' home luot tai luon hien ke ca 0-4 ' + dl);
     const tgs = await pg.$$eval('.gc .tg', e => e.map(x => x.textContent));
     ok(tgs.indexOf('VH') >= 0 && tgs.indexOf('MOD') >= 0 && tgs.indexOf('3D') >= 0 && tgs.indexOf('VN') >= 0, n + ' home tags ' + tgs);
     ok(!(await pg.$$eval('.gc .chips .tg', e => e.some(x => x.textContent === 'VH' && x.parentNode.querySelectorAll('.tg').length > 4))), n + ' tag trung');
@@ -199,10 +204,18 @@ async function setup(ctx, opts) {
     const row = await pg.$$eval('.info tr', e => e.filter(x => x.style.display !== 'none').map(x => x.textContent));
     ok(row.some(x => /Lượt tải1,2k/.test(x)) && row.some(x => /Nền tảng/.test(x)) && row.some(x => /Màn hình/.test(x)), n + ' item info ' + row);
     await shot(pg, `item-${n}`); await ctx.close();
+    /* bai co dong v1..vN: bang cot Man hinh / Dung luong / Tai ve, dong hop man hinh dung dau */
+    ({ ctx, pg } = await open(vp, '/2026/11/item-v.html'));
+    const vt = await pg.$$eval('.vtb tr', e => e.map(x => ({ c: x.className, t: Array.prototype.map.call(x.children, y => y.tagName + ':' + y.textContent.replace(/\s+/g, ' ').trim()) })));
+    ok(vt.length === 7 && vt[0].t.length === 3 && /^TH:Dung/.test(vt[0].t[1]), n + ' bang v: 3 cot ' + JSON.stringify(vt[0]));
+    ok(vt[1].c === 'fitr' && vt[1].t[0].indexOf('Hợp máy bạn') > 0 && vt[1].t[0].indexOf(n === '1280' ? '1280x800' : vp[1] + 'x' + vp[2]) >= 0, n + ' dong hop man hinh len dau ' + JSON.stringify(vt[1]));
+    ok(vt.filter(x => x.c === 'fitr').length === 1, n + ' chi 1 dong duoc danh dau');
+    ok(await pg.$$eval('.vtb a', e => e.length === 7 && e.every(a => /^http:\/\/h\.test\//.test(a.href))), n + ' link trong bang v');
+    await shot(pg, `vtable-${n}`); await ctx.close();
     /* bai khong co icon: dung stats?paths */
     ({ ctx, pg } = await open(vp, '/2026/11/item-103.html'));
     ok((await pg.$$eval('.it .chips .tg', e => e.map(x => x.textContent))).join() === '3D', n + ' item tag 3D, khong trung');
-    ok(await pg.$$eval('.info tr', e => e.filter(x => x.style.display !== 'none' && /Lượt tải5$/.test(x.textContent)).length === 1), n + ' item dl 5 qua icons+ids'); await ctx.close();
+    ok(await pg.$$eval('.info tr', e => e.filter(x => x.style.display !== 'none' && /Lượt tải5 lượt$/.test(x.textContent)).length === 1), n + ' item dl 5 qua icons+ids'); await ctx.close();
     /* xep hang */
     ({ ctx, pg } = await open(vp, '/p/xep-hang.html'));
     ok(await pg.$$eval('#rk .gc', e => e.length === 15), n + ' rk 15 o');

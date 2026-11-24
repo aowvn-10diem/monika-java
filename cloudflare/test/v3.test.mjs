@@ -5,8 +5,8 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import w from "../worker.js";
-import { resolveCat, typeFromLabels, parseKey, pickOrder, CATS, DAY } from "../rank.js";
+import w, { chooserHtml } from "../worker.js";
+import { resolveCat, typeFromLabels, parseKey, pickOrder, orderFor, screenOrder, isSmart, CATS, DAY } from "../rank.js";
 import { pageWindow, markOf, pagerData } from "../pager.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -187,5 +187,31 @@ const call = async (path, headers = {}) => { const r = await w.fetch(new Request
   globalThis.fetch = async () => new Response("no", { status: 500 });
   assert.equal((await call("/v1/pager.json?scope=zz&n=16&cur=1")).status, 502);
   console.log("ok phân trang số");
+}
+// ---------- 7. ưu tiên mềm theo màn hình (.s) + cờ bài viết / giao diện ----------
+{
+  const q = parseKey("pick.s240x320"); assert.deepEqual(q.screen, { w: 240, h: 320 });
+  assert.equal(parseKey("new").screen, null);
+  assert.equal(parseKey("pick.sabc"), null, "khóa sai bị từ chối");
+  assert.ok(isSmart(360, 800) && isSmart(480, 800) && isSmart(800, 360));
+  assert.ok(!isSmart(240, 320) && !isSmart(320, 240) && !isSmart(360, 640) && !isSmart(176, 220));
+  assert.equal(screenOrder(null), ""); assert.equal(screenOrder({ w: 0, h: 5 }), "");
+  const db2 = new DatabaseSync(":memory:"); db2.exec(rd("../schema.sql"));
+  const ins = db2.prepare("INSERT INTO items(src,type,title,published,updated,res,plat,hold) VALUES(?,?,?,?,?,?,?,0)");
+  ins.run("a", "game", "A-176", 5, 5, "176x220", 1); ins.run("b", "game", "B-240", 4, 4, "240x320", 1);
+  ins.run("c", "game", "C-any", 3, 3, "", 1); ins.run("d", "game", "D-and", 2, 2, "480x800", 32); ins.run("e", "game", "E-240and", 1, 1, "240x400", 1);
+  const ord = (key) => { const k = parseKey(key); const o = k.sort === "pick" ? pickOrder(1) : "i.published DESC, i.n DESC"; return db2.prepare(`SELECT title FROM items i WHERE ${k.where} ORDER BY ${screenOrder(k.screen)}${o}`).all().map((r) => r.title).join(","); };
+  assert.equal(ord("new.s240x320"), "B-240,C-any,E-240and,A-176,D-and", "cỡ khớp đầu, không khai cỡ, cùng bề rộng, còn lại; không loại mục nào");
+  assert.equal(ord("new.s360x800"), "D-and,C-any,A-176,B-240,E-240and", "smartphone: bản Android trước, rồi mục không khai cỡ");
+  assert.equal(ord("new"), "A-176,B-240,C-any,D-and,E-240and", "không .s thì giữ thứ tự cũ");
+  // bảng xếp hạng không bị đổi thứ tự bởi .s
+  assert.equal(await orderFor({}, "dl", { w: 240, h: 320 }), "i.dl DESC, i.published DESC");
+  assert.ok((await orderFor({}, "new", { w: 240, h: 320 })).startsWith("(CASE WHEN"));
+  // chooser: bảng thật có cột
+  const h = chooserHtml("T", ["240x320|90|JAD=http://a/x.jad|JAR=http://a/x.jar", "176x220|50|JAR=http://a/y.jar"], "");
+  assert.ok(h.includes("<table") && h.includes("<th") && h.includes("Dung lượng") && h.includes("90 KB"));
+  const rowsH = h.split("<tr>").slice(2); assert.equal(rowsH.length, 2);
+  assert.equal((rowsH[1].match(/<td>/g) || []).length, (rowsH[0].match(/<td>/g) || []).length, "mọi dòng cùng số cột");
+  console.log("ok ưu tiên màn hình");
 }
 console.log("v3.test ok");

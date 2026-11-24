@@ -145,3 +145,8 @@ Mở `https://api.justmonika.top/up`, nhập token một lần (trình duyệt n
 Dòng `file: <hash10>` trong `mk-meta` là khóa nối bài với file và icon. Web và app lấy icon qua `/v1/fi/<hash10>-64.png`, `/v1/ic/<id>-32.png`; bài không có `file:` vẫn được thử khớp icon theo link `jar`.
 
 Biến môi trường Worker liên quan: `UP_TOKEN` (bắt buộc), `R2` (binding), `GH_TOKEN` + `GH_REPO` (GitHub dự phòng; `GH_BRANCH` mặc định `files`, `GH_DIR` mặc định `jars`), `R2_LIMIT`, `GH_LIMIT`, `KV_LIMIT`.
+
+## 1d. Bảng link tải, lượt tải, ưu tiên màn hình (0.6.0)
+- Bài có các dòng `v1..vN` trong `mk-meta` hiện **bảng 3 cột** (Máy / màn hình, Dung lượng, Tải về), dùng bảng HTML thường nên máy cũ vẫn thẳng cột. Dòng khớp màn hình máy đang xem được xếp đầu và gắn "Hợp máy bạn".
+- Lượt tải luôn hiện kể cả 0. Bài viết (truyện, thủ thuật) không có lượt tải.
+- "Đề xuất hôm nay" tự ưu tiên game đúng cỡ màn hình (240x320 thì game 240x320; máy lớn, Android, iPhone thì bản smartphone). Danh sách bài do Blogger dựng sẵn không đổi thứ tự được.

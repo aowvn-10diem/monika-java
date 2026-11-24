@@ -782,7 +782,7 @@ final class ListCanvas extends BaseCanvas {
                 }
             }
             String dt = AppInfo.dlText(ai.dl);
-            if (dt.length() > 0 && thH >= bh + 8) {
+            if (dt.length() > 0 && thH >= bh + 8 && !ai.has(AppInfo.F_POST | AppInfo.F_MEDIA)) {
                 dlPill(g, fs, dt, tx + thW - 3, ty + thH - 3);
             }
         }

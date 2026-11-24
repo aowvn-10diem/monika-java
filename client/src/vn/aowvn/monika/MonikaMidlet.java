@@ -26,13 +26,15 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.5.2";
+    static final String VERSION = "0.6.0";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
     private static final int LIST_CATS = 2;
     private static final int LIST_UPDATES = 3;
     private static final int LIST_FAVS = 4;
+    /** Mã dòng "Đề xuất hôm nay" trong menu Danh mục (không trùng id nhóm 1..5). */
+    private static final int PICK_ID = 99;
 
     private static final int MAX_PROMOS = 3;
 
@@ -590,12 +592,15 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     /** Khóa gửi máy chủ: thêm .r&lt;W&gt;x&lt;H&gt; nếu bật "chỉ hiện game hợp màn hình" (trừ tìm kiếm và mục đơn). */
     private String withFilter(String key) {
-        if (!store.fitScreen || key.startsWith("s:")
-            || (key.length() > 1 && key.charAt(0) == 'i' && Character.isDigit(key.charAt(1)))) {
+        if (key.startsWith("s:") || (key.length() > 1 && key.charAt(0) == 'i' && Character.isDigit(key.charAt(1)))) {
             return key;
         }
         String sz = screenSize();
-        return sz.length() == 0 ? key : key + ".r" + sz;
+        if (sz.length() == 0) {
+            return key;
+        }
+        // .r = chỉ hiện đúng cỡ (khi bật lọc); .s = ưu tiên mềm: cỡ khớp lên đầu, màn lớn thì Worker ưu tiên bản smartphone
+        return key + (store.fitScreen ? ".r" + sz : "") + ".s" + sz;
     }
 
     private void loadList(ListCanvas lc, String key, int page) {
@@ -634,7 +639,8 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         for (int i = 0; i < n; i++) {
             AppInfo a = (AppInfo) p.items.elementAt(i);
             names[i] = (store.isFavorite(a.id) ? "* " : "") + a.name;
-            subs[i] = a.sizeKb + " KB · v" + a.version + (a.isFree() ? "" : " · " + money(a.price));
+            subs[i] = a.has(AppInfo.F_POST | AppInfo.F_MEDIA) ? ""
+                : a.sizeKb + " KB · v" + a.version + (a.isFree() ? "" : " · " + money(a.price));
             flags[i] = a.flags;
         }
         lc.setData(names, subs, flags, badges, p.page, p.total, Page.SIZE);
@@ -643,7 +649,15 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     void listOpen(ListCanvas lc, int k) {
         if (lc.kind == 1 && lc.group == 0) {
-            openGroup(lc.ids[k]);
+            if (lc.ids[k] == PICK_ID) {
+                openList("Đề xuất hôm nay", "pick", null);
+            } else {
+                openGroup(lc.ids[k]);
+            }
+        } else if (lc.kind == 1 && hdata.kindOfCat(lc.ids[k]) >= Home.KIND_READ) {
+            // bài viết, giao diện, âm thanh: không có lượt tải nên không có tab xếp hạng
+            int id = lc.ids[k];
+            openList(hdata.nameOfCat(id), "c" + id, null);
         } else if (lc.kind == 1) {
             int id = lc.ids[k];
             String[] keys = new String[RANK_SORTS.length];
@@ -702,7 +716,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     /** Danh mục cấp 2: các thể loại của một nhóm (kind 1 game, 2 app). */
     private void openGroup(int kind) {
-        ListCanvas lc = newList(kind == Home.KIND_GAME ? "Trò chơi" : "Ứng dụng", 1);
+        ListCanvas lc = newList(Home.kindName(kind), 1);
         lc.group = kind;
         fillCats(lc);
         show(lc);
@@ -729,16 +743,23 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     }
 
     private void fillCats(ListCanvas lc) {
-        int[] sel = new int[Math.max(hdata.catId.length, 2)];
+        int[] sel = new int[Math.max(hdata.catId.length, 7)];
         String[] nm = new String[sel.length];
         int[] cnt = new int[sel.length];
         int n = 0;
         if (lc.group == 0) {
-            for (int kind = Home.KIND_GAME; kind <= Home.KIND_APP; kind++) {
+            if (hdata.countOfKind(Home.KIND_GAME) > 0) {
+                // Đề xuất hôm nay: Worker chọn game cho cả ngày (khóa pick)
+                sel[n] = PICK_ID;
+                nm[n] = "Đề xuất hôm nay";
+                cnt[n++] = 0;
+            }
+            for (int i = 0; i < Home.KIND_ORDER.length; i++) {
+                int kind = Home.KIND_ORDER[i];
                 int c = hdata.countOfKind(kind);
                 if (c > 0) {
                     sel[n] = kind;
-                    nm[n] = kind == Home.KIND_GAME ? "Trò chơi" : "Ứng dụng";
+                    nm[n] = Home.kindName(kind);
                     cnt[n++] = c;
                 }
             }
