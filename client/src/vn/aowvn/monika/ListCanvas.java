@@ -745,7 +745,7 @@ final class ListCanvas extends BaseCanvas {
         int bh = fs.getHeight();
         if (ranked && k < 3) {
             medal(g, tx + 3 + (bh + 4) / 2, ty + 3 + bh / 2, bh + 4, k + 1);
-        } else if (k < 9) {
+        } else if (k < 9 && (ranked || !numNav)) {
             g.setColor(Theme.BAR_BG);
             g.fillRoundRect(tx + 3, ty + 3, bh, bh, 6, 6);
             g.setFont(fs);
@@ -860,12 +860,12 @@ final class ListCanvas extends BaseCanvas {
         int md = ranked ? Math.min(f.getHeight(), rowH - 4) : 0;
         if (ranked && k < 3) {
             medal(g, x + md / 2, cy, md, k + 1);
-        } else if (k < 9) {
+        } else if (k < 9 && (ranked || !numNav)) {
             g.setColor(on ? Theme.TEXT : Theme.ORANGE);
             String n = Integer.toString(k + 1);
             g.drawString(n, x, cy - f.getHeight() / 2, Graphics.TOP | Graphics.LEFT);
         }
-        x += (ranked ? md : f.stringWidth("9")) + 6;
+        x += (ranked ? md : numNav ? 0 : f.stringWidth("9")) + 6;
         if (iconPx > 0) {
             paintIcon(g, k, x, cy - iconPx / 2, f);
             x += iconPx + 6;
@@ -1047,8 +1047,9 @@ final class ListCanvas extends BaseCanvas {
 
     protected void keyPressed(int code) {
         layout(getWidth(), getHeight());
-        if (code >= Canvas.KEY_NUM1 && code <= Canvas.KEY_NUM9) {
-            int k = code - Canvas.KEY_NUM1;
+        int d = digit(code);
+        if (!numNav && d >= 1) {
+            int k = d - 1;
             if (state == READY && k < names.length) {
                 sel = k + (hasPrev ? 1 : 0);
                 snap = true;
@@ -1057,11 +1058,11 @@ final class ListCanvas extends BaseCanvas {
             }
             return;
         }
-        if (code == Canvas.KEY_STAR || code == 's' || code == 'S') {
+        if (isStar(code)) {
             app.listSearch();
             return;
         }
-        if (code == Canvas.KEY_POUND) {
+        if (isPound(code)) {
             if (hasNext) {
                 app.listPage(this, 1);
             }
@@ -1078,11 +1079,11 @@ final class ListCanvas extends BaseCanvas {
                 return;
             }
         }
-        if (isFire(code)) {
+        int ga = dir(code);
+        if (isFire(code) || ga == Canvas.FIRE) {
             activate(sel);
             return;
         }
-        int ga = gameAction(code);
         if (grid && state == READY && rowCount() > 0) {
             boolean did = false;
             if (ga == Canvas.UP || ga == Canvas.DOWN) {
@@ -1121,7 +1122,7 @@ final class ListCanvas extends BaseCanvas {
     }
 
     protected void keyRepeated(int code) {
-        int ga = gameAction(code);
+        int ga = dir(code);
         if (ga == Canvas.UP || ga == Canvas.DOWN) {
             keyPressed(code);
         }
