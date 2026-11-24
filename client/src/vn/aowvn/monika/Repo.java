@@ -5,10 +5,11 @@ import java.util.Vector;
 
 /**
  * Nguồn dữ liệu: gọi API Cloudflare qua {@link Net}, rơi về cache RMS, hoặc danh mục mẫu
- * trong JAR khi chưa có máy chủ. Một luồng nền xử lý lần lượt các yêu cầu
- * (máy cũ thường chỉ mở được ít kết nối cùng lúc).
+ * trong JAR khi chưa có máy chủ. Một luồng riêng cho dữ liệu (trang chủ, danh sách) để không phải chờ ảnh,
+ * và {@link #IMG_WORKERS} luồng tải ảnh song song (mỗi lần mở kết nối trên máy cũ mất cả giây,
+ * song song giúp lưới ảnh hiện nhanh hơn). Ảnh đã tải được giữ trong bộ nhớ để mở lại không tốn mạng.
  */
-final class Repo implements Runnable {
+final class Repo {
     /** Kết quả trả về luồng nền; result là Home, Page hoặc byte[] (ảnh), err là mã lỗi hoặc null. */
     interface Callback {
         void done(Object tag, Object result, String err);
@@ -26,6 +27,7 @@ final class Repo implements Runnable {
         Object group;
         Callback cb;
         boolean cancelled;
+        boolean urgent;
     }
 
     private final Store store;
@@ -34,7 +36,27 @@ final class Repo implements Runnable {
     private String suffix = "";
     private String ua = "Monika";
     private Catalog embedded;
-    private Thread worker;
+    private boolean started;
+    static final int IMG_WORKERS = 3;
+    /** Ảnh đã tải (byte JPEG/PNG gốc) giữ tối đa IMG_CACHE_BYTES, bỏ cũ nhất trước. */
+    private static final int IMG_CACHE_BYTES = 200 * 1024;
+    private final java.util.Hashtable imgCache = new java.util.Hashtable();
+    private final Vector imgOrder = new Vector();
+    private int imgBytes;
+
+    private final class Worker implements Runnable {
+        private final boolean images;
+
+        Worker(boolean images) {
+            this.images = images;
+        }
+
+        public void run() {
+            loop(images);
+        }
+    }
+    /** False sau khi máy chủ báo không có endpoint v2: dùng /v1/l/ và /v1/home.bin. */
+    private boolean v2 = true;
 
     /** True nếu lần gọi gần nhất phải dùng cache hoặc bản mẫu vì mạng lỗi. */
     boolean stale;
@@ -52,9 +74,13 @@ final class Repo implements Runnable {
         if (b.length() > 0 && !b.startsWith("http://") && !b.startsWith("https://")) {
             b = "http://" + b;
         }
+        if (!b.equals(base)) {
+            clearImages();
+        }
         base = b;
         suffix = netSuffix == null ? "" : netSuffix;
         ua = userAgent;
+        v2 = true;
     }
 
     boolean online() {
@@ -90,7 +116,7 @@ final class Repo implements Runnable {
         enqueue(K_HOME, "", 0, tag, null, cb);
     }
 
-    /** key: app, game, new, hot, dl, c&lt;id&gt;, i&lt;id&gt; hoặc "s:&lt;từ khóa&gt;". */
+    /** key: app, game, new, hot, top1, top7, dl, c&lt;id&gt;[.sắp xếp][.r&lt;W&gt;x&lt;H&gt;], i&lt;id&gt; hoặc "s:&lt;từ khóa&gt;". */
     void list(String key, int page, Object tag, Callback cb) {
         enqueue(K_LIST, key, page, tag, null, cb);
     }
@@ -102,6 +128,11 @@ final class Repo implements Runnable {
     /** Ảnh thuộc một nhóm (vd. icon của một danh sách): hủy cả nhóm bằng {@link #cancel}. */
     void image(String path, Object tag, Object group, Callback cb) {
         enqueue(K_IMAGE, path, 0, tag, group, cb);
+    }
+
+    /** Như {@link #image(String, Object, Object, Callback)} nhưng đứng trước các ảnh thường đang chờ (ảnh đang hiện trên màn). */
+    void imageFirst(String path, Object tag, Object group, Callback cb) {
+        enqueue(K_IMAGE, path, 0, tag, group, cb, true);
     }
 
     void cancel(Object tag) {
@@ -116,7 +147,12 @@ final class Repo implements Runnable {
     }
 
     private void enqueue(int kind, String key, int page, Object tag, Object group, Callback cb) {
+        enqueue(kind, key, page, tag, group, cb, false);
+    }
+
+    private void enqueue(int kind, String key, int page, Object tag, Object group, Callback cb, boolean urgent) {
         Req r = new Req();
+        r.urgent = urgent;
         r.kind = kind;
         r.key = key;
         r.page = page;
@@ -124,8 +160,18 @@ final class Repo implements Runnable {
         r.group = group;
         r.cb = cb;
         synchronized (queue) {
-            if (kind == K_IMAGE) {
+            if (kind == K_IMAGE && !urgent) {
                 queue.addElement(r);
+            } else if (kind == K_IMAGE) {
+                int at = queue.size();
+                for (int i = 0; i < queue.size(); i++) {
+                    Req q = (Req) queue.elementAt(i);
+                    if (q.kind == K_IMAGE && !q.urgent) {
+                        at = i;
+                        break;
+                    }
+                }
+                queue.insertElementAt(r, at);
             } else {
                 // yêu cầu của người dùng đi trước ảnh đang chờ (icon, banner)
                 int at = queue.size();
@@ -137,27 +183,66 @@ final class Repo implements Runnable {
                 }
                 queue.insertElementAt(r, at);
             }
-            if (worker == null) {
-                worker = new Thread(this);
-                worker.start();
+            if (!started) {
+                started = true;
+                new Thread(new Worker(false)).start();
+                for (int i = 0; i < IMG_WORKERS; i++) {
+                    new Thread(new Worker(true)).start();
+                }
             }
-            queue.notify();
+            queue.notifyAll();
         }
     }
 
-    public void run() {
+    private synchronized byte[] cachedImage(String key) {
+        return (byte[]) imgCache.get(key);
+    }
+
+    private synchronized void rememberImage(String key, byte[] b) {
+        if (b == null || b.length > IMG_CACHE_BYTES / 4 || imgCache.containsKey(key)) {
+            return;
+        }
+        while (imgBytes + b.length > IMG_CACHE_BYTES && imgOrder.size() > 0) {
+            String old = (String) imgOrder.elementAt(0);
+            imgOrder.removeElementAt(0);
+            byte[] ob = (byte[]) imgCache.remove(old);
+            if (ob != null) {
+                imgBytes -= ob.length;
+            }
+        }
+        imgCache.put(key, b);
+        imgOrder.addElement(key);
+        imgBytes += b.length;
+    }
+
+    /** Xóa ảnh nhớ tạm khi đổi máy chủ. */
+    private synchronized void clearImages() {
+        imgCache.clear();
+        imgOrder.removeAllElements();
+        imgBytes = 0;
+    }
+
+    private void loop(boolean images) {
         while (true) {
-            Req r;
+            Req r = null;
             synchronized (queue) {
-                while (queue.size() == 0) {
-                    try {
-                        queue.wait();
-                    } catch (InterruptedException e) {
-                        return;
+                while (r == null) {
+                    for (int i = 0; i < queue.size(); i++) {
+                        Req q = (Req) queue.elementAt(i);
+                        if ((q.kind == K_IMAGE) == images) {
+                            r = q;
+                            queue.removeElementAt(i);
+                            break;
+                        }
+                    }
+                    if (r == null) {
+                        try {
+                            queue.wait();
+                        } catch (InterruptedException e) {
+                            return;
+                        }
                     }
                 }
-                r = (Req) queue.elementAt(0);
-                queue.removeElementAt(0);
             }
             if (r.cancelled) {
                 continue;
@@ -170,7 +255,14 @@ final class Repo implements Runnable {
                 } else if (r.kind == K_LIST) {
                     result = loadList(r.key, r.page);
                 } else {
-                    result = Net.get(url(r.key), suffix, ua, 48 * 1024);
+                    byte[] hit = cachedImage(r.key);
+                    if (hit != null) {
+                        result = hit;
+                    } else {
+                        byte[] got = Net.get(url(r.key), suffix, ua, 48 * 1024);
+                        rememberImage(r.key, got);
+                        result = got;
+                    }
                 }
             } catch (IOException e) {
                 err = e.getMessage() == null ? "E12" : e.getMessage();
@@ -187,39 +279,122 @@ final class Repo implements Runnable {
 
     // ---------- nạp ----------
 
+    /** Lỗi do máy chủ không có/không hiểu endpoint v2 (404, mã khác 200, sai định dạng): rơi về v1. */
+    private static boolean notV2(IOException e) {
+        String m = e.getMessage();
+        return "E13".equals(m) || "E14".equals(m) || "E15".equals(m);
+    }
+
     private Home loadHome() throws IOException {
         if (!online()) {
             stale = false;
             source = "danh mục mẫu";
             return Home.fromCatalog(embedded());
         }
+        v2 = true;
+        IOException err = null;
         try {
-            byte[] b = Net.get(base + "/v1/home.bin", suffix, ua, 16 * 1024);
+            // v3: thêm nhóm giao diện, âm thanh, bài viết; máy chủ cũ không có thì rơi xuống v2
+            byte[] b = Net.get(base + "/v1/home3.bin", suffix, ua, 16 * 1024);
             Home h = Home.parse(b);
-            store.cachePut("home", b);
+            if (!h.v2) {
+                throw new IOException("E14");
+            }
+            store.cachePut("home3", b);
             stale = false;
-            source = "mạng";
+            source = "mạng (v3)";
             return h;
         } catch (IOException e) {
-            byte[] c = store.cacheGet("home");
-            if (c != null) {
-                stale = true;
-                source = "cache";
-                return Home.parse(c);
-            }
-            throw e;
+            // thử v2
         }
+        try {
+            byte[] b = Net.get(base + "/v1/home2.bin", suffix, ua, 16 * 1024);
+            Home h = Home.parse(b);
+            if (!h.v2) {
+                throw new IOException("E14");
+            }
+            store.cachePut("home2", b);
+            stale = false;
+            source = "mạng (v2)";
+            return h;
+        } catch (IOException e) {
+            if (notV2(e)) {
+                v2 = false;
+            } else {
+                err = e;
+            }
+        }
+        if (!v2) {
+            try {
+                byte[] b = Net.get(base + "/v1/home.bin", suffix, ua, 16 * 1024);
+                Home h = Home.parse(b);
+                store.cachePut("home", b);
+                stale = false;
+                source = "mạng (v1)";
+                return h;
+            } catch (IOException e) {
+                err = e;
+            }
+        }
+        String[] ckeys = {"home3", "home2", "home"};
+        for (int i = 0; i < ckeys.length; i++) {
+            byte[] c = store.cacheGet(ckeys[i]);
+            if (c != null) {
+                try {
+                    Home h = Home.parse(c);
+                    stale = true;
+                    source = "cache";
+                    return h;
+                } catch (IOException ignore) {
+                    // cache hỏng: thử bản kia
+                }
+            }
+        }
+        throw err;
+    }
+
+    /** Khóa v1 tương ứng: bỏ mod (.new, .r240x320...), xếp hạng theo ngày/tuần dùng hot. */
+    private static String v1Key(String key) {
+        int dot = key.indexOf('.');
+        String base = dot < 0 ? key : key.substring(0, dot);
+        if ("top1".equals(base) || "top7".equals(base)) {
+            return "hot";
+        }
+        return base;
     }
 
     private Page loadList(String key, int page) throws IOException {
         if (!online()) {
             return Page.local(local(key), page);
         }
-        String path = key.startsWith("s:") ? "/v1/s/" + enc(key.substring(2)) + "/" + page + ".bin"
-            : "/v1/l/" + key + "/" + page + ".bin";
-        String ck = page == 0 && !key.startsWith("s:") ? key : null;
+        if (key.startsWith("s:")) {
+            // tìm kiếm: /v1/s/ (định dạng v1, dl = 0), không cache
+            Page p = Page.parse(Net.get(base + "/v1/s/" + enc(key.substring(2)) + "/" + page + ".bin", suffix, ua,
+                64 * 1024));
+            stale = false;
+            return p;
+        }
+        String ck = page == 0 ? key : null;
         try {
-            byte[] b = Net.get(base + path, suffix, ua, 64 * 1024);
+            if (v2) {
+                try {
+                    Page p = getPage2(key, page, ck);
+                    int dot = key.lastIndexOf('.');
+                    if (page == 0 && p.total == 0 && dot > 0 && key.length() > dot + 2 && key.charAt(dot + 1) == 'r'
+                        && isSize(key.substring(dot + 2))) {
+                        // bộ lọc theo màn hình không còn gì: tải lại không lọc
+                        p = getPage2(key.substring(0, dot), 0, key.substring(0, dot));
+                        p.unfiltered = true;
+                    }
+                    stale = false;
+                    return p;
+                } catch (IOException e) {
+                    if (!notV2(e)) {
+                        throw e;
+                    }
+                }
+            }
+            byte[] b = Net.get(base + "/v1/l/" + v1Key(key) + "/" + page + ".bin", suffix, ua, 64 * 1024);
             Page p = Page.parse(b);
             if (ck != null) {
                 store.cachePut("l:" + ck, b);
@@ -228,14 +403,40 @@ final class Repo implements Runnable {
             return p;
         } catch (IOException e) {
             if (ck != null) {
-                byte[] c = store.cacheGet("l:" + ck);
-                if (c != null) {
-                    stale = true;
-                    return Page.parse(c);
+                // mất mạng: dùng cache của đúng khóa (v2 trước, rồi v1)
+                for (int i = 0; i < 2; i++) {
+                    byte[] c = store.cacheGet((i == 0 ? "l2:" : "l:") + ck);
+                    if (c != null) {
+                        try {
+                            Page p = Page.parse(c);
+                            stale = true;
+                            return p;
+                        } catch (IOException ignore) {
+                            // cache hỏng: thử bản kia
+                        }
+                    }
                 }
             }
             throw e;
         }
+    }
+
+    private Page getPage2(String key, int page, String ck) throws IOException {
+        byte[] b = Net.get(base + "/v1/l2/" + key + "/" + page + ".bin", suffix, ua, 64 * 1024);
+        Page p = Page.parse(b);
+        if (!p.v2) {
+            throw new IOException("E14");
+        }
+        if (page == 0 && ck != null) {
+            store.cachePut("l2:" + ck, b);
+        }
+        return p;
+    }
+
+    /** True nếu s có dạng WxH. */
+    private static boolean isSize(String s) {
+        int x = s.indexOf('x');
+        return x > 0 && num(s.substring(0, x)) > 0 && num(s.substring(x + 1)) > 0;
     }
 
     /** Lọc danh mục mẫu theo khóa danh sách. */
@@ -244,6 +445,10 @@ final class Repo implements Runnable {
         Vector v = new Vector();
         if (key.startsWith("s:")) {
             return c.search(key.substring(2));
+        }
+        int dot = key.indexOf('.');
+        if (dot > 0) {
+            key = key.substring(0, dot);
         }
         for (int i = 0; i < c.size(); i++) {
             AppInfo a = c.get(i);
@@ -256,7 +461,7 @@ final class Repo implements Runnable {
                 ok = a.has(AppInfo.F_NEW) || a.has(AppInfo.F_UPDATE);
             } else if ("hot".equals(key)) {
                 ok = a.has(AppInfo.F_HOT) || a.id % 2 == 0;
-            } else if ("dl".equals(key)) {
+            } else if ("dl".equals(key) || "top1".equals(key) || "top7".equals(key)) {
                 ok = true;
             } else if (key.length() > 1 && key.charAt(0) == 'c') {
                 ok = a.cat == num(key.substring(1));

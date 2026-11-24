@@ -12,7 +12,7 @@ import javax.microedition.rms.RecordStoreException;
 
 /**
  * Lưu trạng thái vào RMS: id thiết bị ngẫu nhiên (không dùng IMEI), chế độ chữ,
- * toàn màn hình, máy chủ tự chọn, danh sách yêu thích (đủ thông tin để mở offline),
+ * toàn màn hình, máy chủ tự chọn, lọc theo màn hình, danh sách yêu thích (đủ thông tin để mở offline),
  * cache vài trang đầu từ máy chủ.
  */
 final class Store {
@@ -29,6 +29,17 @@ final class Store {
     int fullscreen = 0;
     /** Máy chủ do người dùng nhập (rỗng = dùng máy chủ có sẵn trong JAR). */
     String server = "";
+    /** Chỉ hiện mục hợp màn hình máy (thêm hậu tố .r&lt;W&gt;x&lt;H&gt; khi gọi danh sách). Mặc định bật. */
+    boolean fitScreen = true;
+    /** Phím số 2/4/6/8/5 để di chuyển và chọn (mặc định bật); tắt thì phím 1..9 mở nhanh mục thứ 1..9. */
+    boolean numNav = true;
+    /** Đã hiện thông báo hướng dẫn lần đầu (nhấn * để tìm kiếm). */
+    boolean tipDone = false;
+    /** Số lần bấm Tải về, và số lần tải tại thời điểm đã hiện thông báo ủng hộ gần nhất. */
+    int dlCount = 0;
+    int donateAt = 0;
+    /** Id game vừa bấm Tải về gần nhất (bấm lại đúng game đó không tính thêm lượt). */
+    int lastDl = 0;
 
     private Vector favs;
 
@@ -141,6 +152,16 @@ final class Store {
                 in.readUTF(); // bản 0.1: danh sách yêu thích dạng chuỗi, bỏ
             } else {
                 server = in.readUTF();
+                if (ver >= 3) {
+                    fitScreen = in.readUnsignedByte() != 0;
+                }
+                if (ver >= 4) {
+                    numNav = in.readUnsignedByte() != 0;
+                    tipDone = in.readUnsignedByte() != 0;
+                    dlCount = in.readInt();
+                    donateAt = in.readInt();
+                    lastDl = in.readInt();
+                }
             }
             if (deviceId.length() == 0) {
                 newDeviceId();
@@ -161,11 +182,17 @@ final class Store {
         try {
             ByteArrayOutputStream bo = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(bo);
-            out.writeByte(2);
+            out.writeByte(4);
             out.writeByte(Vi.mode);
             out.writeByte(fullscreen);
             out.writeUTF(deviceId);
             out.writeUTF(server);
+            out.writeByte(fitScreen ? 1 : 0);
+            out.writeByte(numNav ? 1 : 0);
+            out.writeByte(tipDone ? 1 : 0);
+            out.writeInt(dlCount);
+            out.writeInt(donateAt);
+            out.writeInt(lastDl);
             byte[] b = bo.toByteArray();
             rs = RecordStore.openRecordStore(SETTINGS, true);
             if (rs.getNumRecords() == 0) {

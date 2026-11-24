@@ -47,6 +47,18 @@ final class DetailCanvas extends BaseCanvas {
         sb.append(Vi.tr("Phiên bản: ")).append(a.version).append('\n');
         sb.append(Vi.tr("Dung lượng: ")).append(a.sizeKb).append(" KB\n");
         sb.append(Vi.tr("Giá: ")).append(Vi.tr(a.isFree() ? "Miễn phí" : MonikaMidlet.money(a.price))).append('\n');
+        String dl = AppInfo.dlText(a.dl);
+        if (dl.length() > 0 && !a.has(AppInfo.F_POST | AppInfo.F_MEDIA)) {
+            sb.append(Vi.tr("Lượt tải: ")).append(dl).append('\n');
+        }
+        String[] tg = a.tagBadges(6);
+        if (tg.length > 0) {
+            sb.append(Vi.tr("Thẻ: "));
+            for (int i = 0; i < tg.length; i++) {
+                sb.append(i > 0 ? ", " : "").append(tg[i]);
+            }
+            sb.append('\n');
+        }
         if (catName != null && catName.length() > 0) {
             sb.append(Vi.tr("Thể loại: ")).append(catName).append('\n');
         }
@@ -57,7 +69,7 @@ final class DetailCanvas extends BaseCanvas {
             sb.append('\n').append(note);
         }
         body = sb.toString();
-        cmdInstall = new Command(Vi.tr("Tải về"), Command.OK, 1);
+        cmdInstall = new Command(Vi.tr(a.has(AppInfo.F_POST) ? "Mở bài" : a.has(AppInfo.F_MEDIA) ? "Mở trang tải" : "Tải về"), Command.OK, 1);
         cmdFav = new Command(Vi.tr("Yêu thích"), Command.ITEM, 2);
         cmdSearch = new Command(Vi.tr("Tìm ứng dụng"), Command.SCREEN, 3);
         cmdBack = new Command(Vi.tr("Quay lại"), Command.BACK, 1);
@@ -138,7 +150,7 @@ final class DetailCanvas extends BaseCanvas {
             g.setColor(Theme.DIM);
         }
         g.setFont(fb);
-        String bt = canInstall ? Vi.tr("Tải về (JAR)") : Vi.tr("Chưa có file cài");
+        String bt = canInstall ? Vi.tr(info.has(AppInfo.F_POST) ? "Mở bài viết" : info.has(AppInfo.F_MEDIA) ? "Mở trang tải" : "Tải về (JAR)") : Vi.tr("Chưa có file cài");
         g.drawString(bt, w / 2, btnY + (btnH - fb.getHeight()) / 2, Graphics.TOP | Graphics.HCENTER);
         if (canInstall) {
             g.setFont(fs);
@@ -152,7 +164,7 @@ final class DetailCanvas extends BaseCanvas {
         g.drawString(Vi.tr(fav ? "Bỏ yêu thích" : "Yêu thích"), w / 2, favY + (favH - f.getHeight()) / 2,
             Graphics.TOP | Graphics.HCENTER);
         g.setFont(fs);
-        g.drawString("2", 12, favY + (favH - fs.getHeight()) / 2, Graphics.TOP | Graphics.LEFT);
+        g.drawString(numNav ? "3" : "2", 12, favY + (favH - fs.getHeight()) / 2, Graphics.TOP | Graphics.LEFT);
 
         // phần chữ cuộn
         int viewH = h - textY - barH;
@@ -164,7 +176,8 @@ final class DetailCanvas extends BaseCanvas {
         for (int i = 0; i < lines.length; i++) {
             if (y + lh >= textY && y < textY + viewH) {
                 boolean head = lines[i].startsWith(Vi.tr("Phiên bản: ")) || lines[i].startsWith(Vi.tr("Dung lượng: "))
-                    || lines[i].startsWith(Vi.tr("Giá: ")) || lines[i].startsWith(Vi.tr("Thể loại: "));
+                    || lines[i].startsWith(Vi.tr("Giá: ")) || lines[i].startsWith(Vi.tr("Thể loại: "))
+                    || lines[i].startsWith(Vi.tr("Lượt tải: ")) || lines[i].startsWith(Vi.tr("Thẻ: "));
                 g.setColor(head ? Theme.DIM : Theme.TEXT);
                 g.drawString(lines[i], 8, y, Graphics.TOP | Graphics.LEFT);
             }
@@ -194,7 +207,7 @@ final class DetailCanvas extends BaseCanvas {
             g.setFont(fb);
             g.setColor(Theme.TEXT);
             int ty = h - barH + (barH - fb.getHeight()) / 2;
-            g.drawString(canInstall ? Vi.tr("Tải về") : Vi.tr("Yêu thích"), 4, ty,
+            g.drawString(canInstall ? Vi.tr(info.has(AppInfo.F_POST) ? "Mở bài" : info.has(AppInfo.F_MEDIA) ? "Mở trang tải" : "Tải về") : Vi.tr("Yêu thích"), 4, ty,
                 Graphics.TOP | Graphics.LEFT);
             g.drawString(Vi.tr("Quay lại"), w - 4, ty, Graphics.TOP | Graphics.RIGHT);
         }
@@ -206,16 +219,26 @@ final class DetailCanvas extends BaseCanvas {
         }
     }
 
+    protected void showNotify() {
+        app.detailShown();
+    }
+
+    protected void hideNotify() {
+        app.detailHidden();
+    }
+
     protected void keyPressed(int code) {
-        if (code == Canvas.KEY_NUM1) {
+        int d = digit(code);
+        if (d == 1) {
             install();
             return;
         }
-        if (code == Canvas.KEY_NUM2) {
+        // phím yêu thích: 3 khi 2/4/6/8 dùng để di chuyển, 2 khi tắt chế độ đó
+        if (d == (numNav ? 3 : 2)) {
             app.detailFav(this);
             return;
         }
-        if (code == Canvas.KEY_STAR || code == 's' || code == 'S') {
+        if (isStar(code)) {
             app.listSearch();
             return;
         }
@@ -234,7 +257,8 @@ final class DetailCanvas extends BaseCanvas {
                 return;
             }
         }
-        if (isFire(code)) {
+        int ga = dir(code);
+        if (isFire(code) || ga == Canvas.FIRE) {
             if (canInstall) {
                 install();
             } else {
@@ -242,7 +266,6 @@ final class DetailCanvas extends BaseCanvas {
             }
             return;
         }
-        int ga = gameAction(code);
         int step = Theme.body().getHeight() * 2;
         if (ga == Canvas.DOWN) {
             scroll = Math.min(maxScroll(getHeight()), scroll + step);
@@ -254,7 +277,7 @@ final class DetailCanvas extends BaseCanvas {
     }
 
     protected void keyRepeated(int code) {
-        int ga = gameAction(code);
+        int ga = dir(code);
         if (ga == Canvas.UP || ga == Canvas.DOWN) {
             keyPressed(code);
         }
