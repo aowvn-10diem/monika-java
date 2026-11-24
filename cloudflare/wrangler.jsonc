@@ -7,7 +7,9 @@
   "vars": { "API_HOST": "api.justmonika.top", "BLOG_URL": "https://m.justmonika.top",
             "GH_REPO": "aowvn-10diem/monika-java", "GH_BRANCH": "files", "GH_DIR": "jars" },
   "d1_databases": [{ "binding": "DB", "database_name": "monika", "database_id": "bc819f19-65b8-4528-938b-2e17833ba180" }],
-  // Bản đang chạy dùng KV FILES (chưa bật R2). Muốn bật R2: tạo bucket monika-files rồi thêm "r2_buckets": [{ "binding": "R2", "bucket_name": "monika-files" }].
+  // R2: kho file chính (JAR) và ảnh minh họa (khóa pic/<tên>.jpg, phát qua /v1/pic/<tên>.jpg). PHẢI tạo bucket monika-files trước khi deploy, nếu không deploy báo lỗi.
+  "r2_buckets": [{ "binding": "R2", "bucket_name": "monika-files" }],
+  // KV FILES: kho dự phòng cuối (R2 → GitHub → KV).
   "kv_namespaces": [{ "binding": "FILES", "id": "3ee1a3e5a96247f0a93987b9fde8e800" }],
   // Chặn tải/tìm kiếm dồn dập theo IP (xấp xỉ, mỗi trung tâm dữ liệu một bộ đếm). Không khai thì code bỏ qua.
   "ratelimits": [

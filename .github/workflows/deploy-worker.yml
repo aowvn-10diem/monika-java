@@ -6,6 +6,16 @@ name: deploy-worker
 # Chạy tay: tab Actions > deploy-worker > Run workflow. Chạy tự động khi merge vào main có sửa cloudflare/.
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "seed-pic = chỉ up ảnh trong cloudflare/r2-seed vào R2 (không deploy); deploy = test + deploy Worker (kèm up ảnh nếu có)"
+        type: choice
+        options: [deploy, seed-pic]
+        default: deploy
+      pics_zip_url:
+        description: "(tuy chon) URL file zip anh (thu muc pic/) de tai ve va up vao R2, vi du release cua monika-v1"
+        required: false
+        default: ""
   push:
     branches: [main]
     paths:
@@ -26,11 +36,42 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Up ảnh vào R2 (cloudflare/r2-seed/** và zip ảnh nếu có → bucket monika-files)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PICS_ZIP_URL: ${{ inputs.pics_zip_url }}
+        run: |
+          if [ -n "$PICS_ZIP_URL" ]; then
+            case "$PICS_ZIP_URL" in https://github.com/santa-monika/monika-v1/releases/download/*) ;; *) echo "Chỉ nhận zip từ release của monika-v1"; exit 1;; esac
+            mkdir -p r2-seed && curl -fsSL "$PICS_ZIP_URL" -o /tmp/pics.zip && unzip -q -o /tmp/pics.zip -d r2-seed
+          fi
+          test -d r2-seed || { echo "Không có r2-seed, bỏ qua"; exit 0; }
+          npm i -g wrangler@4 >/dev/null 2>&1
+          cd r2-seed
+          echo "Số file: $(find . -type f | wc -l)"
+          find . -type f | sed 's|^\./||' | sort > /tmp/files.txt
+          cat > /tmp/put.sh <<'SH'
+          #!/bin/bash
+          f="$1"; ct=image/jpeg; case "$f" in *.png) ct=image/png;; esac
+          for i in 1 2 3; do wrangler r2 object put "monika-files/$f" --file "$f" --content-type "$ct" --remote >/dev/null 2>&1 && exit 0; sleep $((i*3)); done
+          echo "LOI $f"; exit 1
+          SH
+          chmod +x /tmp/put.sh
+          xargs -a /tmp/files.txt -P 8 -n 1 /tmp/put.sh | tee /tmp/put.log
+          if grep -q '^LOI' /tmp/put.log; then echo "Có file lỗi, xem log"; exit 1; fi
+          echo "Đã up xong ảnh vào R2"
       - name: Test (node:sqlite làm D1 giả)
+        if: ${{ inputs.mode != 'seed-pic' }}
         run: |
           node tools/gen-taxonomy.mjs --check
           node cloudflare/test/rank.test.mjs
+          node cloudflare/test/ext.test.mjs
+          node cloudflare/test/shot.test.mjs
       - name: Deploy Worker
+        if: ${{ inputs.mode != 'seed-pic' }}
         working-directory: cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -39,6 +80,7 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Thiếu secret CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID"; exit 1; }
           npx --yes wrangler@4 deploy
       - name: Kiểm tra endpoint sau deploy
+        if: ${{ inputs.mode != 'seed-pic' }}
         run: |
           sleep 10
           fail=0

@@ -90,3 +90,8 @@ Header: `int 0x4D4B4C32, ubyte ver=2, ushort total, ushort page, ubyte count`. M
 
 ### Quy tắc đếm
 1 lượt = byte đầu của file được phát (`/v1/j/{id}.jar`, `/v1/f/…jar`), không tính JAD. Mỗi (máy, game) tối đa 1 lượt mỗi tuần; trần 3 lượt mỗi (IP, game, tuần). HEAD, Range không bắt đầu từ 0, UA rỗng/bot không đếm (vẫn phục vụ). Không lưu IP.
+
+
+### Bài link-only và ảnh trong R2 (v2.1)
+- **Bài link-only** (không có `jar`): thêm các dòng `v1`, `v2`, … (hoặc `v`) vào `mk-meta`, mỗi dòng `cỡ|KB|NHÃN=URL|NHÃN=URL`, ví dụ `v1: 240x320|365|JAD=http://host/a.jad|JAR=http://host/a.jar`. Nút Tải của app mở `/v1/j/<id>.jad`; với bài không có `jar` và không nằm trong kho, Worker trả một trang HTML nhẹ liệt kê các bản theo độ phân giải (chỉ link http/https, tối đa 40 dòng, cache 5 phút; Worker đọc lại bài qua `/feeds/posts/default/<id>?alt=json`). `.jar` của bài loại này luôn 404. Monika không lưu hay phát lại file.
+- **Ảnh minh họa trong R2:** đặt object `pic/<tên>.jpg` (tên chỉ gồm `A-Za-z0-9_-`) vào bucket `monika-files`, `GET /v1/pic/<tên>.jpg` phát lại (cache 1 ngày). Trong `mk-meta` ghi `img: https://api.justmonika.top/v1/pic/<tên>.jpg`; `/v1/sc/...` thấy URL này thì đọc thẳng R2, không fetch ra ngoài. Chưa bật R2 thì `/v1/pic` trả 404.
