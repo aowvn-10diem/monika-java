@@ -26,14 +26,14 @@ export function upstream(env, url, init = {}) {
   return fetch(url, init);
 }
 
-// GET /v1/p/<ID>/<tên>.jar: phát lại file Pixeldrain (JAR đã làm sạch: waptai-*, qnw-*, gt321-*, wvip-*) cho máy cũ qua HTTP; hỗ trợ Range. Tên file chỉ để hiển thị khi tải.
+// GET /v1/p/<ID>/<tên>.jar: phát lại file Pixeldrain (JAR đã làm sạch: waptai-*, qnw-*, gt321-*, wvip-*, bdk-*) cho máy cũ qua HTTP; hỗ trợ Range. Tên file chỉ để hiển thị khi tải.
 export async function pdServe(env, req, id, name, text) {
   if (!env.PD_KEY) return text("pixeldrain chua cau hinh", 503);
   const info = await upstream(env, `https://pixeldrain.com/api/file/${id}/info`, { cf: { cacheTtl: 3600, cacheEverything: true } });
   if (!info.ok) return text("not found", 404);
   const meta = await info.json();
   // chỉ phát JAR đã làm sạch của dự án, không biến Worker thành proxy cho cả thư viện Pixeldrain
-  if (!/^(waptai|qnw|gt321|wvip)-\d+-.+\.jar$/i.test(meta.name || "")) return text("not found", 404);
+  if (!/^(waptai|qnw|gt321|wvip|bdk)-\d+-.+\.jar$/i.test(meta.name || "")) return text("not found", 404);
   const h = {};
   const rg = req.headers.get("range"); if (rg) h.range = rg;
   const r = await upstream(env, `https://pixeldrain.com/api/file/${id}`, { headers: { ...h, "user-agent": "MonikaDl/1" } });
@@ -65,3 +65,23 @@ export async function pdImage(env, req, id, name, text) {
   if (cache) { try { await cache.put(key, res.clone()); } catch (_) {} }
   return res;
 }
+
+// Khóa tải ổn định (alias) cho nguồn hay có bản vá (bisduckopath): link trong bài là /v1/p/b<10 hex>/<tên>.jar, khóa trỏ tới tệp Pixeldrain HIỆN HÀNH.
+// Bản đồ khóa -> tệp là một JSON công khai (mặc định nhánh bdk-data của santa-monika/monika-v1, do workflow crawl-bisducko cập nhật khi có bản vá),
+// nên bản vá mới ra thì link trong bài không phải sửa. Cache 5 phút trong isolate; không có bản đồ hoặc khóa lạ thì 404.
+export const ALIAS_RE = /^b[0-9a-f]{10}$/;
+export const ALIAS_URL = "https://raw.githubusercontent.com/santa-monika/monika-v1/bdk-data/bdk-aliases.json";
+let aliasCache = { at: 0, map: null };
+export async function pdAlias(env, key, now = Date.now()) {
+  if (!ALIAS_RE.test(key || "")) return null;
+  if (!aliasCache.map || now - aliasCache.at > 300000) {
+    try {
+      const r = await fetch(env.BDK_ALIASES_URL || ALIAS_URL, { headers: { "user-agent": "MonikaDl/1" }, cf: { cacheTtl: 300, cacheEverything: true } });
+      if (r.ok) aliasCache = { at: now, map: await r.json() };
+      else if (!aliasCache.map) return null;
+    } catch (_) { if (!aliasCache.map) return null; }
+  }
+  const e = aliasCache.map[key];
+  return e && /^[A-Za-z0-9]{6,12}$/.test(e.pd || "") ? e : null;
+}
+export const _resetAliasCache = () => { aliasCache = { at: 0, map: null }; };

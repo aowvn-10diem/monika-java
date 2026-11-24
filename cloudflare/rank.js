@@ -248,8 +248,11 @@ export const LIST_COLS = `i.n,i.type,i.flags,i.size_kb,i.price,i.ver,i.title,i.d
   i.dl,i.d1,i.d7,i.tags,i.plat,(i.d7 >= 10 AND i.hold = 0) hot,
   (i.ic32 IS NOT NULL OR f.ic32 IS NOT NULL) hasic, (i.img IS NOT NULL AND i.img <> '') hasimg`;
 
-export async function fetchRows(env, where, binds, page, order, pageSize, types = RANKED_TYPES) {
+// noPort: danh sách cho app loại các mục Port (cờ 256, game port chỉ chạy trên giả lập, chỉ hiện trên web).
+export const NOT_PORT = "(i.flags & 256) = 0";
+export async function fetchRows(env, where, binds, page, order, pageSize, types = RANKED_TYPES, noPort = false) {
   const db = env.DB;
+  if (noPort) where = `${where} AND ${NOT_PORT}`;
   const tin = types.filter((t) => ITEM_TYPES.includes(t)).map((t) => `'${t}'`).join(",") || "'game'";
   const total = (await db.prepare(`SELECT COUNT(*) c FROM items i WHERE i.type IN (${tin}) AND ${where}`).bind(...binds).first()).c;
   const rows = (await db.prepare(
@@ -261,7 +264,7 @@ export async function fetchRows(env, where, binds, page, order, pageSize, types 
 export function jsonItem(r, pos, flags) {
   return {
     id: r.n, title: r.title, url: r.url || "", cat: r.cat, catName: catName(r.cat), ver: r.ver || "", sizeKb: r.size_kb || 0, price: r.price || 0,
-    dl: r.dl || 0, d7: r.d7 || 0, tags: tagSlugs(r.tags || 0), plat: platSlugs(r.plat || 1), flags,
+    dl: r.dl || 0, d7: r.d7 || 0, tags: tagSlugs(r.tags || 0), plat: platSlugs(r.plat || 1), flags, port: (r.flags & 256) ? 1 : 0,
     icon: r.hasic ? `/v1/ic/${r.n}-64.png` : "", shot: r.hasimg ? `/v1/sc/${r.n}-240x320.jpg` : "", pos,
   };
 }
@@ -334,9 +337,9 @@ export async function statsJson(env, ids, paths) {
   return out;
 }
 
-export async function catsJson(env) {
+export async function catsJson(env, noPort = false) {
   const rows = (await env.DB.prepare(
-    "SELECT c.n,c.kind,c.slug,c.sort,COUNT(i.n) cnt FROM cats c JOIN items i ON i.cat_n=c.n AND i.type IN ('game','app','media','post') WHERE c.kind IS NOT NULL GROUP BY c.n ORDER BY c.kind,c.sort"
+    `SELECT c.n,c.kind,c.slug,c.sort,COUNT(i.n) cnt FROM cats c JOIN items i ON i.cat_n=c.n AND i.type IN ('game','app','media','post')${noPort ? " AND (i.flags & 256) = 0" : ""} WHERE c.kind IS NOT NULL GROUP BY c.n ORDER BY c.kind,c.sort`
   ).all()).results;
   return rows.map((r) => ({ id: r.n, kind: r.kind, slug: r.slug, name: catName(r.n), count: r.cnt }));
 }
