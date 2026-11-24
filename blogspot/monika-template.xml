@@ -324,8 +324,8 @@ pre.mk-meta{display:none}
 <article class='it'>
 <h1 class='pt'><data:post.title/></h1>
 <div class='chips'>
-<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name == "VH" or data:label.name == "MOD" or data:label.name == "3D" or data:label.name == "VN"'><a class='tg' expr:href='data:label.url'><data:label.name/></a></b:if></b:loop>
-<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name != "VH" and data:label.name != "MOD" and data:label.name != "3D" and data:label.name != "VN"'><a expr:href='data:label.url'><data:label.name/></a></b:if></b:loop>
+<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name == "VH" or data:label.name == "MOD" or data:label.name == "3D" or data:label.name == "VN" or data:label.name == "PORT"'><a class='tg' expr:href='data:label.url'><data:label.name/></a></b:if></b:loop>
+<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name != "VH" and data:label.name != "MOD" and data:label.name != "3D" and data:label.name != "VN" and data:label.name != "PORT"'><a expr:href='data:label.url'><data:label.name/></a></b:if></b:loop>
 <span class='dt' expr:data-t='data:post.timestampValue'></span>
 </div>
 <div class='pb'><data:post.body/></div>
@@ -347,8 +347,8 @@ pre.mk-meta{display:none}
 <div class='gt'>
 <h2><a expr:href='data:post.url'><data:post.title/></a></h2>
 <div class='chips'>
-<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name == "VH" or data:label.name == "MOD" or data:label.name == "3D" or data:label.name == "VN"'><span class='tg'><data:label.name/></span></b:if></b:loop>
-<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name != "VH" and data:label.name != "MOD" and data:label.name != "3D" and data:label.name != "VN"'><span><data:label.name/></span></b:if></b:loop>
+<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name == "VH" or data:label.name == "MOD" or data:label.name == "3D" or data:label.name == "VN" or data:label.name == "PORT"'><span class='tg'><data:label.name/></span></b:if></b:loop>
+<b:loop values='data:post.labels' var='label'><b:if cond='data:label.name != "VH" and data:label.name != "MOD" and data:label.name != "3D" and data:label.name != "VN" and data:label.name != "PORT"'><span><data:label.name/></span></b:if></b:loop>
 </div>
 </div>
 </div>
@@ -451,7 +451,7 @@ function fd(t){var x=new Date(t);return isNaN(x.getTime())?'':pad(x.getDate())+'
 /* luot tai: luon hien (0 cung hien), <1000 so that, tu 1000 dang 1,2k; chua biet (undefined) thi an */
 function fdl(n){if(n===undefined||n===null||n==='')return'';n=parseInt(n,10)||0;if(n<1000)return''+n;var k=Math.floor(n/100)/10;return String(k).replace('.',',')+'k'}
 /* the: slug taxonomy hoac nhan ngan -> huy hieu */
-var TG={vh:'VH','viet-hoa':'VH',mod:'MOD','3d':'3D',vn:'VN','game-viet':'VN',touch:'TOUCH','cam-ung':'TOUCH',mp:'MP','nhieu-nguoi':'MP',net:'NET','can-mang':'NET'};
+var TG={port:'PORT',vh:'VH','viet-hoa':'VH',mod:'MOD','3d':'3D',vn:'VN','game-viet':'VN',touch:'TOUCH','cam-ung':'TOUCH',mp:'MP','nhieu-nguoi':'MP',net:'NET','can-mang':'NET'};
 var PL={j2me:'Java J2ME',s60v2:'Symbian S60 v1/v2',s60v3:'Symbian S60 v3',s60v5:'Symbian S60 v5',s3:'Symbian^3 / Belle'};
 function tg(s){return TG[String(s).toLowerCase().replace(/^\s+|\s+$/g,'')]||''}
 function tgList(s){var o=[],a=String(s||'').split(/[,;]/),i,t;for(i=0;i<a.length;i++){t=tg(a[i]);if(t&&o.indexOf(t)<0)o.push(t)}return o}

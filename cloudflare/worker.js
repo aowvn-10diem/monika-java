@@ -1,7 +1,7 @@
 // Monika API (Cloudflare Worker + D1). Contract: memory "monika-api-contract".
 // Nguồn dữ liệu: feed Blogger (BLOG_URL). Cron quét từng trang 40 bài, xóa mục mất khỏi blog sau mỗi vòng quét.
 
-import { pdDirect, upstream, pdServe, pdImage, pdIds } from "./pd.js";
+import { pdDirect, upstream, pdServe, pdImage, pdIds, pdAlias, ALIAS_RE } from "./pd.js";
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
 import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson, resBits } from "./rank.js";
@@ -92,7 +92,7 @@ function parseEntry(e) {
     fileK: (/^[0-9a-f]{10}$/i.test(meta.file || "") ? meta.file : ((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(meta.jar || "") || [])[1] || "")).toLowerCase(),
     ver: meta.ver || meta.version || "", size: num(meta.size), price: num(meta.price),
     pds: pdIds(ext), jar: directJar(meta.jar || ""), descr: meta.desc || descr,
-    flags: (meta.net === "1" || /^(y|yes|true)$/i.test(meta.net || "") ? 4 : 0) | (meta.hot === "1" ? 8 : 0),
+    flags: (meta.net === "1" || /^(y|yes|true)$/i.test(meta.net || "") ? 4 : 0) | (meta.hot === "1" ? 8 : 0) | (meta.port === "1" ? 256 : 0), // 256: game Port, chỉ chạy trên giả lập, ẩn khỏi app
     published: Date.parse(e.published && e.published.$t) || 0,
     updated: Date.parse(e.updated && e.updated.$t) || 0,
   };
@@ -232,9 +232,9 @@ async function resolveBannerLink(env, link) {
 
 async function home(env) {
   const db = env.DB, now = Date.now();
-  const newCount = (await db.prepare("SELECT COUNT(*) c FROM items WHERE type IN ('game','app') AND published > ?").bind(now - NEW_DAYS * DAY).first()).c;
+  const newCount = (await db.prepare("SELECT COUNT(*) c FROM items WHERE type IN ('game','app') AND (flags & 256) = 0 AND published > ?").bind(now - NEW_DAYS * DAY).first()).c;
   const self = await db.prepare("SELECT n,ver FROM items WHERE type='self' ORDER BY updated DESC LIMIT 1").first();
-  const cats = (await db.prepare("SELECT c.n,c.name,COUNT(i.n) cnt FROM cats c JOIN items i ON i.cat_n=c.n AND i.type IN ('game','app') GROUP BY c.n ORDER BY c.name LIMIT 100").all()).results;
+  const cats = (await db.prepare("SELECT c.n,c.name,COUNT(i.n) cnt FROM cats c JOIN items i ON i.cat_n=c.n AND i.type IN ('game','app') AND (i.flags & 256) = 0 GROUP BY c.n ORDER BY c.name LIMIT 100").all()).results;
   const bn = (await db.prepare("SELECT n,alt,link FROM banners WHERE slot='top' ORDER BY updated DESC LIMIT 10").all()).results;
   const o = new Out().i32(0x4d4b4831).u8(1).u16(newCount).utf(self ? self.ver : "").utf(self ? `http://${env.API_HOST}/v1/j/${self.n}.jar` : "");
   o.u8(cats.length);
@@ -246,7 +246,7 @@ async function home(env) {
 
 async function list(env, where, binds, page, order, types) {
   const now = Date.now();
-  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE, types);
+  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE, types, true); // app: không có mục Port
   const o = new Out().i32(0x4d4b4c31).u8(1).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
   for (const r of rows) {
     o.i32(r.n).u8(r.cat).u8(flagsOf(r, now)).u16(Math.min(r.size_kb || 0, 65535)).i32(r.price || 0)
@@ -258,7 +258,7 @@ async function list(env, where, binds, page, order, types) {
 // v2: thêm dl (int), tags (ushort), plat (ubyte) giữa price và version. App 0.3 không dùng.
 async function list2(env, where, binds, page, order, types) {
   const now = Date.now();
-  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE, types);
+  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE, types, true); // app: không có mục Port
   const o = new Out().i32(0x4d4b4c32).u8(2).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
   for (const r of rows) {
     o.i32(r.n).u8(r.cat).u8(flagsOf(r, now)).u16(Math.min(r.size_kb || 0, 65535)).i32(r.price || 0).i32(r.dl || 0).u16(r.tags || 0).u8((r.plat || 1) | resBits(r.res))
@@ -279,9 +279,9 @@ const jsonResp = (o, status = 200, ttl = 60) => new Response(JSON.stringify(o), 
 // danh mục v2: kind 1 game, 2 app; tên chuẩn lấy từ taxonomy. v3 (home3.bin, magic MKH3, cùng bố cục) liệt kê thêm nhóm 3 bài viết, 4 giao diện, 5 âm thanh.
 async function home2(env, v3) {
   const db = env.DB, now = Date.now();
-  const newCount = (await db.prepare("SELECT COUNT(*) c FROM items WHERE type IN ('game','app') AND published > ?").bind(now - NEW_DAYS * DAY).first()).c;
+  const newCount = (await db.prepare("SELECT COUNT(*) c FROM items WHERE type IN ('game','app') AND (flags & 256) = 0 AND published > ?").bind(now - NEW_DAYS * DAY).first()).c;
   const self = await db.prepare("SELECT n,ver FROM items WHERE type='self' ORDER BY updated DESC LIMIT 1").first();
-  const cats = (await catsJson(env)).filter((c) => v3 || c.kind === 1 || c.kind === 2).slice(0, 100);
+  const cats = (await catsJson(env, true)).filter((c) => v3 || c.kind === 1 || c.kind === 2).slice(0, 100);
   const bn = (await db.prepare("SELECT n,alt,link FROM banners WHERE slot='top' ORDER BY updated DESC LIMIT 10").all()).results;
   const o = new Out().i32(v3 ? 0x4d4b4833 : 0x4d4b4832).u8(v3 ? 3 : 2).u16(newCount).utf(self ? self.ver : "").utf(self ? `http://${env.API_HOST}/v1/j/${self.n}.jar` : "");
   o.u8(cats.length);
@@ -506,7 +506,10 @@ export default {
           const row = await env.DB.prepare("SELECT i.n FROM pd_links l JOIN items i ON i.src=l.src WHERE l.pd=?").bind(m[1]).first();
           if (row && !(await ecoOn(env))) ctx.waitUntil(countDownload(env, req, row.n));
         } catch (_) {}
-        return await pdServe(env, req, m[1], decodeURIComponent(m[2]), text);
+        // khóa ổn định b<10 hex> (nguồn có bản vá): đổi sang ID Pixeldrain hiện hành; ID thường phát thẳng như trước
+        let pid = m[1];
+        if (ALIAS_RE.test(pid)) { const al = await pdAlias(env, pid); if (!al) return text("not found", 404); pid = al.pd; }
+        return await pdServe(env, req, pid, decodeURIComponent(m[2]), text);
       }
       if ((m = /^\/v1\/pi\/([A-Za-z0-9]{6,12})\/([^/]{1,60})$/.exec(p)) && (req.method === "GET" || req.method === "HEAD")) {
         return await pdImage(env, req, m[1], decodeURIComponent(m[2]), text);
