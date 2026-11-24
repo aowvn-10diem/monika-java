@@ -1,9 +1,19 @@
 // Kiểm tra chuỗi dự phòng R2 -> GitHub -> KV bằng kho giả (không cần mạng).
 import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 import { putFile, serveFile } from "../store.js";
+import { r2Reset } from "../r2guard.js";
 
-const used = { r2: 0, gh: 0, kv: 0 };
-const db = { prepare: () => ({ bind: (s) => ({ first: async () => ({ s: used[s] }) }) }) };
+// D1 giả bằng SQLite thật: bảng files (dung lượng đã dùng theo kho) và meta (bộ đếm của r2guard).
+const sq = new DatabaseSync(":memory:");
+sq.exec("CREATE TABLE files(k TEXT, store TEXT, size INTEGER); CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT)");
+const used = new Proxy({}, { set(_, store, v) { sq.exec("DELETE FROM files WHERE store='" + store + "'"); sq.prepare("INSERT INTO files VALUES('x',?,?)").run(store, v); return true; } });
+const db = {
+  prepare(sql) { const s = { args: [], bind(...a) { s.args = a; return s; },
+    first: async () => sq.prepare(sql).get(...s.args) || null, all: async () => ({ results: sq.prepare(sql).all(...s.args) }),
+    run: async () => { const r = sq.prepare(sql).run(...s.args); return { meta: { changes: Number(r.changes) } }; } }; return s; },
+  batch: async (l) => { for (const x of l) await x.run(); },
+};
 const calls = [];
 globalThis.fetch = async (url, init = {}) => {
   calls.push((init.method || "GET") + " " + url);
@@ -30,12 +40,12 @@ assert.ok(r.tried[0].startsWith("r2: chưa bật"));
 
 // 2) R2 đầy -> GH
 const r2 = { put: async () => { throw new Error("x"); }, delete: async () => {} };
-used.r2 = 9.6e9;
+used.r2 = 9.6e9; r2Reset();
 r = await putFile({ ...env, R2: r2 }, "a-1-0123456789.jar", bytes);
-assert.equal(r.store, "gh"); assert.ok(r.tried[0].includes("đã đầy"));
+assert.equal(r.store, "gh"); assert.ok(r.tried[0].includes("khóa ghi"), r.tried[0]);
 
 // 3) R2 lỗi khi ghi -> GH ; R2 ổn -> R2
-used.r2 = 0;
+used.r2 = 0; r2Reset();
 r = await putFile({ ...env, R2: r2 }, "a-1-0123456789.jar", bytes);
 assert.equal(r.store, "gh"); assert.ok(r.tried[0].startsWith("r2: x"));
 const ok = { put: async () => {}, delete: async () => {} };

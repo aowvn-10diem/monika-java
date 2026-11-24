@@ -1,6 +1,7 @@
 // Kho chứa file JAR: R2 (chính) -> GitHub (dự phòng khi R2 đầy/lỗi) -> KV (tạm, khi chưa bật R2/GitHub).
 // Cột files.store lưu nơi đã chứa ("r2" | "gh" | "kv"), files.skey là khóa/tên file trong kho đó.
 import { b64 } from "./jar.js";
+import { r2Limits, r2Allow, r2Note } from "./r2guard.js";
 
 const GB = 1e9;
 const lim = (v, d) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : d; };
@@ -8,7 +9,7 @@ const lim = (v, d) => { const n = Number(v); return Number.isFinite(n) && n > 0 
 export function storeInfo(env) {
   return {
     r2: !!env.R2, gh: !!(env.GH_TOKEN && env.GH_REPO), kv: !!env.FILES,
-    r2Limit: lim(env.R2_LIMIT, 9.5 * GB), // giữ dưới 10GB free của R2 để không phát sinh phí
+    r2Limit: r2Limits(env).bytes * r2Limits(env).lock, // ngưỡng khóa ghi R2 (mặc định 90% của 10GB free), xem r2guard.js
     ghLimit: lim(env.GH_LIMIT, 0.9 * GB), ghMaxFile: lim(env.GH_MAX_FILE, 20e6),
     kvLimit: lim(env.KV_LIMIT, 0.9 * GB),
   };
@@ -49,8 +50,9 @@ export async function putFile(env, fname, bytes) {
   const si = storeInfo(env), tried = [];
   const size = bytes.length;
   if (si.r2) {
-    if ((await used(env.DB, "r2")) + size > si.r2Limit) tried.push("r2: đã đầy (chạm ngưỡng " + (si.r2Limit / GB).toFixed(1) + "GB)");
-    else try { await env.R2.put("jar/" + fname, bytes, { httpMetadata: { contentType: "application/java-archive" } }); return { store: "r2", skey: "jar/" + fname, tried }; }
+    const g = await r2Allow(env, "write", size); // chốt chặn hạn mức free: bị khóa thì rơi xuống GitHub -> KV
+    if (!g.ok) tried.push("r2: " + g.reason);
+    else try { await env.R2.put("jar/" + fname, bytes, { httpMetadata: { contentType: "application/java-archive" } }); await r2Note(env, "a"); return { store: "r2", skey: "jar/" + fname, tried }; }
     catch (e) { tried.push("r2: " + e.message); }
   } else tried.push("r2: chưa bật");
   if (si.gh) {
@@ -93,6 +95,9 @@ const jarHeaders = (f, name) => ({
 export async function serveFile(env, req, f, name) {
   const rg = req.headers.get("range");
   if (f.store === "r2" && env.R2) {
+    const g = await r2Allow(env, "read");
+    if (!g.ok) return new Response("R2 tam nghi de khong vuot han muc mien phi, thu lai sau.", { status: 503, headers: { "retry-after": "3600", "content-type": "text/plain; charset=utf-8", "access-control-allow-origin": "*" } });
+    await r2Note(env, "b");
     const o = await env.R2.get(f.skey, rg ? { range: req.headers } : undefined);
     if (!o) return new Response("not found", { status: 404 });
     const h = new Headers(jarHeaders(f, name));
