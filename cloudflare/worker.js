@@ -1,7 +1,7 @@
 // Monika API (Cloudflare Worker + D1). Contract: memory "monika-api-contract".
 // Nguồn dữ liệu: feed Blogger (BLOG_URL). Cron quét từng trang 40 bài, xóa mục mất khỏi blog sau mỗi vòng quét.
 
-import { pdDirect, upstream } from "./pd.js";
+import { pdDirect, upstream, pdServe } from "./pd.js";
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
 import { resolveCat, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson } from "./rank.js";
@@ -396,6 +396,11 @@ export default {
       if ((m = /^\/v1\/b\/(\d+)-(\d+)\.png$/.exec(p))) return await banner(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 60), 1000));
       if ((m = /^\/v1\/sc\/(\d+)-(\d+)x(\d+)\.jpg$/.exec(p))) return await shot(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 40), 320), Math.min(Math.max(parseInt(m[3], 10), 30), 320));
       if ((m = /^\/v1\/j\/(\d+)\.(jad|jar)$/.exec(p))) return await download(env, ctx, req, parseInt(m[1], 10), m[2]);
+      if ((m = /^\/v1\/p\/([A-Za-z0-9]{6,12})\/([^/]{1,120}\.jar)$/.exec(p))) {
+        if (hotlinked(env, req)) return Response.redirect(env.BLOG_URL || `http://${env.API_HOST}/`, 302);
+        if (await tooFast(env, req, "RL_DL")) return tooMany();
+        return await pdServe(env, req, m[1], decodeURIComponent(m[2]), text);
+      }
       if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
       if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
       if (p === "/v1/up" && req.method === "POST") return await handleUpload(env, ctx, req, u);

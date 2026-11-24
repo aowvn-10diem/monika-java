@@ -1,0 +1,37 @@
+// Thử nguồn Pixeldrain: đổi link, thêm khóa, /v1/p chỉ phát tệp waptai-<số>-*.jar. Chạy: node cloudflare/test/pd.test.mjs
+import assert from "node:assert/strict";
+import { pdDirect, upstream, pdServe } from "../pd.js";
+
+assert.equal(pdDirect("https://pixeldrain.com/u/AbC123xy"), "https://pixeldrain.com/api/file/AbC123xy");
+assert.equal(pdDirect("https://pixeldrain.com/api/file/AbC123xy?download"), "https://pixeldrain.com/api/file/AbC123xy");
+assert.equal(pdDirect("https://example.com/a.jar"), "https://example.com/a.jar");
+
+const calls = [];
+globalThis.fetch = async (u, i = {}) => {
+  const h = new Headers(i.headers || {});
+  calls.push({ u, auth: h.get("authorization"), range: h.get("range") });
+  if (u.endsWith("/info")) return new Response(JSON.stringify({ name: u.includes("GOOD") ? "waptai-12-game.jar" : "Other.jar" }), { status: 200 });
+  return new Response("JARDATA", { status: i.headers && h.get("range") ? 206 : 200, headers: { "content-length": "7" } });
+};
+const text = (t, s) => new Response(t, { status: s });
+const req = (rg) => new Request("http://x/v1/p/GOOD1234/game.jar", { headers: rg ? { range: rg } : {} });
+
+let r = await pdServe({ PD_KEY: "k" }, req(), "GOOD1234", "game.jar", text);
+assert.equal(r.status, 200);
+assert.equal(await r.text(), "JARDATA");
+assert.equal(calls.at(-1).auth, "Basic " + btoa(":k"));
+assert.match(r.headers.get("content-disposition"), /game\.jar/);
+
+r = await pdServe({ PD_KEY: "k" }, req("bytes=0-3"), "GOOD1234", "game.jar", text);
+assert.equal(r.status, 206);
+assert.equal(calls.at(-1).range, "bytes=0-3");
+
+r = await pdServe({ PD_KEY: "k" }, req(), "BAD12345", "x.jar", text);
+assert.equal(r.status, 404); // tên không bắt đầu bằng waptai-<số>-: không phát
+
+r = await pdServe({}, req(), "GOOD1234", "game.jar", text);
+assert.equal(r.status, 503);
+
+await upstream({}, "https://pixeldrain.com/api/file/X", {});
+assert.equal(calls.at(-1).auth, null);
+console.log("pd.test OK");
