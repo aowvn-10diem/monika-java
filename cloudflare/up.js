@@ -1,6 +1,7 @@
 // Luồng up file: nhận JAR -> trích tên/icon -> chống trùng -> lưu kho -> tạo mục cho app -> sinh HTML bài Blogspot.
 import { analyzeJar, makeIcons, sha256hex, slugify, cleanVer, manifestToJad, b64, unb64 } from "./jar.js";
 import { upstream } from "./pd.js";
+import { r2Admin } from "./r2guard.js";
 import { putFile, serveFile, delFile, storeInfo } from "./store.js";
 import { resolveCat, catName } from "./rank.js";
 
@@ -186,6 +187,7 @@ export async function admin(env, req, u) {
     const si = storeInfo(env);
     return json({ ok: true, stores: { r2: { bound: si.r2, limit: si.r2Limit }, gh: { configured: si.gh, limit: si.ghLimit }, kv: { bound: si.kv, limit: si.kvLimit } }, usage: by, files: rows });
   }
+  if (p === "/v1/admin/r2") return json(await r2Admin(env, u, req.method === "POST"));
   if (p === "/v1/admin/del" && req.method === "POST") {
     const k = (u.searchParams.get("k") || "").toLowerCase();
     const f = await env.DB.prepare("SELECT k,store,skey FROM files WHERE k=?").bind(k).first();
@@ -222,7 +224,7 @@ $('tk').value=ls.g('mk_tk');$('cat').value=ls.g('mk_cat');
 function stat(){var t=$('tk').value.trim();if(!t){$('st').textContent='';return}ls.s('mk_tk',t);
 fetch('/v1/admin/files?limit=0',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(j){if(!j.ok){$('st').textContent='Token sai';return}
 var u={};j.usage.forEach(function(x){u[x.store]=x});function m(s){return s?(s.b/1048576).toFixed(1)+' MB / '+s.c+' file':'0'}
-$('st').textContent='R2: '+(j.stores.r2.bound?'bật ('+m(u.r2)+')':'chưa bật')+' · GitHub: '+(j.stores.gh.configured?'bật ('+m(u.gh)+')':'chưa cấu hình')+' · KV tạm: '+(j.stores.kv.bound?m(u.kv):'tắt')}).catch(function(){})}
+$('st').textContent='R2: '+(j.stores.r2.bound?'bật ('+m(u.r2)+')':'chưa bật')+' · GitHub: '+(j.stores.gh.configured?'bật ('+m(u.gh)+')':'chưa cấu hình')+' · KV tạm: '+(j.stores.kv.bound?m(u.kv):'tắt');fetch('/v1/admin/r2',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(g){if(g.summary)$('st').textContent+=' · '+g.summary}).catch(function(){})}).catch(function(){})}
 $('tk').onchange=stat;stat();
 var dz=$('dz'),fi=$('fi');dz.onclick=function(){fi.click()};fi.onchange=function(){go(fi.files);fi.value=''};
 dz.ondragover=function(e){e.preventDefault();dz.className='on'};dz.ondragleave=function(){dz.className=''};dz.ondrop=function(e){e.preventDefault();dz.className='';go(e.dataTransfer.files)};

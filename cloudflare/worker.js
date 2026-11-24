@@ -6,6 +6,7 @@ import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, ico
 import { serveFile } from "./store.js";
 import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson } from "./rank.js";
 import { pagerJson } from "./pager.js";
+import { r2Allow, r2Note, r2Tick, ecoOn, PLACEHOLDER_JPG } from "./r2guard.js";
 import { submit as fbSubmit, formPage as fbForm, challengeBin as fbChallenge, adminList as fbAdmin, flush as fbFlush } from "./feedback.js";
 
 const PAGE = 15;
@@ -389,17 +390,31 @@ async function chooser(env, it) {
 }
 
 // Ảnh minh họa lưu trong R2 (khóa pic/<tên>.jpg), phát qua /v1/pic/<tên>.jpg. Không có R2 thì 404.
+// Chốt chặn hạn mức (r2guard.js): R2 khóa đọc thì chuyển hướng sang ảnh gốc (nếu meta có `pic:<tên>` = URL nguồn), không thì trả ảnh giữ chỗ.
 async function pic(env, name) {
   if (!env.R2) return text("no r2", 404);
-  // Cache biên: ảnh đã đọc một lần thì các lần sau không tốn lượt đọc R2 (hạn mức Class B).
+  // Cache biên: ảnh đã đọc một lần thì các lần sau không tốn lượt đọc R2 (hạn mức Class B). Tên không có cũng cache 60 giây.
   const cache = typeof caches !== "undefined" ? caches.default : null;
   const key = new Request(`https://${env.API_HOST || "api"}/v1/pic/${name}`);
   if (cache) { const hit = await cache.match(key); if (hit) return hit; }
+  if (!(await r2Allow(env, "read")).ok) return await picFallback(env, name);
+  await r2Note(env, "b");
   const o = await env.R2.get("pic/" + name);
-  if (!o) return text("not found", 404);
+  if (!o) {
+    const nf = new Response("not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=60" } });
+    if (cache) { try { await cache.put(key, nf.clone()); } catch (_) {} }
+    return nf;
+  }
   const res = new Response(o.body, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" } });
   if (cache) { try { await cache.put(key, res.clone()); } catch (_) {} }
   return res;
+}
+async function picFallback(env, name) {
+  try {
+    const row = await env.DB.prepare("SELECT v FROM meta WHERE k=?").bind("pic:" + name).first();
+    if (row && /^https?:\/\//i.test(row.v || "")) return new Response(null, { status: 302, headers: { location: row.v, "cache-control": "public, max-age=300", "access-control-allow-origin": "*" } });
+  } catch (_) {}
+  return new Response(PLACEHOLDER_JPG, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=300", "access-control-allow-origin": "*", "x-monika-fallback": "r2-locked" } });
 }
 const picName = (env, u) => { const m = /^https?:\/\/([^/]+)\/v1\/pic\/([A-Za-z0-9_-]{1,60}\.jpg)$/.exec(u || ""); return m && m[1].toLowerCase() === String(env.API_HOST || "").toLowerCase() ? m[2] : ""; };
 
@@ -414,7 +429,7 @@ async function download(env, ctx, req, n, ext) {
   if (ext === "jar") {
     if (hotlinked(env, req)) return Response.redirect(it.url || env.BLOG_URL || `http://${env.API_HOST}/`, 302);
     if (await tooFast(env, req, "RL_DL")) return tooMany();
-    ctx.waitUntil(countDownload(env, req, n));
+    if (!(await ecoOn(env))) ctx.waitUntil(countDownload(env, req, n));
   }
   const origin = `http://${env.API_HOST}`;
   if (ext === "jad") {
@@ -489,7 +504,7 @@ export default {
         // đếm lượt vào đúng mục nếu ID đã có trong pd_links (chưa có bảng/ánh xạ thì chỉ phục vụ, không đếm)
         try {
           const row = await env.DB.prepare("SELECT i.n FROM pd_links l JOIN items i ON i.src=l.src WHERE l.pd=?").bind(m[1]).first();
-          if (row) ctx.waitUntil(countDownload(env, req, row.n));
+          if (row && !(await ecoOn(env))) ctx.waitUntil(countDownload(env, req, row.n));
         } catch (_) {}
         return await pdServe(env, req, m[1], decodeURIComponent(m[2]), text);
       }
@@ -508,7 +523,7 @@ export default {
         const fname = decodeURIComponent(m[1]);
         if (hotlinked(env, req)) return Response.redirect(env.BLOG_URL || `http://${env.API_HOST}/`, 302);
         if (await tooFast(env, req, "RL_DL")) return tooMany();
-        ctx.waitUntil(countFile(env, req, fname));
+        if (!(await ecoOn(env))) ctx.waitUntil(countFile(env, req, fname));
         return await fileDownload(env, req, fname);
       }
       if ((m = /^\/v1\/ic\/(\d+)-(32|64)\.png$/.exec(p))) return await iconOfItem(env, parseInt(m[1], 10), parseInt(m[2], 10));
@@ -524,9 +539,13 @@ export default {
     }
   },
   async scheduled(ev, env, ctx) {
-    ctx.waitUntil(syncStep(env));
+    // Chốt chặn hạn mức free (r2guard.js): đếm, cảnh báo 80%, khóa 90%. Chế độ tiết kiệm D1: đồng bộ 20 phút/lần, bỏ bù icon và tính Hot.
+    const g = await r2Tick(env);
+    const slot = Math.floor(Date.now() / 300000);
+    if (!g.econ || slot % 4 === 0) ctx.waitUntil(syncStep(env));
+    ctx.waitUntil(fbFlush(env).catch(() => {})); // gom góp ý gửi email: 1 lượt đọc D1 mỗi 5 phút khi không có tin, chạy cả khi tiết kiệm D1
+    if (g.econ) return;
     ctx.waitUntil(backfillIcons(env));
-    ctx.waitUntil(fbFlush(env).catch(() => {})); // gom góp ý gửi email (chỉ chạy khi có tin chưa gửi)
     if (Math.floor(Date.now() / 60000) % 15 < 5) ctx.waitUntil(recompute(env)); // 15 phút một lần (cron chạy 5 phút)
   },
 };

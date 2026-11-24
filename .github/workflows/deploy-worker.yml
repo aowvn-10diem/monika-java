@@ -47,6 +47,20 @@ jobs:
             npx --yes wrangler@4 r2 object put "monika-files/$f" --file "$f" --content-type "$ct" --remote || exit 1
           done
           echo "Đã up xong ảnh vào R2"
+      - name: Ghi vào bộ đếm hạn mức R2 phần ảnh vừa seed (không qua Worker, nên Worker không tự thấy)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        continue-on-error: true
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -d r2-seed || exit 0
+          bytes=$(find r2-seed -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+          nfiles=$(find r2-seed -type f | wc -l)
+          ym=$(date -u +%Y-%m)
+          # cộng dồn (seed lại cùng file thì tính dư, an toàn hơn thiếu; chỉnh lại bằng POST /v1/admin/r2?ext_bytes=N)
+          npx --yes wrangler@4 d1 execute monika --remote --command "INSERT INTO meta(k,v) VALUES('r2x:bytes','$bytes') ON CONFLICT(k) DO UPDATE SET v=CAST(v AS INTEGER)+$bytes; INSERT INTO meta(k,v) VALUES('r2x:a:$ym','$nfiles') ON CONFLICT(k) DO UPDATE SET v=CAST(v AS INTEGER)+$nfiles;"
       - name: Test (node:sqlite làm D1 giả)
         if: ${{ inputs.mode != 'seed-pic' }}
         run: |
@@ -56,6 +70,8 @@ jobs:
           node cloudflare/test/ext.test.mjs
           node cloudflare/test/shot.test.mjs
           node cloudflare/test/shot-pi.test.mjs
+          node cloudflare/test/store.test.mjs
+          node cloudflare/test/r2guard.test.mjs
           node cloudflare/test/feedback.test.mjs
       - name: Deploy Worker
         if: ${{ inputs.mode != 'seed-pic' }}
