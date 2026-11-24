@@ -74,14 +74,19 @@ const FEED = [
   entry(2, "Cá lớn nuốt cá bé [Việt hóa]", `<pre class="mk-meta">cat: Arcade\njar: https://x.test/Ca-lon_320x240.jar</pre>`),
   entry(3, "Opera Mini", `<pre class="mk-meta">type: app\ncat: Mạng\njar: https://x.test/o.jar</pre>`, ["App"]),
   entry(4, "Game lạ", `<pre class="mk-meta">cat: Thể loại chưa có\njar: https://x.test/l.jar</pre>`),
+  entry(5, "Game Pixeldrain", `<pre class="mk-meta">cat: Hành động\nv1: 240x320|400|JAR=http://api.test/v1/p/AbCd1234/g_240x320.jar\nv2: 320x240|410|JAR=http://api.test/v1/p/EfGh5678/g_320x240.jar</pre>`),
 ];
 const db = mk(schema);
 const env = { BLOG_URL: "https://blog.test", API_HOST: "api.test", SYNC_TOKEN: "st", UP_TOKEN: "ut", DB: d1(db) };
 const realFetch = globalThis.fetch;
-globalThis.fetch = async (u) => (String(u).startsWith("https://blog.test/feeds") ? new Response(JSON.stringify({ feed: { entry: FEED } })) : new Response("x", { status: 404 }));
+globalThis.fetch = async (u) => {
+  u = String(u);
+  if (u.startsWith("https://blog.test/feeds")) return new Response(JSON.stringify({ feed: { entry: FEED } }));
+  return new Response("x", { status: 404 });
+};
 const ctx = { waitUntil: (p) => { ctx.p.push(p); }, p: [] };
 const flush = async () => { await Promise.all(ctx.p.splice(0)); };
-const call = async (path, headers = {}) => { const r = await w.fetch(new Request("http://api.test" + path, { headers }), env, ctx); await flush(); return r; };
+const call = async (path, headers = {}, extraEnv = {}) => { const r = await w.fetch(new Request("http://api.test" + path, { headers }), { ...env, ...extraEnv }, ctx); await flush(); return r; };
 
 {
   const r = await call("/v1/sync?t=st");
@@ -154,7 +159,7 @@ const count = (n) => db.prepare("SELECT dl FROM items WHERE n=?").get(n).dl;
   assert.deepEqual((await keys("top7")).slice(0, 3), [n1, n2, n3], "top7 theo lượt 7 ngày");
   assert.deepEqual((await keys("dl")).slice(0, 2), [n1, n2]);
   const hot = await keys("hot");
-  assert.equal(hot.length, 4, "hot trả đủ mục (site ít lượt thì rơi về mới)");
+  assert.equal(hot.length, 5, "hot trả đủ mục (site ít lượt thì rơi về mới)");
   const gameOnly = await keys("game.top7");
   assert.ok(!gameOnly.includes(n3), "game.* không có app");
   const cat13 = await keys("c13");
@@ -188,7 +193,7 @@ const count = (n) => db.prepare("SELECT dl FROM items WHERE n=?").get(n).dl;
   assert.equal(dv.getInt32(0), 0x4d4b4c32);
   assert.equal(l2[4], 2);
   const cnt = l2[9];
-  assert.equal(cnt, 4);
+  assert.equal(cnt, 5);
   assert.equal(dv.getInt32(10), n1, "bản ghi đầu là mục 1");
   assert.equal(dv.getInt32(10 + 4 + 1 + 1 + 2 + 4), 5, "trường dl ngay sau price");
   const l1 = await u8("/v1/l/top7/0.bin");
@@ -213,4 +218,25 @@ const count = (n) => db.prepare("SELECT dl FROM items WHERE n=?").get(n).dl;
 }
 
 globalThis.fetch = realFetch;
+// ---------- 5. Pixeldrain: pd_links + /v1/p đếm lượt ----------
+{
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (u) => {
+    u = String(u);
+    if (u === "https://pixeldrain.com/api/file/AbCd1234/info") return new Response(JSON.stringify({ name: "waptai-9-g_240x320.jar" }));
+    if (u === "https://pixeldrain.com/api/file/AbCd1234") return new Response("JARDATA", { headers: { "content-length": "7" } });
+    return new Response("x", { status: 404 });
+  };
+  const m = db.prepare("SELECT pd, src FROM pd_links ORDER BY pd").all();
+  assert.deepEqual(m.map((r) => [r.pd, r.src]), [["AbCd1234", "5"], ["EfGh5678", "5"]]);
+  const n5 = db.prepare("SELECT n FROM items WHERE src='5'").get().n;
+  const before = db.prepare("SELECT COALESCE(SUM(n),0) AS c FROM dl_day WHERE item=?").get(n5).c;
+  const r = await call("/v1/p/AbCd1234/g_240x320.jar", { "user-agent": "Mozilla/5.0 Nokia", "cf-connecting-ip": "1.2.3.4" }, { PD_KEY: "k" });
+  assert.equal(r.status, 200);
+  assert.equal(await r.text(), "JARDATA");
+  assert.equal(db.prepare("SELECT COALESCE(SUM(n),0) AS c FROM dl_day WHERE item=?").get(n5).c, before + 1, "tải qua /v1/p cộng vào mục của bài");
+  globalThis.fetch = prevFetch;
+  console.log("ok pd_links + đếm lượt /v1/p");
+}
+
 console.log("TẤT CẢ QUA");

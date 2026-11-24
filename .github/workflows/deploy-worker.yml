@@ -13,7 +13,7 @@ on:
         options: [deploy, seed-pic]
         default: deploy
   push:
-    branches: [main, claude/project-thread-y1dif7]
+    branches: [main]
     paths:
       - "cloudflare/**"
 

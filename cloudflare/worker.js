@@ -1,6 +1,7 @@
 // Monika API (Cloudflare Worker + D1). Contract: memory "monika-api-contract".
 // Nguồn dữ liệu: feed Blogger (BLOG_URL). Cron quét từng trang 40 bài, xóa mục mất khỏi blog sau mỗi vòng quét.
 
+import { pdDirect, upstream, pdServe, pdImage, pdIds } from "./pd.js";
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
 import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson } from "./rank.js";
@@ -88,7 +89,7 @@ function parseEntry(e) {
     src, type, title, alt, img, ext, cat, catId: rc.id, catUnknown: rc.unknown || "", tags, plat: parsePlat(meta.plat), res: parseRes(meta.res || "", meta.jar || "", title), meta,
     fileK: (/^[0-9a-f]{10}$/i.test(meta.file || "") ? meta.file : ((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(meta.jar || "") || [])[1] || "")).toLowerCase(),
     ver: meta.ver || meta.version || "", size: num(meta.size), price: num(meta.price),
-    jar: directJar(meta.jar || ""), descr: meta.desc || descr,
+    pds: pdIds(ext), jar: directJar(meta.jar || ""), descr: meta.desc || descr,
     flags: (meta.net === "1" || /^(y|yes|true)$/i.test(meta.net || "") ? 4 : 0) | (meta.hot === "1" ? 8 : 0),
     published: Date.parse(e.published && e.published.$t) || 0,
     updated: Date.parse(e.updated && e.updated.$t) || 0,
@@ -114,7 +115,7 @@ function directJar(u) {
   if (m) return "https://drive.usercontent.google.com/download?export=download&confirm=t&id=" + m[1];
   m = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/i.exec(u);
   if (m) return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
-  return u;
+  return pdDirect(u);
 }
 
 // ---------- sync ----------
@@ -135,6 +136,7 @@ async function syncStep(env) {
   const feed = (await r.json()).feed || {};
   const entries = feed.entry || [];
   const st = [];
+  const pdst = []; // ánh xạ Pixeldrain: batch riêng, lỗi (chưa chạy migration 006) không làm hỏng đồng bộ chính
   let n = 0;
   for (const e of entries) {
     const p = parseEntry(e);
@@ -147,6 +149,7 @@ async function syncStep(env) {
       ).bind(p.src, (p.meta.slot || "top").toLowerCase(), p.img, p.meta.link || "", p.meta.alt || p.title, p.updated, sweep));
       continue;
     }
+    for (const id of p.pds || []) pdst.push(db.prepare("INSERT INTO pd_links(pd,src) VALUES(?,?) ON CONFLICT(pd) DO UPDATE SET src=excluded.src").bind(id, p.src));
     if (p.catUnknown) st.push(db.prepare("INSERT OR IGNORE INTO meta(k,v) VALUES(?,?)").bind("unk:" + p.catUnknown.slice(0, 60), p.alt || p.src));
     st.push(db.prepare(
       `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,img,file_h,tags,plat,res)
@@ -169,6 +172,7 @@ async function syncStep(env) {
       st.push(db.prepare("DELETE FROM items WHERE sweep < ?").bind(sweep));
       st.push(db.prepare("DELETE FROM items WHERE src LIKE 'up-%' AND file_h IN (SELECT file_h FROM items WHERE src NOT LIKE 'up-%' AND file_h IS NOT NULL)"));
       st.push(db.prepare("DELETE FROM banners WHERE sweep < ?").bind(sweep));
+      pdst.push(db.prepare("DELETE FROM pd_links WHERE src NOT IN (SELECT src FROM items)"));
       st.push(setMetaStmt(db, "sweep", sweep + 1));
     }
     st.push(setMetaStmt(db, "cursor", 1));
@@ -177,6 +181,7 @@ async function syncStep(env) {
     st.push(setMetaStmt(db, "cursor", cursor + FEED_PAGE));
   }
   if (st.length) await db.batch(st);
+  if (pdst.length) { try { await db.batch(pdst); } catch (_) {} }
   return { cursor, entries: entries.length, parsed: n, done };
 }
 
@@ -419,7 +424,7 @@ async function download(env, ctx, req, n, ext) {
   }
   const h = {};
   const rg = req.headers.get("range"); if (rg) h.range = rg;
-  const r = await fetch(it.jar, { headers: { ...h, "user-agent": "MonikaDl/1" } });
+  const r = await upstream(env, it.jar, { headers: { ...h, "user-agent": "MonikaDl/1" } });
   if (!r.ok && r.status !== 206) return text("upstream " + r.status, 502);
   const hd = new Headers({ "content-type": "application/java-archive", "cache-control": "public, max-age=300", "accept-ranges": "bytes", "content-disposition": `attachment; filename="monika-${n}.jar"` });
   for (const k of ["content-length", "content-range"]) if (r.headers.get(k)) hd.set(k, r.headers.get(k));
@@ -472,6 +477,19 @@ export default {
       if ((m = /^\/v1\/sc\/(\d+)-(\d+)x(\d+)\.jpg$/.exec(p))) return await shot(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 40), 320), Math.min(Math.max(parseInt(m[3], 10), 30), 320));
       if ((m = /^\/v1\/pic\/([A-Za-z0-9_-]{1,60}\.jpg)$/.exec(p))) return await pic(env, m[1]);
       if ((m = /^\/v1\/j\/(\d+)\.(jad|jar)$/.exec(p))) return await download(env, ctx, req, parseInt(m[1], 10), m[2]);
+      if ((m = /^\/v1\/p\/([A-Za-z0-9]{6,12})\/([^/]{1,120}\.jar)$/.exec(p))) {
+        if (hotlinked(env, req)) return Response.redirect(env.BLOG_URL || `http://${env.API_HOST}/`, 302);
+        if (await tooFast(env, req, "RL_DL")) return tooMany();
+        // đếm lượt vào đúng mục nếu ID đã có trong pd_links (chưa có bảng/ánh xạ thì chỉ phục vụ, không đếm)
+        try {
+          const row = await env.DB.prepare("SELECT i.n FROM pd_links l JOIN items i ON i.src=l.src WHERE l.pd=?").bind(m[1]).first();
+          if (row) ctx.waitUntil(countDownload(env, req, row.n));
+        } catch (_) {}
+        return await pdServe(env, req, m[1], decodeURIComponent(m[2]), text);
+      }
+      if ((m = /^\/v1\/pi\/([A-Za-z0-9]{6,12})\/([^/]{1,60})$/.exec(p)) && (req.method === "GET" || req.method === "HEAD")) {
+        return await pdImage(env, req, m[1], decodeURIComponent(m[2]), text);
+      }
       if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
       if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
       if (p === "/v1/up" && req.method === "POST") return await handleUpload(env, ctx, req, u);
