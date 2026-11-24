@@ -39,7 +39,7 @@ h1,h2,h3{margin:0}
 .adslot .widget{margin:0 0 12px}
 /* nav: 4 o ngang tren man nho */
 .nav{background:#140729;overflow:hidden}
-.nav a{float:left;width:25%;padding:7px 2px 6px;text-align:center;font-size:12px;line-height:1.2;background:#250e48;border-bottom:1px solid #3a1a66}
+.nav a{float:left;width:33.333%;padding:7px 2px 6px;text-align:center;font-size:12px;line-height:1.2;background:#250e48;border-bottom:1px solid #3a1a66}
 .nav a:nth-child(even){background:#290f4f}
 .nav a.on,.nav a:hover{background:#cc580c;background:linear-gradient(#cc580c,#b44606);font-weight:700}
 .nav svg{display:block;margin:0 auto 2px;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -66,6 +66,7 @@ h1,h2,h3{margin:0}
 .gt h2{height:2.6em;overflow:hidden;font-size:13px;line-height:1.3}
 .gt h2 a:hover{color:#ff7a1a}
 .chips{margin:3px 0 0;max-height:42px;overflow:hidden}
+.gt .chips{height:40px}
 .chips span,.chips a{display:inline-block;max-width:100%;font-size:11px;line-height:17px;padding:0 6px;margin:0 3px 2px 0;border-radius:8px;background:#3b1a6b;color:#cdbfe8}
 .chips .v{background:#dc1a70;color:#fff}
 .dt{font-size:11px;color:#a58bd0}
@@ -89,6 +90,38 @@ h1,h2,h3{margin:0}
 .dd a.all{width:100%;font-weight:700;color:#ff7a1a}
 .dd a span{color:#cdbfe8;font-size:11px;margin-left:3px}
 .dd p{margin:0;padding:9px 12px;color:#cdbfe8;font-size:13px}
+/* trang chu: De xuat hom nay + Top tai nhieu (float, khong flex/grid) */
+.hm .st,.tp .st{margin-top:8px}
+.stm{float:right;font-size:12px;font-weight:400;color:#ffe2c9}
+.hm .gl .gc{padding-bottom:0}
+.tpt{overflow:hidden;background:#140729}
+.tpt a{float:left;width:33.333%;padding:8px 2px;text-align:center;font-size:12px;line-height:1.2;background:#250e48;border-bottom:2px solid #3a1a66}
+.tpt a:nth-child(even){background:#290f4f}
+.tpt a.on{background:#b44606;border-bottom-color:#ff7a1a;font-weight:700}
+.tpr{display:block;overflow:hidden;padding:6px 10px;background:#250e48;border-bottom:1px solid #3a1a66}
+.tpr:nth-child(odd){background:#290f4f}
+.tpr:hover{background:#3a1a66}
+.tpn{float:left;width:24px;height:24px;margin:8px 8px 0 0;line-height:22px;text-align:center;border-radius:12px;font-size:12px;font-weight:700;background:#3b1a6b;color:#fff;border:1px solid #8f78bd}
+.tpn.r1{background:#ffd23f;color:#2a1800;border-color:#fff3b0}
+.tpn.r2{background:#dde1e7;color:#14161a;border-color:#fff}
+.tpn.r3{background:#e0954f;color:#1c0d00;border-color:#ffd9b0}
+.tpi{float:left;width:40px;height:40px;margin:0 8px 0 0;border-radius:8px;background:#3b1a6b;overflow:hidden}
+.tpi img{display:block;width:40px;height:40px;border:0}
+.tpd{float:right;margin:12px 0 0 6px;font-size:11px;color:#cdbfe8}
+.tpx{display:block;overflow:hidden}
+.tpx b{display:block;max-height:2.6em;overflow:hidden;font-size:13px;line-height:1.3;font-weight:400}
+.tpx i{display:block;font-size:11px;font-style:normal;color:#a58bd0;height:1.3em;overflow:hidden}
+.tpr:hover b{color:#ff7a1a}
+.tpm{display:block;padding:9px 12px;text-align:center;color:#ff7a1a;font-weight:700;background:#140729}
+.tpe{padding:14px 12px;text-align:center;color:#cdbfe8;font-size:13px;background:#250e48}
+/* phan trang so: 1 2 3 4 5 6 ... cuoi (JS dung tu Worker /v1/pager.json; khong co JS van con lien ket Moi hon / Cu hon) */
+.pn{display:none;overflow:hidden;margin-top:8px;padding:6px 4px 2px;background:#140729;text-align:center}
+.pn.on{display:block}
+.pn a,.pn span{display:inline-block;min-width:34px;height:34px;line-height:32px;margin:0 2px 4px;padding:0 6px;border-radius:6px;background:#250e48;border:1px solid #3a1a66;font-size:14px;font-weight:700;color:#fff}
+.pn a:hover{border-color:#ff7a1a;color:#ff7a1a}
+.pn span.cur{background:#cc580c;background:linear-gradient(#cc580c,#b44606);border-color:#ff7a1a}
+.pn span.dot{background:none;border:0;min-width:16px;padding:0;color:#a58bd0}
+.pg.hide{display:none}
 /* trang Xep hang */
 .it.rkp{padding:12px 0}
 .it.rkp .pt{padding:0 12px 10px}
@@ -123,6 +156,12 @@ h1,h2,h3{margin:0}
 .info td{padding:3px 0}
 .pb a.dlbtn{display:block;text-align:center;padding:12px;border-radius:6px;background:#cc580c;background:linear-gradient(#cc580c,#b44606);color:#fff;font-weight:700;font-size:16px;text-decoration:none}
 .pb a.dlbtn:hover{filter:brightness(1.15)}
+.vtb{border-collapse:collapse;width:100%;margin-top:10px}
+.vtb th{text-align:left;color:#cdbfe8;font-weight:400;padding:4px 6px;border-bottom:1px solid #3a1a66}
+.vtb td{padding:5px 6px;border-bottom:1px solid #3a1a66;vertical-align:top}
+.vtb a{margin-right:8px;white-space:nowrap}
+.vtb i.fit{color:#ffb35c;font-size:11px;font-style:normal}
+.vtb tr.fitr td{background:#3a1a66}
 .nojs pre.mk-meta{display:block;white-space:pre-wrap;font:12px monospace;background:#1f0b3d;padding:8px;border-radius:4px}
 pre.mk-meta{display:none}
 /* widgets, footer */
@@ -136,6 +175,18 @@ pre.mk-meta{display:none}
 .ft a{text-decoration:underline}
 .ft .widget{margin:0}
 .ft .widget li{text-align:center;background:none;border:0;justify-content:center;padding:2px}
+/* thong bao ung ho (hien sau khi tai 2 game): man nho la khoi dat o dau trang, PC la lop phu giua man hinh */
+.mkd{background:#1b0a38;border-bottom:3px solid #ff7a1a;padding:14px 12px 18px}
+.mkd-in{max-width:460px;margin:0 auto;text-align:center}
+.mkd h2{font-size:21px;line-height:1.25;margin:0 0 8px;color:#ff7a1a}
+.mkd p{margin:0 0 10px;color:#f3ecff}
+.mkd .mkd-hint{font-size:12px;color:#cdbfe8;margin:0 0 12px}
+.mkd .mkd-qr{display:block;margin:6px auto 12px;padding:8px;background:#fff;border-radius:8px;width:230px;max-width:90%;height:auto}
+.mkd .mkd-acc{margin:0 0 4px;padding:10px;background:#290f4f;border:1px solid #3a1a66;border-radius:6px}
+.mkd .mkd-acc label{display:block;font-size:12px;color:#cdbfe8;margin-bottom:4px}
+.mkd .mkd-acc input{display:block;width:100%;padding:8px;margin:0 0 8px;border:1px solid #4a2a7a;border-radius:4px;background:#1f0b3d;color:#fff;font:700 20px/1.2 monospace;text-align:center;letter-spacing:1px}
+.mkd .mkd-btn{display:block;width:100%;padding:11px 8px;border:0;border-radius:6px;background:#cc580c;background:linear-gradient(#cc580c,#b44606);color:#fff;font:700 15px/1.2 inherit;font-family:inherit;text-align:center;cursor:pointer}
+.mkd a.mkd-x{display:block;margin:16px 0 0;padding:12px 8px;border-radius:6px;background:#3a1a66;border:1px solid #6a3aa0;color:#fff;font-weight:700;text-align:center;cursor:pointer}
 /* tablet: 3 o moi hang */
 @media (min-width:600px){
 .cols{padding:12px}
@@ -155,14 +206,15 @@ pre.mk-meta{display:none}
 .by{margin:0 0 0 10px}
 .bar{flex:1;min-width:0;display:flex;align-items:center;margin-left:22px}
 .nav{background:none;overflow:visible;display:flex}
-.nav a{float:none;width:auto;display:flex;align-items:center;padding:7px 13px;margin-right:2px;font-size:14px;background:none;border:0;border-radius:6px;text-align:left}
+.nav a{float:none;width:auto;display:flex;align-items:center;padding:7px 11px;margin-right:2px;font-size:14px;background:none;border:0;border-radius:6px;text-align:left}
 .nav a:nth-child(even){background:none}
 .nav a.on,.nav a:hover{background:#cc580c;background:linear-gradient(#cc580c,#b44606)}
-.nav svg{display:inline-block;margin:0 7px 0 0;width:18px;height:18px}
-.sf{margin-left:auto;padding:0;background:none;width:250px}
+.nav svg{display:none}
+.sf{margin-left:auto;padding:0;background:none;width:220px}
+.by{display:none}
 .dd{position:absolute;left:0;right:0;top:100%;box-shadow:0 8px 14px rgba(0,0,0,.5)}
 .dd-in{max-width:1080px;margin:0 auto;padding:6px 12px}
-.dd a{width:20%;border:0;border-radius:4px}
+.dd a{width:25%;border:0;border-radius:4px}
 .dd a.all{width:100%}
 .rk .tabs a{width:auto;float:none;display:inline-block;padding:9px 18px}
 .it.rkp .pt{padding:0 18px 10px}
@@ -176,6 +228,13 @@ pre.mk-meta{display:none}
 .it{padding:18px}
 .pt{font-size:26px}
 .pb a.dlbtn{display:inline-block;padding:12px 28px}
+.mkd{position:fixed;left:0;right:0;top:0;bottom:0;z-index:99;overflow:auto;background:#140729;background:rgba(14,4,30,.88);border:0;padding:30px 12px}
+.mkd-in{background:#1b0a38;border:1px solid #4a2a7a;border-radius:10px;padding:20px 22px}
+.mkd .mkd-hint{display:none}
+}
+@media (min-width:1060px){
+.by{display:block}
+.sf{width:240px}
 }
 ]]></b:skin>
 </head>
@@ -187,6 +246,9 @@ pre.mk-meta{display:none}
 <symbol id='i-new' viewBox='0 0 24 24'><path d='M20 11a8 8 0 1 0-2.3 6.2'/><path d='M20 4v7h-7'/></symbol>
 <symbol id='i-top' viewBox='0 0 24 24'><path d='M6 20v-8M12 20V5M18 20v-5'/></symbol>
 <symbol id='i-go' viewBox='0 0 24 24'><path d='M9 5l7 7-7 7'/></symbol>
+<symbol id='i-img' viewBox='0 0 24 24'><rect height='16' rx='2' width='18' x='3' y='4'/><circle cx='9' cy='10' r='1.6'/><path d='M3 17l5-4 4 3 3-2 6 4'/></symbol>
+<symbol id='i-snd' viewBox='0 0 24 24'><path d='M9 18V6l10-2v12'/><circle cx='6.5' cy='18' r='2.5'/><circle cx='16.5' cy='16' r='2.5'/></symbol>
+<symbol id='i-book' viewBox='0 0 24 24'><path d='M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2z'/><path d='M4 20a2 2 0 0 0 2 2h13'/></symbol>
 </svg>
 
 <div class='top'>
@@ -204,10 +266,12 @@ pre.mk-meta{display:none}
 </header>
 <div class='bar'>
 <nav class='nav'>
-<a data-dd='game' href='/search/label/Game'><svg><use href='#i-game'/></svg>Game<svg class='go'><use href='#i-go'/></svg></a>
-<a data-dd='app' href='/search/label/App'><svg><use href='#i-app'/></svg>App<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='1' href='/search/label/Game'><svg><use href='#i-game'/></svg>Game<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='2' href='/search/label/App'><svg><use href='#i-app'/></svg>Phần mềm<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='4' href='/search/label/Giao%20di%E1%BB%87n'><svg><use href='#i-img'/></svg>Giao diện<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='5' href='/search/label/%C3%82m%20thanh'><svg><use href='#i-snd'/></svg>Âm thanh<svg class='go'><use href='#i-go'/></svg></a>
+<a data-dd='3' href='/search/label/B%C3%A0i%20vi%E1%BA%BFt'><svg><use href='#i-book'/></svg>Truyện &amp; Mẹo<svg class='go'><use href='#i-go'/></svg></a>
 <a href='/p/xep-hang.html'><svg><use href='#i-top'/></svg>Xếp hạng<svg class='go'><use href='#i-go'/></svg></a>
-<a href='/'><svg><use href='#i-new'/></svg>Mới<svg class='go'><use href='#i-go'/></svg></a>
 </nav>
 <form action='/search' class='sf' method='get'><input name='q' placeholder='Tìm app, game...' type='search'/><button type='submit'>Tìm</button></form>
 </div>
@@ -219,6 +283,7 @@ pre.mk-meta{display:none}
 <div class='cols wrap'>
 <main class='main'>
 <div class='bn bn-top2' data-slot='top'></div>
+<div class='hm' id='hm'></div>
 <b:section class='main-sec' id='main' showaddelement='no'>
 <b:widget id='Blog1' locked='true' title='Bài đăng trên blog' type='Blog' version='1'>
 <b:includable id='main' var='top'>
@@ -278,6 +343,7 @@ pre.mk-meta{display:none}
 <b:if cond='data:newerPageUrl'><a expr:href='data:newerPageUrl'>‹ Mới hơn</a></b:if>
 <b:if cond='data:olderPageUrl'><a class='o' expr:href='data:olderPageUrl'>Cũ hơn ›</a></b:if>
 </div>
+<div class='pn' id='pn'></div>
 </b:if>
 </b:if>
 </b:includable>
@@ -288,6 +354,7 @@ pre.mk-meta{display:none}
 
 <aside class='side'>
 <div class='bn bn-list' data-slot='list'></div>
+<div class='tp' id='tp'></div>
 <b:section class='adslot' id='ad-side' maxwidgets='1' showaddelement='yes'/>
 <div id='cats'></div>
 <b:section class='side-sec' id='side' preferred='yes' showaddelement='yes'>
@@ -327,6 +394,14 @@ var d=document,vw=d.documentElement.clientWidth||window.innerWidth||320,
 d.documentElement.className=d.documentElement.className.replace('nojs','js');
 function $$(s,r){return Array.prototype.slice.call((r||d).querySelectorAll(s))}
 function el(t,c,x){var e=d.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+/* man hinh may: SC.w x SC.h (nhu trinh duyet bao), SC.k = hau to khoa API ".s<W>x<H>" de Worker uu tien game dung co; man lon / Android / iPhone = smartphone (gui 480x800) */
+var SC=(function(){var w=parseInt(window.screen&&screen.width,10)||0,h=parseInt(window.screen&&screen.height,10)||0,mn,mx,ua=navigator.userAgent||'',
+ o={w:w,h:h,k:'',smart:false};
+ if(!w||!h)return o;
+ mn=Math.min(w,h);mx=Math.max(w,h);
+ o.smart=mn>=480||(mn>=360&&mx>=800)||/Android|iPhone|iPad|iPod|Windows Phone/i.test(ua);
+ o.k='.s'+(o.smart&&!(mn>=480||(mn>=360&&mx>=800))?'480x800':w+'x'+h);
+ return o})();
 function del(e){if(e&&e.parentNode)e.parentNode.removeChild(e)}
 function clr(e){while(e.firstChild)e.removeChild(e.firstChild)}
 /* GET JSON bang XHR (Opera Mini 6 khong co fetch). API cho phep CORS */
@@ -353,8 +428,8 @@ function meta(pre){
 function sz(k){k=parseInt(k,10);if(!k)return'';return k>=1024?(k/1024).toFixed(1)+' MB':k+' KB'}
 function pad(n){return('0'+n).slice(-2)}
 function fd(t){var x=new Date(t);return isNaN(x.getTime())?'':pad(x.getDate())+'/'+pad(x.getMonth()+1)+'/'+x.getFullYear()}
-/* luot tai: <5 an, <1000 so that, tu 1000 dang 1,2k */
-function fdl(n){n=parseInt(n,10)||0;if(n<5)return'';if(n<1000)return''+n;var k=Math.floor(n/100)/10;return String(k).replace('.',',')+'k'}
+/* luot tai: luon hien (0 cung hien), <1000 so that, tu 1000 dang 1,2k; chua biet (undefined) thi an */
+function fdl(n){if(n===undefined||n===null||n==='')return'';n=parseInt(n,10)||0;if(n<1000)return''+n;var k=Math.floor(n/100)/10;return String(k).replace('.',',')+'k'}
 /* the: slug taxonomy hoac nhan ngan -> huy hieu */
 var TG={vh:'VH','viet-hoa':'VH',mod:'MOD','3d':'3D',vn:'VN','game-viet':'VN',touch:'TOUCH','cam-ung':'TOUCH',mp:'MP','nhieu-nguoi':'MP',net:'NET','can-mang':'NET'};
 var PL={j2me:'Java J2ME',s60v2:'Symbian S60 v1/v2',s60v3:'Symbian S60 v3',s60v5:'Symbian S60 v5',s3:'Symbian^3 / Belle'};
@@ -392,17 +467,20 @@ function fillDl(list){
 $$('.dt').forEach(function(e){e.textContent=fd(e.getAttribute('data-t'))});
 /* menu dang chon */
 $$('.nav a').forEach(function(a){if(!a.hash&&a.pathname.replace(/^\/?/,'/')===location.pathname)a.className=(a.className?a.className+' ':'')+'on'});
-/* menu the loai: Game / App mo danh sach the loai tu cats.json, moi muc la link nhan Blogger */
+/* menu nhom: Game / Phan mem / Giao dien / Am thanh / Truyen & Meo, danh sach the loai lay tu /v1/menu.json (nhom + the loai co bai), moi muc la link nhan Blogger */
 var dd=d.getElementById('dd'),ddin=d.getElementById('dd-in'),ddk='';
-function ddFill(k,C){
+function lab(n){return '/search/label/'+encodeURIComponent(n)}
+function kindOf(M,k){var i;if(M&&M.kinds)for(i=0;i<M.kinds.length;i++)if(String(M.kinds[i].kind)===k)return M.kinds[i];return null}
+function ddFill(k,M){
  clr(ddin);
- var all=el('a','all',k==='game'?'Tất cả Game':'Tất cả App');all.href='/search/label/'+(k==='game'?'Game':'App');ddin.appendChild(all);
- if(!C){ddin.appendChild(el('p','','Đang tải thể loại...'));return}
- var n=0;
- C.forEach(function(c){if(c.kind!==(k==='game'?1:2))return;n++;
-  var a=el('a','',c.name);a.href='/search/label/'+encodeURIComponent(c.name);
+ var K=kindOf(M,k),all=el('a','all',K?'Tất cả '+K.name:'Tất cả');
+ all.href=lab(K?K.label:({1:'Game',2:'App',3:'Bài viết',4:'Giao diện',5:'Âm thanh'})[k]||'');ddin.appendChild(all);
+ if(!K){ddin.appendChild(el('p','',M===null?'Chưa tải được thể loại.':'Đang tải thể loại...'));return}
+ if(k==='1'){var vh=el('a','','Game Việt hóa');vh.href=lab('VH');ddin.appendChild(vh)}
+ K.cats.forEach(function(c){
+  var a=el('a','',c.name);a.href=lab(c.name);
   if(c.count)a.appendChild(el('span','',String(c.count)));ddin.appendChild(a)});
- if(!n)ddin.appendChild(el('p','','Chưa có thể loại.'))}
+ if(!K.cats.length)ddin.appendChild(el('p','','Chưa có bài trong nhóm này.'))}
 function ddClose(){if(!dd)return;dd.className=dd.className.replace(' on','');ddk='';$$('.nav a[data-dd]').forEach(function(a){a.setAttribute('aria-expanded','false')})}
 $$('.nav a[data-dd]').forEach(function(a){
  var k=a.getAttribute('data-dd');
@@ -411,17 +489,37 @@ $$('.nav a[data-dd]').forEach(function(a){
   if(!dd)return true;
   if(ddk===k){ddClose();return false}
   ddClose();ddk=k;dd.className+=' on';a.setAttribute('aria-expanded','true');
-  ddFill(k,Q.cats&&Q.cats.done?Q.cats.v:null);
-  once('cats','/v1/cats.json',function(C){if(ddk===k)ddFill(k,C||[])});
+  ddFill(k,Q.menu&&Q.menu.done?Q.menu.v:undefined);
+  once('menu','/v1/menu.json',function(M){if(ddk===k)ddFill(k,M)});
   return false}});
 d.onclick=function(e){
  var t=e?e.target:window.event.srcElement;
  while(t&&t!==d){if(t===dd||(t.getAttribute&&t.getAttribute('data-dd')))return;t=t.parentNode}
  ddClose()};
+/* nhom chua co bai nao (Giao dien, Am thanh, Truyen & Meo) thi giau khoi menu cho gon */
+once('menu','/v1/menu.json',function(M){
+ if(!M||!M.kinds)return;
+ $$('.nav a[data-dd]').forEach(function(a){var K=kindOf(M,a.getAttribute('data-dd'));if(K&&!K.count&&K.kind>2)del(a)})});
 /* o game: dung chung cho luoi nhan/tim kiem va bang xep hang */
 function setIc(th,u,hasShot){
  var i2=el('img',hasShot?'ic2':'ic1');i2.alt='';i2.onerror=function(){del(i2)};i2.src=u;th.appendChild(i2)}
 function addDl(th,n){var t=fdl(n);if(t){var s=el('span','dlc',t);th.appendChild(s)}}
+/* o game tu list.json: dung chung cho bang xep hang va khoi De xuat tren trang chu. rk = hang (0 = khong hien) */
+function mkCell(it,rk){
+ var c=el('div','gc'),b=el('div','gcb'),th=el('a','th'),g=el('div','gt'),h=el('h2'),a=el('a','',it.title||''),ch=el('div','chips'),
+  tgs=[],j,ts=it.tags||[];
+ th.href=it.url||'#';th.title=it.title||'';th.appendChild(el('span','ph','M'));
+ if(it.shot){var im=el('img','sc');im.alt='';var ph2=th.querySelector('.ph');im.onerror=function(){del(im);th.className=th.className.replace(' has','');if(ph2)ph2.style.display=''};im.src=API+it.shot;th.appendChild(im);th.className+=' has';if(ph2)ph2.style.display='none'}
+ if(it.icon)setIc(th,API+it.icon,!!it.shot);
+ if(rk)th.appendChild(el('span','rkn'+(rk<=3?' r'+rk:''),String(rk)));
+ if(it.flags&8)th.appendChild(el('span','bd h','HOT'));else if(it.flags&1)th.appendChild(el('span','bd','MỚI'));
+ addDl(th,it.dl);
+ a.href=it.url||'#';h.appendChild(a);
+ for(j=0;j<ts.length;j++){var t=tg(ts[j]);if(t&&tgs.indexOf(t)<0){tgs.push(t);ch.appendChild(el('span','tg',t))}}
+ if(it.ver)ch.appendChild(el('span','v','v'+it.ver));
+ if(sz(it.sizeKb))ch.appendChild(el('span','',sz(it.sizeKb)));
+ if(it.catName)ch.appendChild(el('span','',it.catName));
+ g.appendChild(h);g.appendChild(ch);b.appendChild(th);b.appendChild(g);c.appendChild(b);return c}
 /* luoi game: anh minh hoa + icon + huy hieu + ban, phien ban, dung luong */
 var need=[],GW=vw<600?200:256,GH=vw<600?150:192,now=new Date().getTime(),dlq=[];
 $$('.gc').forEach(function(c){
@@ -465,8 +563,25 @@ $$('.pb pre.mk-meta').forEach(function(pre){
  if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){del(gi)};box.appendChild(gi)}
  box.appendChild(tb);
  if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','Tải về (JAR)');a.href=lo(m.jar);a.rel='nofollow noopener';box.appendChild(a)}
+ /* bang link tai (dong v1..vN: "co|KB|NHAN=URL|NHAN=URL"): bang that, cot Man hinh / Dung luong / Tai ve; dong hop man hinh may xep dau + danh dau */
+ var vr=[],vk,vi;for(vk in m){if(/^v\d*$/.test(vk)&&m[vk])vr.push(m[vk].split('|'))}
+ if(vr.length){
+  var vt=el('table','vtb'),vh=el('tr');['Máy / màn hình','Dung lượng','Tải về'].forEach(function(x){vh.appendChild(el('th','',x))});vt.appendChild(vh);
+  var mine=SC.w+'x'+SC.h,mine2=SC.h+'x'+SC.w,rows=[],ex=false;
+  vr.forEach(function(p){if((p[0]||'').replace(/\s+/g,'')===mine)ex=true});
+  vr.forEach(function(p){
+   var tr=el('tr'),c0=el('td'),c2=el('td'),ls=p.slice(2),ok=false,j;
+   c0.appendChild(el('b','',(p[0]||'').replace(/^\s+|\s+$/g,'')));
+   var k0=(p[0]||'').replace(/\s+/g,'');
+   if(SC.w&&(k0===mine||(!ex&&k0===mine2))){ok=true;c0.appendChild(el('i','fit',' Hợp máy bạn'))}
+   tr.appendChild(c0);tr.appendChild(el('td','',/^\d+$/.test((p[1]||'').replace(/\s+/g,''))?sz(p[1].replace(/\s+/g,'')):''));
+   for(j=0;j<ls.length;j++){var mm=/^\s*([^=<>"]{1,20})=(https?:\/\/\S+)\s*$/.exec(ls[j]);if(mm){var la=el('a','',mm[1]);la.href=lo(mm[2]);la.rel='nofollow noopener';c2.appendChild(la);c2.appendChild(d.createTextNode(' '))}}
+   tr.appendChild(c2);if(c2.firstChild){if(ok)tr.className='fitr';rows.push({tr:tr,ok:ok})}});
+  rows.sort(function(a,b){return(b.ok?1:0)-(a.ok?1:0)});
+  rows.forEach(function(x){vt.appendChild(x.tr)});
+  if(rows.length)box.appendChild(vt)}
  pre.parentNode.insertBefore(box,pre);del(pre);
- fillDl([{path:location.pathname,set:function(n){var t=fdl(n);if(t){dlt.textContent=t;tr.style.display=''}}}])});
+ fillDl([{path:location.pathname,set:function(n){var t=fdl(n);if(t){dlt.textContent=t+' lượt';tr.style.display=''}}}])});
 /* trang Xep hang (/p/xep-hang.html, trang tinh Blogger de trong): tab + loc + luoi tu list.json */
 if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
  var rk=d.getElementById('rk'),art=d.querySelector('.it');
@@ -504,21 +619,7 @@ if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
   var cr=[];if(S.s!=='all'&&cats){cats.forEach(function(c){if(c.kind===(S.s==='game'?1:2))cr.push([c.id,c.name])});if(cr.length)cr.unshift([0,'Mọi thể loại'])}
   filt(f2,'Thể loại',cr,S.c,'c');
   filt(f3,'Nền tảng',PF,S.p,'p')}
- function cell(it,i){
-  var c=el('div','gc'),b=el('div','gcb'),th=el('a','th'),g=el('div','gt'),h=el('h2'),a=el('a','',it.title||''),ch=el('div','chips'),
-   rank=S.g*15+i+1,tgs=[],j,ts=it.tags||[];
-  th.href=it.url||'#';th.title=it.title||'';th.appendChild(el('span','ph','M'));
-  if(it.shot){var im=el('img','sc');im.alt='';var ph2=th.querySelector('.ph');im.onerror=function(){del(im);th.className=th.className.replace(' has','');if(ph2)ph2.style.display=''};im.src=API+it.shot;th.appendChild(im);th.className+=' has';if(ph2)ph2.style.display='none'}
-  if(it.icon)setIc(th,API+it.icon,!!it.shot);
-  if(S.k!=='new')th.appendChild(el('span','rkn'+(S.g===0&&i<3?' r'+rank:''),String(rank)));
-  if(it.flags&8)th.appendChild(el('span','bd h','HOT'));else if(it.flags&1)th.appendChild(el('span','bd','MỚI'));
-  addDl(th,it.dl);
-  a.href=it.url||'#';h.appendChild(a);
-  for(j=0;j<ts.length;j++){var t=tg(ts[j]);if(t&&tgs.indexOf(t)<0){tgs.push(t);ch.appendChild(el('span','tg',t))}}
-  if(it.ver)ch.appendChild(el('span','v','v'+it.ver));
-  if(sz(it.sizeKb))ch.appendChild(el('span','',sz(it.sizeKb)));
-  if(it.catName)ch.appendChild(el('span','',it.catName));
-  g.appendChild(h);g.appendChild(ch);b.appendChild(th);b.appendChild(g);c.appendChild(b);return c}
+ function cell(it,i){return mkCell(it,S.k!=='new'?S.g*15+i+1:0)}
  function draw(){
   var my=++tok;cur=location.hash;drawCtl();clr(gl);clr(pg);clr(st);
   st.appendChild(el('div','emp','Đang tải bảng xếp hạng...'));
@@ -541,6 +642,71 @@ if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
 })()}
 $$('.pb img').forEach(function(i){var u=i.getAttribute('src')||'',v=lo(u);if(v!==u)i.src=v});
 $$('.pb a').forEach(function(a){var u=a.getAttribute('href')||'',v=lo(u);if(v!==u)a.href=v});
+/* trang chu (chi trang dau, khong phai tim kiem/nhan/trang 2+): De xuat hom nay + Top tai nhieu. PC: Top o cot ben; man nho: Top ngay duoi De xuat */
+if(/^\/(index\.html)?$/.test(location.pathname)&&!/[?&](q|updated-max|start)=/.test(location.search)&&$$('.gl').length){(function(){
+ var hm=d.getElementById('hm'),tp=d.getElementById('tp');
+ if(!hm)return;
+ var pbox=el('div'),tbox=el('div','tp'),big=vw>=900;
+ hm.appendChild(pbox);(big&&tp?tp:hm).appendChild(tbox);
+ /* De xuat hom nay: Worker chon cho ca ngay (doi luc nua dem gio Viet Nam) */
+ get(API+'/v1/list.json?key=pick'+SC.k+'&page=0',function(R){
+  var L=(R&&R.items)||[];if(!L.length)return;
+  L=L.slice(0,vw<600?2:4);
+  var h=el('h2','st','Đề xuất hôm nay'),gl=el('div','gl'),t=new Date();
+  h.appendChild(el('span','stm',pad(t.getDate())+'/'+pad(t.getMonth()+1)));
+  L.forEach(function(it){gl.appendChild(mkCell(it,0))});
+  pbox.appendChild(h);pbox.appendChild(gl)});
+ /* Top tai nhieu: game, tab Hom nay / Tuan / Moi luc */
+ var TT=[['game.top1','Hôm nay'],['game.top7','Tuần'],['game.dl','Mọi lúc']],cur='game.dl',tok=0,head=el('h2','st','Top tải nhiều'),tabs=el('div','tpt'),body=el('div');
+ tbox.style.display='none';[head,tabs,body].forEach(function(e){tbox.appendChild(e)});
+ function thumb(it){
+  var b=el('span','tpi');var u=it.icon?API+it.icon:(it.shot?API+it.shot.replace(/-\d+x\d+\.jpg$/,'-80x60.jpg'):'');
+  if(u){var im=el('img');im.alt='';im.width=40;im.height=40;im.onerror=function(){del(im)};im.src=u;b.appendChild(im)}
+  return b}
+ function row(it,i){
+  var a=el('a','tpr'),n=el('span','tpn'+(i<3?' r'+(i+1):''),String(i+1)),x=el('span','tpx'),t=fdl(it.dl),sub=[];
+  a.href=it.url||'#';a.appendChild(n);a.appendChild(thumb(it));
+  if(t)a.appendChild(el('span','tpd','↓ '+t));
+  x.appendChild(el('b','',it.title||''));
+  if(it.catName)sub.push(it.catName);if(it.ver)sub.push('v'+it.ver);
+  x.appendChild(el('i','',sub.join(' · ')));a.appendChild(x);return a}
+ function draw(){
+  var my=++tok;clr(tabs);
+  TT.forEach(function(t){var a=el('a',t[0]===cur?'on':'',t[1]);a.href='#top';a.onclick=function(){cur=t[0];draw();return false};tabs.appendChild(a)});
+  get(API+'/v1/list.json?key='+cur+'&page=0',function(R){
+   if(my!==tok)return;
+   var L=((R&&R.items)||[]).slice(0,big?10:5),i;
+   if(!L.length){if(!body.firstChild)return;clr(body);body.appendChild(el('div','tpe','Chưa có dữ liệu tải.'));return}
+   clr(body);tbox.style.display='';
+   for(i=0;i<L.length;i++)body.appendChild(row(L[i],i));
+   var m=el('a','tpm','Xem bảng xếp hạng đầy đủ ›');m.href='/p/xep-hang.html';body.appendChild(m)})}
+ draw()
+})()}
+/* phan trang so cho trang chu / nhan / tim kiem: Worker tra moc updated-max cua tung trang tu feed Blogger */
+if($$('.gc').length&&d.getElementById('pn')){(function(){
+ var pn=d.getElementById('pn'),pg=$$('.pg')[0],q=location.search,
+  ms=/[?&]start=(\d+)/.exec(q),mr=/[?&]max-results=(\d+)/.exec(q),n=mr?parseInt(mr[1],10):$$('.gc').length,
+  cur=ms&&n?Math.floor(parseInt(ms[1],10)/n)+1:1,path=location.pathname,scope='',base='/',lm=/^\/search\/label\/([^\/]+)/.exec(path),qm=/[?&]q=([^&]*)/.exec(q),qs='';
+ if(!n)return;
+ function dec(x){try{return decodeURIComponent(x.replace(/\+/g,' '))}catch(e){return x}}
+ if(lm){scope='label:'+dec(lm[1]);base=path}
+ else if(qm){scope='q:'+dec(qm[1]);qs='q='+qm[1]+'&';base='/search?q='+qm[1]}
+ if(!lm&&!qm&&!/^\/(index\.html|search)?$/.test(path))return;
+ var W=vw<600?4:6;
+ get(API+'/v1/pager.json?scope='+encodeURIComponent(scope)+'&n='+n+'&cur='+cur+'&w='+W,function(R){
+  if(!R||!R.items||R.pages<2)return;
+  var M={},L=R.items,i,last=0;
+  for(i=0;i<L.length;i++)M[L[i].p]=L[i].m;
+  function href(p){if(p<2)return base;var u=M[p];return u?(lm?path:'/search')+'?'+qs+'updated-max='+encodeURIComponent(u)+'&max-results='+R.n+'&start='+((p-1)*R.n)+'&by-date=false':''}
+  function add(t,c,p){var h=p?href(p):'',e=h?el('a',c,t):el('span',c||'dot',t);if(h)e.href=h;pn.appendChild(e)}
+  clr(pn);
+  if(R.cur>1)add('‹','',R.cur-1);
+  for(i=0;i<L.length;i++){var p=L[i].p;if(last&&p>last+1)add('…','dot',0);
+   if(p===R.cur)pn.appendChild(el('span','cur',String(p)));else add(String(p),'',p);last=p}
+  if(R.cur<R.pages)add('›','',R.cur+1);
+  pn.className+=' on';if(pg)pg.className+=' hide'},
+ function(){})
+})()}
 /* banner: chung du lieu voi app Java. Banner dau trang: trong header (man nho) hoac dau cot noi dung (PC), chi nap cai dang hien */
 var pc=vw>=900,slots=$$('.bn[data-slot]').filter(function(s){
  if(/\bbn-top2\b/.test(s.className))return pc;
@@ -557,6 +723,49 @@ if(slots.length){
    var h=el(b.href?'a':'div');if(b.href){h.href=b.href;h.rel='nofollow'}
    h.appendChild(img);s.appendChild(h);s.className+=' on';
    if(/\bbn-top\b/.test(s.className)){var hd=d.querySelector('.hd');if(hd)hd.className+=' hb'}})})}
+/* thong bao ung ho: dem luot bam nut tai (cookie mkd=<so luot>.<luot da nhac>.<cho hien>), hien o luot 2, roi moi 5 luot.
+   Web khong biet luc nao tai xong that, nen hien sau 2,5 giay hoac khi nguoi dung quay lai trang. Doi so trong due() de chinh nhip nhac */
+(function(){
+var CK='mkd',STK='9021870093495',QR='data:image/png;base64,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',S={n:0,s:0,p:0};
+function rc(){var m=new RegExp('(?:^|; )'+CK+'=([^;]*)').exec(d.cookie||''),a=m?m[1].split('.'):[];S.n=parseInt(a[0],10)||S.n;S.s=parseInt(a[1],10)||S.s;S.p=a[2]==='1'?1:0}
+function wc(){try{d.cookie=CK+'='+S.n+'.'+S.s+'.'+S.p+';path=/;max-age=31536000'}catch(e){}}
+function due(n){return n>=2&&(n===2||(n-2)%5===0)&&n>S.s}
+function isDl(a){var h=a.getAttribute('href')||'';return /(^|\s)dlbtn(\s|$)/.test(a.className||'')||/\/v1\/(j|f)\/|\.(jar|jad|zip)([?#]|$)/i.test(h)}
+function show(){
+ if(d.getElementById('mkd'))return;
+ S.p=0;S.s=S.n;wc();
+ var box=el('div','mkd'),in_=el('div','mkd-in'),qr=el('img','mkd-qr'),acc=el('div','mkd-acc'),lb=el('label','','Số tài khoản (ngân hàng Timo)'),
+  inp=el('input'),cp=el('button','mkd-btn','Sao chép số tài khoản'),x=el('a','mkd-x','Đóng thông báo');
+ box.id='mkd';
+ in_.appendChild(el('h2','','Giữ Monika luôn miễn phí'));
+ in_.appendChild(el('p','mkd-hint','Kéo xuống dưới cùng có nút Đóng thông báo'));
+ in_.appendChild(el('p','','Monika cố gắng cung cấp ứng dụng miễn phí nhất có thể, nhưng chúng mình cũng phải duy trì hệ thống ổn định. Đóng góp của bạn sẽ giúp Monika ngày càng tốt hơn <3'));
+ in_.appendChild(el('p','','Donate bằng cách dùng smartphone của bạn, quét mã QR sau, hoặc donate tới địa chỉ '+STK+', ngân hàng Timo'));
+ qr.alt='Mã QR chuyển khoản VietQR';qr.width=270;qr.height=312;qr.onerror=function(){del(qr)};qr.src=QR;in_.appendChild(qr);
+ inp.type='text';inp.value=STK;inp.readOnly=true;inp.onfocus=function(){try{inp.select()}catch(e){}};
+ acc.appendChild(lb);acc.appendChild(inp);acc.appendChild(cp);in_.appendChild(acc);
+ function done(ok){cp.textContent=ok?'Đã sao chép':'Chạm giữ vào số để chép';try{inp.focus();inp.select()}catch(e){}}
+ function legacy(){var ok=false;try{inp.focus();inp.select();if(inp.setSelectionRange)inp.setSelectionRange(0,STK.length);ok=!!(d.execCommand&&d.execCommand('copy'))}catch(e){}done(ok)}
+ cp.type='button';
+ cp.onclick=function(){
+  if(navigator.clipboard&&navigator.clipboard.writeText){try{navigator.clipboard.writeText(STK).then(function(){done(1)},legacy);return}catch(e){}}
+  legacy()};
+ x.href='#';x.onclick=function(){del(box);return false};
+ in_.appendChild(x);box.appendChild(in_);
+ d.body.insertBefore(box,d.body.firstChild);
+ try{window.scrollTo(0,0)}catch(e){}}
+rc();
+if(S.p&&due(S.n))show();
+function back(){rc();if(S.p&&due(S.n))show()}
+if(window.addEventListener){window.addEventListener('pageshow',back,false);window.addEventListener('focus',back,false)}
+function onClick(e){
+ e=e||window.event;var t=e.target||e.srcElement;
+ while(t&&t!==d&&String(t.tagName).toUpperCase()!=='A')t=t.parentNode;
+ if(!t||t===d||!isDl(t))return;
+ rc();S.n++;
+ if(due(S.n)){S.p=1;wc();setTimeout(function(){if(S.p&&due(S.n))show()},2500)}else wc()}
+if(d.addEventListener)d.addEventListener('click',onClick,false);else if(d.attachEvent)d.attachEvent('onclick',onClick);
+})();
 })();
 //]]>
 </script>

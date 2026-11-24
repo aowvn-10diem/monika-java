@@ -95,3 +95,44 @@ Header: `int 0x4D4B4C32, ubyte ver=2, ushort total, ushort page, ubyte count`. M
 ### Bài link-only và ảnh trong R2 (v2.1)
 - **Bài link-only** (không có `jar`): thêm các dòng `v1`, `v2`, … (hoặc `v`) vào `mk-meta`, mỗi dòng `cỡ|KB|NHÃN=URL|NHÃN=URL`, ví dụ `v1: 240x320|365|JAD=http://host/a.jad|JAR=http://host/a.jar`. Nút Tải của app mở `/v1/j/<id>.jad`; với bài không có `jar` và không nằm trong kho, Worker trả một trang HTML nhẹ liệt kê các bản theo độ phân giải (chỉ link http/https, tối đa 40 dòng, cache 5 phút; Worker đọc lại bài qua `/feeds/posts/default/<id>?alt=json`). `.jar` của bài loại này luôn 404. Monika không lưu hay phát lại file.
 - **Ảnh minh họa trong R2:** đặt object `pic/<tên>.jpg` (tên chỉ gồm `A-Za-z0-9_-`) vào bucket `monika-files`, `GET /v1/pic/<tên>.jpg` phát lại (cache 1 ngày). Trong `mk-meta` ghi `img: https://api.justmonika.top/v1/pic/<tên>.jpg`; `/v1/sc/...` thấy URL này thì đọc thẳng R2, không fetch ra ngoài. Chưa bật R2 thì `/v1/pic` trả 404.
+
+
+---
+
+## v3: nhóm nội dung mới, Đề xuất hôm nay, phân trang số
+
+### Nhóm (kind) và loại bài
+Nguồn: `catalog/taxonomy.json` (`kinds[]` + `cats[]`, 48 danh mục). Migration `005-taxonomy-v3.sql` (chạy được nhiều lần, sau 004, **chạy trước khi deploy Worker mới**).
+
+| kind | Nhóm (menu) | Nhãn Blogger của nhóm | `type` trong D1 | Danh mục (id) |
+| --- | --- | --- | --- | --- |
+| 1 | Game | `Game` | `game` | 10–26: thêm Kiếm hiệp & võ hiệp (24), Sinh tồn & kinh dị (25), Thủ thành (26) |
+| 2 | Phần mềm | `App` | `app` | 30–39, thêm Ảnh & camera (40), Giả lập & chạy game (41) |
+| 4 | Hình nền & Theme | `Giao diện` | `media` | 60 Hình nền, 61 Anime & artist, 62 Theme, 63 Ảnh đẹp & ảnh vui, 64 Icon, 65 Khác |
+| 5 | Nhạc & Video | `Âm thanh` | `media` | 66 Nhạc chuông, 67 Nhạc & album, 68 Video & Flash, 69 Khác |
+| 3 | Truyện & Mẹo | `Bài viết` | `post` | 50 Thủ thuật & mẹo, 51 Truyện cười, 53 Truyện tình yêu, 54 Truyện kiếm hiệp, 55 Truyện tranh & manga, 56 Truyện ngắn & khác, 57 Tin nhắn hay, 58 Tử vi & đời sống, 52 Tin Monika |
+
+- Bài không khai `type`: suy từ nhãn nhóm (Giao diện, Âm thanh, Bài viết) hoặc từ nhãn là tên một danh mục của nhóm 3, 4, 5. Nhãn game/app vẫn cần `type` hoặc nhãn `Game`/`App`.
+- `cat:` được phân giải theo loại bài (alias trùng giữa nhóm như "Kiếm hiệp" hay "Khác" chọn đúng nhóm); tên của nhóm khác hoặc tên lạ rơi vào "Khác" của loại và ghi `unk:`.
+- Game online và mod/hack game online không nhận (quy tắc lấy dữ liệu, Worker không tự lọc).
+- Bài `media` link-only dùng dòng `v1..vN`: `cỡ-hoặc-nhãn|KB|NHÃN=URL`, trường đầu nhận độ phân giải hoặc nhãn ngắn ("Nokia S60v3"). Bài `post`: `/v1/j/{id}.jad` chuyển 302 tới trang bài.
+- Plat mới: bit 32 `android`.
+- `Mới/Hot/Tải nhiều/Hôm nay/Tuần/Đề xuất` và số đếm của `home.bin`, `home2.bin` chỉ xét game và app (media, bài viết không có lượt tải JAR). Tìm kiếm (`/v1/s/`) tìm cả bốn loại.
+
+### Khóa danh sách mới
+`pick` (Đề xuất hôm nay: chỉ game, bỏ mục `hold`, mục có ảnh minh họa lên trước, thứ tự xáo cố định theo ngày giờ Việt Nam nên cả ngày giữ nguyên và qua nửa đêm đổi), `k3`/`k4`/`k5` (cả nhóm bài viết, giao diện, âm thanh), và `c<id>` của danh mục nhóm 3, 4, 5 trả đúng loại `post`/`media`. Dùng được trong `/v1/l/`, `/v1/l2/`, `/v1/list.json` (ví dụ `list.json?key=pick`, `key=game.dl`, `key=c66`).
+
+### `GET /v1/menu.json`
+`{"kinds":[{"kind":1,"slug":"game","name":"Game","label":"Game","type":"game","count":28,"cats":[{"id":10,"kind":1,"slug":"hanh-dong","name":"Hành động","count":2}]}]}` theo thứ tự menu (1, 2, 4, 5, 3), `cats` chỉ gồm danh mục có mục, đúng thứ tự trong taxonomy. `label` là nhãn Blogger của cả nhóm ("Tất cả ..."). Cache 300 giây. `cats.json` giữ dạng mảng cũ (nay có cả kind 3, 4, 5).
+
+### `GET /v1/home3.bin`
+Cùng bố cục `home2.bin`, magic `0x4D4B4833`, `ubyte ver=3`, nhưng liệt kê thêm danh mục nhóm 3, 4, 5 (`kind` 1..5). `home2.bin` vẫn chỉ game/app để app cũ (coi mọi kind khác 1 là app) không bị sai.
+
+### `GET /v1/pager.json?scope=&n=16&cur=1&w=6`
+Phân trang số cho danh sách bài của Blogger (trang chủ, nhãn, tìm kiếm). `scope`: rỗng (trang chủ), `label:<tên nhãn>`, `q:<từ khóa>`; `n` số bài mỗi trang (4–40); `cur` trang hiện tại; `w` số trang quanh trang hiện tại (3–8). Trả `{"total":200,"n":16,"pages":13,"cur":1,"items":[{"p":1},{"p":2,"m":"2026-11-23T00:52:00-08:00"},…,{"p":13,"m":"…"}]}` (đã gồm trang 1 và trang cuối; `m` là `updated-max` của trang `p`). Trang `p` mở bằng `<đường dẫn>?updated-max=<m>&max-results=<n>&start=<(p-1)*n>&by-date=false` (dạng Blogger tự sinh cho liên kết "Cũ hơn"; đã đối chiếu trên blog thật). Worker tra mốc bằng tối đa w+1 lần đọc feed `max-results=1`, cache biên 120 giây. Lỗi feed thì 502 và template giữ liên kết Mới hơn/Cũ hơn.
+
+### Bổ sung 0.6.0: ưu tiên màn hình, cờ loại bài, lượt tải
+- Modifier `.s<W>x<H>` (ví dụ `pick.s240x320`, `new.s360x800`): **ưu tiên mềm**, không loại mục nào (khác `.r` loại hẳn). Thứ tự: cỡ khớp đúng lên đầu; máy lớn (cạnh ngắn ≥ 480, hoặc ≥ 360 và cạnh dài ≥ 800) coi là smartphone nên bản có nền tảng Android (bit 32) đứng tiếp; rồi mục không khai cỡ; rồi cùng bề rộng; rồi còn lại, mỗi nhóm giữ thứ tự gốc. Bảng xếp hạng (`dl`, `top1`, `top7`, `hot`) bỏ qua `.s`, vẫn xếp theo lượt tải.
+- `flags` thêm bit 64 (bài viết: truyện, thủ thuật, không có lượt tải, nút Mở chuyển tới trang bài) và 128 (giao diện, âm thanh: nút mở trang chọn bản). App cũ bỏ qua bit lạ.
+- Trang chọn bản của Worker (`/v1/j/<id>.jad` cho bài link-only) nay là bảng thật: Máy/màn hình, Dung lượng, Tải về (số cột link theo dòng nhiều link nhất).
+- Lượt tải luôn hiển thị (kể cả 0): web (lưới, bài, bảng xếp hạng) và app (ô lưới, trang chi tiết). Bài viết, giao diện, âm thanh không hiện.

@@ -8,7 +8,7 @@ Host: `http://api.justmonika.top` (HTTP cổng 80 cho máy Java cũ). Worker `mo
 - Cách đăng bài: `../blogspot/HUONG-DAN-DANG-BAI.md`.
 
 Biến cấu hình: `API_HOST`, `BLOG_URL` (plain text), `SYNC_TOKEN` (secret, dùng cho `/v1/sync?t=` chạy tay một lượt quét).
-Link JAR: GitHub, Google Drive, host riêng. Pixeldrain chặn hotlink nên không dùng được.
+Link JAR: GitHub, Google Drive, host riêng. Pixeldrain chặn hotlink nên Worker gọi API kèm secret `PD_KEY` (`cloudflare/pd.js`): `jar: https://pixeldrain.com/u/<ID>` dùng được.
 
 ## Up file, icon, kho lưu trữ
 
@@ -35,3 +35,12 @@ Link JAR: GitHub, Google Drive, host riêng. Pixeldrain chặn hotlink nên khô
 ## Deploy bằng GitHub Actions
 
 Workflow `.github/workflows/deploy-worker.yml` chạy test rồi `wrangler deploy`, sau đó gọi thử 5 endpoint. Cần secret repo `CLOUDFLARE_API_TOKEN` và `CLOUDFLARE_ACCOUNT_ID` (tài khoản Cloudflare riêng của Monika Java). Secret của Worker giữ nguyên. Tự chạy khi push có sửa `cloudflare/` lên `main`.
+
+## Danh mục v3, đề xuất hôm nay, phân trang số
+
+- `node tools/gen-taxonomy.mjs` giờ sinh `taxonomy.js` và `migrations/005-taxonomy-v3.sql` (004 đã chạy, đóng băng). Migration 005 chạy được nhiều lần: nạp 48 danh mục theo nhóm; **chạy trước, deploy Worker sau**; mục đã có giữ nguyên id danh mục.
+- Loại bài mới `media` (giao diện, âm thanh) và `post` (truyện, thủ thuật) cùng bảng `items`; Mới/Hot/Tải nhiều/Đề xuất và `home.bin`/`home2.bin` chỉ xét game và app.
+- Endpoint mới: `/v1/menu.json`, `/v1/home3.bin`, `/v1/pager.json`, khóa `pick`/`k3`/`k4`/`k5` (xem `docs/api-contract.md`, mục v3).
+- Test mới: `node cloudflare/test/v3.test.mjs` (migration 005, phân giải danh mục, đồng bộ bài media/post, đề xuất đổi theo ngày giờ Việt Nam, phân trang số).
+
+- **Pixeldrain (migration 006, `pd_links`)**: dòng `v1..vN` chứa `…/v1/p/<ID>/…` được đồng bộ vào bảng `pd_links(pd, src)`; route `/v1/p/<ID>/<tên>.jar` tra ra mục của bài rồi `countDownload` (mọi độ phân giải cộng vào cùng một mục). Chưa chạy migration thì route vẫn phát file, chỉ không đếm. Thử: `node cloudflare/test/rank.test.mjs`, `node cloudflare/test/pd.test.mjs`.

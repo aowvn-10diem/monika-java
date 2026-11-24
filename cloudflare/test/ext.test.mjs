@@ -20,6 +20,9 @@ v1: 240x320|365|JAD=http://dedomil.net/games/263/download/4037|JAR=javascript:al
 v3: 176x220|305|JAR=ftp://x/y.jar
 v: 128x128|126|JAR=http://dedomil.net/games/263/download-jar/4036
 v4: kiểu sai|1|JAR=http://x/z.jar
+v6: dòng không có link|2|JAR=
+v7: quá dài quá dài quá dài quá dài quá dài|1|JAR=http://x/w.jar
+v5: Nokia S60v3|1|Theme=http://x/t.sis
 </pre><p>noi dung</p>`;
 const fetches = [];
 globalThis.fetch = async (u) => {
@@ -38,9 +41,16 @@ assert.match(r.headers.get("content-type"), /^text\/html/);
 const t = await r.text();
 assert.ok(t.indexOf("128x128") < t.indexOf("240x320") && t.indexOf("240x320") < t.indexOf("320x240"), t);
 assert.ok(t.includes('href="http://dedomil.net/games/263/download/4037">JAD'));
-assert.ok(!t.includes("javascript:") && !t.includes("ftp://") && !t.includes("kiểu sai"), "chặn scheme lạ và dòng sai cỡ");
+assert.ok(!t.includes("javascript:") && !t.includes("ftp://") && !t.includes("quá dài") && !t.includes("không có link"), "chặn scheme lạ, nhãn quá dài và dòng không có link");
+assert.ok(t.includes("Nokia S60v3") && t.includes('href="http://x/t.sis">Theme'), "nhãn ngắn thay độ phân giải (theme, nhạc chuông)");
 assert.ok(!t.includes("176x220"), "dòng chỉ có link ftp bị bỏ");
 assert.ok(t.includes("Asphalt 6 &lt;Adrenaline&gt;"), "thoát HTML tiêu đề");
+
+// 1b) bài viết (type post) chuyển thẳng tới trang bài
+ITEM.type = "post";
+r = await w.fetch(new Request("http://api.test/v1/j/7.jad"), env, ctx);
+assert.equal(r.status, 302); assert.equal(r.headers.get("location"), "https://blog.test/p/555");
+delete ITEM.type;
 
 // 2) không có dòng v nào thì 404; .jar của bài link-only luôn 404
 entryHtml = `<pre class="mk-meta">type: game</pre>`;

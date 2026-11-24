@@ -26,13 +26,15 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.5.2";
+    static final String VERSION = "0.6.1";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
     private static final int LIST_CATS = 2;
     private static final int LIST_UPDATES = 3;
     private static final int LIST_FAVS = 4;
+    /** Mã dòng "Đề xuất hôm nay" trong menu Danh mục (không trùng id nhóm 1..5). */
+    private static final int PICK_ID = 99;
 
     private static final int MAX_PROMOS = 3;
 
@@ -132,7 +134,12 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             Vi.mode = Vi.MODE_ACCENT;
             store.save();
         }
+        BaseCanvas.numNav = store.numNav;
         begin();
+        if (donateDue(store.dlCount)) {
+            // đã tải đủ 2 game từ lần chạy trước (máy buộc thoát app khi cài): nhắc ủng hộ ngay khi mở lại
+            showDonate();
+        }
     }
 
     protected void pauseApp() {
@@ -236,6 +243,14 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             hdata = Home.fromCatalog(repo.embedded());
         }
         showHome();
+        if (!store.tipDone) {
+            home.setTip(new String[] {
+                Vi.tr("Nhấn * để tìm kiếm."),
+                Vi.tr("Phím 2 4 6 8 di chuyển, 5 chọn."),
+                Vi.tr("QWERTY: U là *, T F H B, G chọn.")});
+            store.tipDone = true;
+            store.save();
+        }
         loadHome();
     }
 
@@ -590,12 +605,15 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     /** Khóa gửi máy chủ: thêm .r&lt;W&gt;x&lt;H&gt; nếu bật "chỉ hiện game hợp màn hình" (trừ tìm kiếm và mục đơn). */
     private String withFilter(String key) {
-        if (!store.fitScreen || key.startsWith("s:")
-            || (key.length() > 1 && key.charAt(0) == 'i' && Character.isDigit(key.charAt(1)))) {
+        if (key.startsWith("s:") || (key.length() > 1 && key.charAt(0) == 'i' && Character.isDigit(key.charAt(1)))) {
             return key;
         }
         String sz = screenSize();
-        return sz.length() == 0 ? key : key + ".r" + sz;
+        if (sz.length() == 0) {
+            return key;
+        }
+        // .r = chỉ hiện đúng cỡ (khi bật lọc); .s = ưu tiên mềm: cỡ khớp lên đầu, màn lớn thì Worker ưu tiên bản smartphone
+        return key + (store.fitScreen ? ".r" + sz : "") + ".s" + sz;
     }
 
     private void loadList(ListCanvas lc, String key, int page) {
@@ -634,7 +652,8 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         for (int i = 0; i < n; i++) {
             AppInfo a = (AppInfo) p.items.elementAt(i);
             names[i] = (store.isFavorite(a.id) ? "* " : "") + a.name;
-            subs[i] = a.sizeKb + " KB · v" + a.version + (a.isFree() ? "" : " · " + money(a.price));
+            subs[i] = a.has(AppInfo.F_POST | AppInfo.F_MEDIA) ? ""
+                : a.sizeKb + " KB · v" + a.version + (a.isFree() ? "" : " · " + money(a.price));
             flags[i] = a.flags;
         }
         lc.setData(names, subs, flags, badges, p.page, p.total, Page.SIZE);
@@ -643,7 +662,15 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     void listOpen(ListCanvas lc, int k) {
         if (lc.kind == 1 && lc.group == 0) {
-            openGroup(lc.ids[k]);
+            if (lc.ids[k] == PICK_ID) {
+                openList("Đề xuất hôm nay", "pick", null);
+            } else {
+                openGroup(lc.ids[k]);
+            }
+        } else if (lc.kind == 1 && hdata.kindOfCat(lc.ids[k]) >= Home.KIND_READ) {
+            // bài viết, giao diện, âm thanh: không có lượt tải nên không có tab xếp hạng
+            int id = lc.ids[k];
+            openList(hdata.nameOfCat(id), "c" + id, null);
         } else if (lc.kind == 1) {
             int id = lc.ids[k];
             String[] keys = new String[RANK_SORTS.length];
@@ -702,7 +729,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     /** Danh mục cấp 2: các thể loại của một nhóm (kind 1 game, 2 app). */
     private void openGroup(int kind) {
-        ListCanvas lc = newList(kind == Home.KIND_GAME ? "Trò chơi" : "Ứng dụng", 1);
+        ListCanvas lc = newList(Home.kindName(kind), 1);
         lc.group = kind;
         fillCats(lc);
         show(lc);
@@ -729,16 +756,23 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     }
 
     private void fillCats(ListCanvas lc) {
-        int[] sel = new int[Math.max(hdata.catId.length, 2)];
+        int[] sel = new int[Math.max(hdata.catId.length, 7)];
         String[] nm = new String[sel.length];
         int[] cnt = new int[sel.length];
         int n = 0;
         if (lc.group == 0) {
-            for (int kind = Home.KIND_GAME; kind <= Home.KIND_APP; kind++) {
+            if (hdata.countOfKind(Home.KIND_GAME) > 0) {
+                // Đề xuất hôm nay: Worker chọn game cho cả ngày (khóa pick)
+                sel[n] = PICK_ID;
+                nm[n] = "Đề xuất hôm nay";
+                cnt[n++] = 0;
+            }
+            for (int i = 0; i < Home.KIND_ORDER.length; i++) {
+                int kind = Home.KIND_ORDER[i];
                 int c = hdata.countOfKind(kind);
                 if (c > 0) {
                     sel[n] = kind;
-                    nm[n] = kind == Home.KIND_GAME ? "Trò chơi" : "Ứng dụng";
+                    nm[n] = Home.kindName(kind);
                     cnt[n++] = c;
                 }
             }
@@ -824,6 +858,12 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     void detailInstall(DetailCanvas d) {
         AppInfo a = d.info;
         String url = repo.url(a.path);
+        // đếm lượt tải (bỏ qua bấm lại đúng game vừa tải); lưu trước vì máy có thể buộc thoát app khi cài
+        boolean counted = a.id != store.lastDl;
+        if (counted) {
+            store.dlCount++;
+            store.lastDl = a.id;
+        }
         store.save();
         d.setStatus(Vi.tr("Đang mở trình tải..."));
         try {
@@ -831,10 +871,81 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
                 // máy yêu cầu thoát app trước khi cài
                 exit();
             }
+            if (counted && donateDue(store.dlCount)) {
+                donateWait = 1;
+            }
         } catch (ConnectionNotFoundException e) {
+            if (counted) {
+                store.dlCount--;
+                store.lastDl = 0;
+                store.save();
+            }
             d.setStatus("");
             alert("Thông báo", "Máy không mở được liên kết. Gõ địa chỉ này vào trình duyệt: " + url, d);
         }
+    }
+
+    // ---------- thông báo ủng hộ ----------
+
+    /** Nhắc ở lượt tải thứ 2, rồi cứ 5 lượt một lần; mỗi mốc chỉ nhắc một lần. */
+    private boolean donateDue(int n) {
+        return n >= 2 && (n == 2 || (n - 2) % 5 == 0) && n > store.donateAt;
+    }
+
+    /** 0 = không chờ; 1 = vừa bấm tải, chờ app bị ẩn (trình tải mở); 2 = đã ẩn, hiện khi quay lại app. */
+    private int donateWait;
+
+    void detailHidden() {
+        if (donateWait == 1) {
+            donateWait = 2;
+        }
+    }
+
+    void detailShown() {
+        if (donateWait == 2) {
+            donateWait = 0;
+            showDonate();
+        }
+    }
+
+    /** Hiện thông báo ủng hộ (một lần cho mỗi mốc tải). */
+    private void showDonate() {
+        donateWait = 0;
+        Displayable c = display.getCurrent();
+        if (c instanceof DonateCanvas) {
+            return;
+        }
+        store.donateAt = store.dlCount;
+        store.save();
+        DonateCanvas d = new DonateCanvas(this, isFull());
+        d.setCommandListener(this);
+        show(d);
+    }
+
+    void donateClose(DonateCanvas d) {
+        back();
+    }
+
+    /** Máy J2ME không có clipboard: mở ô chữ chứa số tài khoản để người dùng tự chọn và chép. */
+    void donateCopy(DonateCanvas d) {
+        cback = d;
+        cbox = new TextBox(Vi.tr("Số tài khoản Timo"), DonateCanvas.ACCOUNT, 20, TextField.NUMERIC);
+        cbox.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 1));
+        cbox.setCommandListener(this);
+        display.setCurrent(cbox);
+    }
+
+    private TextBox cbox;
+    private Displayable cback;
+
+    // ---------- kiểm tra phím ----------
+
+    private void openKeyTest() {
+        show(new KeyTestCanvas(this));
+    }
+
+    void keyTestExit() {
+        back();
     }
 
     void detailFav(DetailCanvas d) {
@@ -869,16 +980,22 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
 
     private void openOptions() {
         Panel p = newPanel(Panel.MENU, P_OPTIONS, "Tùy chọn", "Chọn", "Quay lại");
-        p.addItem(Vi.tr("1. Mở mục đang chọn"));
-        p.addItem(Vi.tr("2. Tìm kiếm  (phím *)"));
-        p.addItem(Vi.tr("3. Cài đặt"));
-        p.addItem(Vi.tr("4. Thông tin máy"));
-        p.addItem(Vi.tr("5. Giới thiệu"));
-        p.addItem(Vi.tr("6. Kiểm tra mạng"));
+        p.addItem(Vi.tr(mi(1, "Mở mục đang chọn")));
+        p.addItem(Vi.tr(mi(2, "Tìm kiếm  (phím *)")));
+        p.addItem(Vi.tr(mi(3, "Cài đặt")));
+        p.addItem(Vi.tr(mi(4, "Thông tin máy")));
+        p.addItem(Vi.tr(mi(5, "Giới thiệu")));
+        p.addItem(Vi.tr(mi(6, "Kiểm tra mạng")));
+        p.addItem(Vi.tr(mi(7, "Kiểm tra phím")));
         if (updateUrl.length() > 0) {
-            p.addItem(Vi.tr("7. Cập nhật Monika " + updateVer));
+            p.addItem(Vi.tr(mi(8, "Cập nhật Monika " + updateVer)));
         }
         show(p);
+    }
+
+    /** Nhãn mục menu: có số đầu dòng (bấm số để chọn nhanh) chỉ khi tắt chế độ phím số di chuyển. */
+    private static String mi(int n, String s) {
+        return BaseCanvas.numNav ? s : n + ". " + s;
     }
 
     private void openSettings() {
@@ -887,6 +1004,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             Vi.mode == Vi.MODE_PLAIN ? 1 : 0);
         p.addToggle(Vi.tr("Toàn màn hình"), isFull());
         p.addToggle(Vi.tr("Chỉ hiện game hợp màn hình"), store.fitScreen);
+        p.addToggle(Vi.tr("Phím số di chuyển: 2468, 5 là OK"), store.numNav);
         p.addToggle(Vi.tr("Xóa dữ liệu đã lưu"), false);
         p.addText(Vi.tr("Máy chủ"), store.server);
         p.addPara(Vi.tr("Máy chủ để trống là dùng mặc định. Bấm OK để đổi mục, Lưu để áp dụng."));
@@ -897,10 +1015,12 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         Vi.mode = p.row(0).idx == 1 ? Vi.MODE_PLAIN : Vi.MODE_ACCENT;
         store.fullscreen = p.row(1).on ? 1 : 2;
         store.fitScreen = p.row(2).on;
-        if (p.row(3).on) {
+        store.numNav = p.row(3).on;
+        BaseCanvas.numNav = store.numNav;
+        if (p.row(4).on) {
             store.cacheClear();
         }
-        String sv = p.row(4).value;
+        String sv = p.row(5).value;
         store.server = sv == null ? "" : sv.trim();
         store.save();
         home = newHome();
@@ -933,7 +1053,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         Panel p = newPanel(Panel.TEXT, P_ABOUT, "Giới thiệu", null, "Quay lại");
         p.addInfo("Monika", VERSION);
         p.addPara(Vi.tr("Cửa hàng ứng dụng Java S60 by AOW.VN. Dữ liệu đồng bộ với web m.justmonika.top."));
-        p.addPara(Vi.tr("Phím tắt: * tìm kiếm, phím giữa chọn, phím xóa quay lại."));
+        p.addPara(Vi.tr("Phím tắt: * tìm kiếm (QWERTY: phím U), phím giữa hoặc 5 để chọn, 2 4 6 8 để di chuyển (QWERTY: T F H B), phím xóa để quay lại."));
         show(p);
     }
 
@@ -1030,7 +1150,9 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             showAbout();
         } else if (i == 5) {
             openNetTest();
-        } else if (hasUpdate && i == 6) {
+        } else if (i == 6) {
+            openKeyTest();
+        } else if (hasUpdate && i == 7) {
             installUpdate();
         }
     }
@@ -1115,6 +1237,20 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
                 showAbout();
             } else if (c == home.cmdExit) {
                 exit();
+            }
+            return;
+        }
+        if (d == cbox) {
+            cbox = null;
+            display.setCurrent(cback);
+            return;
+        }
+        if (d instanceof DonateCanvas) {
+            DonateCanvas dc = (DonateCanvas) d;
+            if (c == dc.cmdCopy) {
+                dc.copy();
+            } else {
+                dc.close();
             }
             return;
         }

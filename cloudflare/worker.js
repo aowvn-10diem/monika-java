@@ -1,9 +1,11 @@
 // Monika API (Cloudflare Worker + D1). Contract: memory "monika-api-contract".
 // Nguồn dữ liệu: feed Blogger (BLOG_URL). Cron quét từng trang 40 bài, xóa mục mất khỏi blog sau mỗi vòng quét.
 
+import { pdDirect, upstream, pdServe, pdImage, pdIds } from "./pd.js";
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
-import { resolveCat, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson } from "./rank.js";
+import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson } from "./rank.js";
+import { pagerJson } from "./pager.js";
 
 const PAGE = 15;
 const FEED_PAGE = 40;
@@ -70,14 +72,14 @@ function parseEntry(e) {
   const labelsL = labels.map((l) => l.toLowerCase());
   let type = (meta.type || "").toLowerCase();
   if (!type) for (const t of ["banner", "self", "game", "app"]) if (labelsL.includes(t)) { type = t; break; }
+  if (!type) type = typeFromLabels(labels); // bài không khai type: nhãn nhóm (Giao diện, Âm thanh, Bài viết) hoặc tên danh mục của nhóm 3, 4, 5
   const id = String((e.id && e.id.$t) || "");
   const src = (id.match(/post-(\d+)$/) || [])[1];
   const alt = ((e.link || []).find((l) => l.rel === "alternate") || {}).href || "";
   const title = decodeEntities((e.title && e.title.$t) || "").trim();
   const body = m ? html.replace(m[0], "") : html;
   const img = meta.img || firstShot(body) || (e.media$thumbnail && e.media$thumbnail.url) || "";
-  const typeSet = new Set(["banner", "self", "game", "app"]);
-  const cat = meta.cat || labels.find((l) => !typeSet.has(l.toLowerCase())) || "";
+  const cat = meta.cat || labels.find((l) => !isTypeLabel(l)) || "";
   const num = (v) => { const n = parseInt(String(v || "").replace(/[^\d]/g, ""), 10); return Number.isFinite(n) ? n : 0; };
   const descr = htmlToText(body).replace(/\s+/g, " ").trim();
   const rc = resolveCat(cat, type);
@@ -87,7 +89,7 @@ function parseEntry(e) {
     src, type, title, alt, img, ext, cat, catId: rc.id, catUnknown: rc.unknown || "", tags, plat: parsePlat(meta.plat), res: parseRes(meta.res || "", meta.jar || "", title), meta,
     fileK: (/^[0-9a-f]{10}$/i.test(meta.file || "") ? meta.file : ((/\/v1\/f\/[^\/?#]*-([0-9a-f]{10})\.jar/i.exec(meta.jar || "") || [])[1] || "")).toLowerCase(),
     ver: meta.ver || meta.version || "", size: num(meta.size), price: num(meta.price),
-    jar: directJar(meta.jar || ""), descr: meta.desc || descr,
+    pds: pdIds(ext), jar: directJar(meta.jar || ""), descr: meta.desc || descr,
     flags: (meta.net === "1" || /^(y|yes|true)$/i.test(meta.net || "") ? 4 : 0) | (meta.hot === "1" ? 8 : 0),
     published: Date.parse(e.published && e.published.$t) || 0,
     updated: Date.parse(e.updated && e.updated.$t) || 0,
@@ -113,7 +115,7 @@ function directJar(u) {
   if (m) return "https://drive.usercontent.google.com/download?export=download&confirm=t&id=" + m[1];
   m = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/i.exec(u);
   if (m) return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
-  return u;
+  return pdDirect(u);
 }
 
 // ---------- sync ----------
@@ -134,6 +136,7 @@ async function syncStep(env) {
   const feed = (await r.json()).feed || {};
   const entries = feed.entry || [];
   const st = [];
+  const pdst = []; // ánh xạ Pixeldrain: batch riêng, lỗi (chưa chạy migration 006) không làm hỏng đồng bộ chính
   let n = 0;
   for (const e of entries) {
     const p = parseEntry(e);
@@ -146,6 +149,7 @@ async function syncStep(env) {
       ).bind(p.src, (p.meta.slot || "top").toLowerCase(), p.img, p.meta.link || "", p.meta.alt || p.title, p.updated, sweep));
       continue;
     }
+    for (const id of p.pds || []) pdst.push(db.prepare("INSERT INTO pd_links(pd,src) VALUES(?,?) ON CONFLICT(pd) DO UPDATE SET src=excluded.src").bind(id, p.src));
     if (p.catUnknown) st.push(db.prepare("INSERT OR IGNORE INTO meta(k,v) VALUES(?,?)").bind("unk:" + p.catUnknown.slice(0, 60), p.alt || p.src));
     st.push(db.prepare(
       `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,img,file_h,tags,plat,res)
@@ -168,6 +172,7 @@ async function syncStep(env) {
       st.push(db.prepare("DELETE FROM items WHERE sweep < ?").bind(sweep));
       st.push(db.prepare("DELETE FROM items WHERE src LIKE 'up-%' AND file_h IN (SELECT file_h FROM items WHERE src NOT LIKE 'up-%' AND file_h IS NOT NULL)"));
       st.push(db.prepare("DELETE FROM banners WHERE sweep < ?").bind(sweep));
+      pdst.push(db.prepare("DELETE FROM pd_links WHERE src NOT IN (SELECT src FROM items)"));
       st.push(setMetaStmt(db, "sweep", sweep + 1));
     }
     st.push(setMetaStmt(db, "cursor", 1));
@@ -176,6 +181,7 @@ async function syncStep(env) {
     st.push(setMetaStmt(db, "cursor", cursor + FEED_PAGE));
   }
   if (st.length) await db.batch(st);
+  if (pdst.length) { try { await db.batch(pdst); } catch (_) {} }
   return { cursor, entries: entries.length, parsed: n, done };
 }
 
@@ -201,6 +207,8 @@ const flagsOf = (r, now) => {
   if (r.hot) f |= 8;
   if (r.hasic) f |= 16; // có icon: app gọi /v1/ic/{id}-32.png
   if (r.hasimg) f |= 32; // có ảnh minh họa: app gọi /v1/sc/{id}-{w}x{h}.jpg
+  if (r.type === "post") f |= 64; // bài viết (truyện, thủ thuật): nút Mở chuyển tới trang bài, không có lượt tải
+  else if (r.type === "media") f |= 128; // giao diện, âm thanh: nút Tải mở trang chọn bản
   return f;
 };
 const bin = (u8, ttl = 60) => new Response(u8, { headers: { "content-type": "application/octet-stream", "cache-control": `public, max-age=${ttl}`, "access-control-allow-origin": "*" } });
@@ -234,9 +242,9 @@ async function home(env) {
   return bin(o.bytes());
 }
 
-async function list(env, where, binds, page, order) {
+async function list(env, where, binds, page, order, types) {
   const now = Date.now();
-  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE);
+  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE, types);
   const o = new Out().i32(0x4d4b4c31).u8(1).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
   for (const r of rows) {
     o.i32(r.n).u8(r.cat).u8(flagsOf(r, now)).u16(Math.min(r.size_kb || 0, 65535)).i32(r.price || 0)
@@ -246,9 +254,9 @@ async function list(env, where, binds, page, order) {
 }
 
 // v2: thêm dl (int), tags (ushort), plat (ubyte) giữa price và version. App 0.3 không dùng.
-async function list2(env, where, binds, page, order) {
+async function list2(env, where, binds, page, order, types) {
   const now = Date.now();
-  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE);
+  const { total, rows } = await fetchRows(env, where, binds, page, order, PAGE, types);
   const o = new Out().i32(0x4d4b4c32).u8(2).u16(Math.min(total, 65535)).u16(page).u8(rows.length);
   for (const r of rows) {
     o.i32(r.n).u8(r.cat).u8(flagsOf(r, now)).u16(Math.min(r.size_kb || 0, 65535)).i32(r.price || 0).i32(r.dl || 0).u16(r.tags || 0).u8(r.plat || 1)
@@ -261,19 +269,19 @@ async function listJson(env, key, page) {
   const q = parseKey(key);
   if (!q) return jsonResp({ error: "bad key" }, 400);
   const now = Date.now();
-  const { total, rows } = await fetchRows(env, q.where, q.binds, page, await orderFor(env, q.sort), PAGE);
+  const { total, rows } = await fetchRows(env, q.where, q.binds, page, await orderFor(env, q.sort, q.screen), PAGE, q.types);
   return jsonResp({ total, page, items: rows.map((r, i) => jsonItem(r, i, flagsOf(r, now))) });
 }
 const jsonResp = (o, status = 200, ttl = 60) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": `public, max-age=${ttl}`, "access-control-allow-origin": "*" } });
 
-// danh mục v2: kind 1 game, 2 app; tên chuẩn lấy từ taxonomy
-async function home2(env) {
+// danh mục v2: kind 1 game, 2 app; tên chuẩn lấy từ taxonomy. v3 (home3.bin, magic MKH3, cùng bố cục) liệt kê thêm nhóm 3 bài viết, 4 giao diện, 5 âm thanh.
+async function home2(env, v3) {
   const db = env.DB, now = Date.now();
   const newCount = (await db.prepare("SELECT COUNT(*) c FROM items WHERE type IN ('game','app') AND published > ?").bind(now - NEW_DAYS * DAY).first()).c;
   const self = await db.prepare("SELECT n,ver FROM items WHERE type='self' ORDER BY updated DESC LIMIT 1").first();
-  const cats = (await catsJson(env)).filter((c) => c.kind === 1 || c.kind === 2).slice(0, 60);
+  const cats = (await catsJson(env)).filter((c) => v3 || c.kind === 1 || c.kind === 2).slice(0, 100);
   const bn = (await db.prepare("SELECT n,alt,link FROM banners WHERE slot='top' ORDER BY updated DESC LIMIT 10").all()).results;
-  const o = new Out().i32(0x4d4b4832).u8(2).u16(newCount).utf(self ? self.ver : "").utf(self ? `http://${env.API_HOST}/v1/j/${self.n}.jar` : "");
+  const o = new Out().i32(v3 ? 0x4d4b4833 : 0x4d4b4832).u8(v3 ? 3 : 2).u16(newCount).utf(self ? self.ver : "").utf(self ? `http://${env.API_HOST}/v1/j/${self.n}.jar` : "");
   o.u8(cats.length);
   for (const c of cats) o.u8(c.id).u8(c.kind).utf(c.name).u16(c.count);
   o.u8(bn.length);
@@ -334,16 +342,29 @@ async function countFile(env, req, fname) {
 const hesc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export function chooserHtml(title, lines, blog) {
   const rows = [];
+  let nlink = 0;
   for (const l of lines.slice(0, 40)) {
     const p = l.split("|").map((x) => x.trim());
     const links = p.slice(2).map((x) => /^([^=<>"]{1,20})=(https?:\/\/[^\s<>"]+)$/i.exec(x)).filter(Boolean)
       .map((x) => `<a href="${hesc(x[2])}">${hesc(x[1])}</a>`);
-    if (!/^\d{2,3}x\d{2,3}$/.test(p[0] || "") || !links.length) continue;
-    rows.push(`<p><b>${hesc(p[0])}</b>${p[1] && /^\d+$/.test(p[1]) ? " · " + p[1] + " KB" : ""} · ${links.join(" · ")}</p>`);
+    nlink = Math.max(nlink, links.length);
+    // trường đầu: độ phân giải (game, hình nền) hoặc nhãn ngắn (theme, nhạc chuông, video: "Nokia S60v3", "MP3 128k")
+    if (!/^(\d{2,3}x\d{2,3}|[\p{L}\p{N} ._+()-]{1,24})$/u.test(p[0] || "") || !links.length) continue;
+    rows.push(`<tr><td><b>${hesc(p[0])}</b></td><td>${p[1] && /^\d+$/.test(p[1]) ? p[1] + " KB" : "&nbsp;"}</td>` +
+      Array.from({ length: nlink || links.length }, (_, i) => `<td>${links[i] || "&nbsp;"}</td>`).join("") + "</tr>");
+  }
+  // bảng thật (không float, không CSS mới) để Opera Mini, Nokia S40/S60 cũ vẫn thẳng cột; số cột link theo dòng nhiều link nhất
+  if (rows.length) {
+    const cols = nlink;
+    for (let i = 0; i < rows.length; i++) {
+      const have = (rows[i].match(/<td>/g) || []).length - 2;
+      if (have < cols) rows[i] = rows[i].replace("</tr>", "<td>&nbsp;</td>".repeat(cols - have) + "</tr>");
+    }
   }
   if (!rows.length) return "";
   return `<html><head><meta charset="utf-8"><title>${hesc(title)}</title></head><body><h3>${hesc(title)}</h3>` +
-    `<p>Chọn dòng đúng độ phân giải màn hình máy bạn. Tệp tải từ trang nguồn.</p>${rows.join("")}` +
+    `<p>Chọn dòng đúng với máy bạn (độ phân giải màn hình hoặc loại máy). Tệp tải từ trang nguồn.</p>` +
+    `<table border="1" cellpadding="4" cellspacing="0" width="100%"><tr><th align="left">Máy / màn hình</th><th align="left">Dung lượng</th><th align="left" colspan="${Math.max(nlink, 1)}">Tải về</th></tr>${rows.join("")}</table>` +
     `<p><a href="${hesc(blog || "/")}">Monika</a></p></body></html>`;
 }
 async function chooser(env, it) {
@@ -379,7 +400,9 @@ const picName = (env, u) => { const m = /^https?:\/\/([^/]+)\/v1\/pic\/([A-Za-z0
 const tooMany = () => new Response("Tai qua nhanh, thu lai sau 1 phut.", { status: 429, headers: { "content-type": "text/plain; charset=utf-8", "retry-after": "60", "access-control-allow-origin": "*" } });
 
 async function download(env, ctx, req, n, ext) {
-  const it = await env.DB.prepare("SELECT n,src,title,jar,jad_text,file_h,url FROM items WHERE n=?").bind(n).first();
+  const it = await env.DB.prepare("SELECT n,type,src,title,jar,jad_text,file_h,url FROM items WHERE n=?").bind(n).first();
+  // bài viết (truyện, thủ thuật) không có file: nút Mở của app đi qua đường này và được chuyển thẳng tới trang bài
+  if (it && it.type === "post" && it.url && /^https?:\/\//i.test(it.url)) return Response.redirect(it.url, 302);
   if (it && !it.jar && !it.file_h && ext === "jad") { const pg = await chooser(env, it); if (pg) return pg; }
   if (!it || (!it.jar && !it.file_h)) return text("not found", 404);
   if (ext === "jar") {
@@ -401,7 +424,7 @@ async function download(env, ctx, req, n, ext) {
   }
   const h = {};
   const rg = req.headers.get("range"); if (rg) h.range = rg;
-  const r = await fetch(it.jar, { headers: { ...h, "user-agent": "MonikaDl/1" } });
+  const r = await upstream(env, it.jar, { headers: { ...h, "user-agent": "MonikaDl/1" } });
   if (!r.ok && r.status !== 206) return text("upstream " + r.status, 502);
   const hd = new Headers({ "content-type": "application/java-archive", "cache-control": "public, max-age=300", "accept-ranges": "bytes", "content-disposition": `attachment; filename="monika-${n}.jar"` });
   for (const k of ["content-length", "content-range"]) if (r.headers.get(k)) hd.set(k, r.headers.get(k));
@@ -431,26 +454,42 @@ export default {
       let m;
       if (p === "/" || p === "/v1") return text("Monika API v1\n");
       if (p === "/v1/home.bin") return await home(env);
-      if (p === "/v1/home2.bin") return await home2(env);
+      if (p === "/v1/home2.bin") return await home2(env, false);
+      if (p === "/v1/home3.bin") return await home2(env, true);
       if ((m = /^\/v1\/(l|l2)\/([a-z0-9.]+)\/(\d+)\.bin$/.exec(p))) {
         const page = Math.min(parseInt(m[3], 10), 4000), q = parseKey(m[2]);
         if (!q) return text("bad key", 404);
-        return await (m[1] === "l2" ? list2 : list)(env, q.where, q.binds, q.where.startsWith("i.n=?") ? 0 : page, await orderFor(env, q.sort));
+        return await (m[1] === "l2" ? list2 : list)(env, q.where, q.binds, q.where.startsWith("i.n=?") ? 0 : page, await orderFor(env, q.sort, q.screen), q.types);
       }
       if (p === "/v1/list.json") return await listJson(env, u.searchParams.get("key") || "new", Math.min(Math.max(parseInt(u.searchParams.get("page") || "0", 10) || 0, 0), 4000));
       if (p === "/v1/stats.json") return jsonResp(await statsJson(env, u.searchParams.get("ids"), u.searchParams.get("paths")));
       if (p === "/v1/cats.json") return jsonResp(await catsJson(env), 200, 300);
+      if (p === "/v1/menu.json") return jsonResp(await menuJson(env), 200, 300);
+      if (p === "/v1/pager.json") return await pagerJson(env, u, ctx);
       if ((m = /^\/v1\/s\/([^/]*)\/(\d+)\.bin$/.exec(p))) {
         let key = "";
         try { key = norm(decodeURIComponent(m[1].replace(/\+/g, " "))).replace(/[%_\\]/g, "").trim().slice(0, 40); } catch (_) {}
         if (!key) return await list(env, "0=1", [], 0, "i.n");
         if (await tooFast(env, req, "RL_SEARCH")) return tooMany();
-        return await list(env, "i.norm LIKE ?", ["%" + key + "%"], Math.min(parseInt(m[2], 10), 4000), "i.updated DESC");
+        return await list(env, "i.norm LIKE ?", ["%" + key + "%"], Math.min(parseInt(m[2], 10), 4000), "i.updated DESC", ITEM_TYPES);
       }
       if ((m = /^\/v1\/b\/(\d+)-(\d+)\.png$/.exec(p))) return await banner(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 60), 1000));
       if ((m = /^\/v1\/sc\/(\d+)-(\d+)x(\d+)\.jpg$/.exec(p))) return await shot(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 40), 320), Math.min(Math.max(parseInt(m[3], 10), 30), 320));
       if ((m = /^\/v1\/pic\/([A-Za-z0-9_-]{1,60}\.jpg)$/.exec(p))) return await pic(env, m[1]);
       if ((m = /^\/v1\/j\/(\d+)\.(jad|jar)$/.exec(p))) return await download(env, ctx, req, parseInt(m[1], 10), m[2]);
+      if ((m = /^\/v1\/p\/([A-Za-z0-9]{6,12})\/([^/]{1,120}\.jar)$/.exec(p))) {
+        if (hotlinked(env, req)) return Response.redirect(env.BLOG_URL || `http://${env.API_HOST}/`, 302);
+        if (await tooFast(env, req, "RL_DL")) return tooMany();
+        // đếm lượt vào đúng mục nếu ID đã có trong pd_links (chưa có bảng/ánh xạ thì chỉ phục vụ, không đếm)
+        try {
+          const row = await env.DB.prepare("SELECT i.n FROM pd_links l JOIN items i ON i.src=l.src WHERE l.pd=?").bind(m[1]).first();
+          if (row) ctx.waitUntil(countDownload(env, req, row.n));
+        } catch (_) {}
+        return await pdServe(env, req, m[1], decodeURIComponent(m[2]), text);
+      }
+      if ((m = /^\/v1\/pi\/([A-Za-z0-9]{6,12})\/([^/]{1,60})$/.exec(p)) && (req.method === "GET" || req.method === "HEAD")) {
+        return await pdImage(env, req, m[1], decodeURIComponent(m[2]), text);
+      }
       if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
       if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
       if (p === "/v1/up" && req.method === "POST") return await handleUpload(env, ctx, req, u);

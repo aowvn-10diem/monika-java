@@ -61,3 +61,6 @@ CREATE INDEX IF NOT EXISTS items_pub ON items(published DESC);
 CREATE INDEX IF NOT EXISTS items_dl ON items(dl DESC);
 CREATE INDEX IF NOT EXISTS items_score ON items(score) WHERE score > 0;
 CREATE INDEX IF NOT EXISTS items_pin ON items(updated DESC) WHERE (flags & 8) <> 0;
+
+-- Pixeldrain: ID tệp -> bài (migration 006), để /v1/p đếm lượt tải vào đúng mục
+CREATE TABLE IF NOT EXISTS pd_links (pd TEXT PRIMARY KEY, src TEXT NOT NULL) WITHOUT ROWID;
