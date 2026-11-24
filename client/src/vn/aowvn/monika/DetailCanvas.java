@@ -164,7 +164,7 @@ final class DetailCanvas extends BaseCanvas {
         g.drawString(Vi.tr(fav ? "Bỏ yêu thích" : "Yêu thích"), w / 2, favY + (favH - f.getHeight()) / 2,
             Graphics.TOP | Graphics.HCENTER);
         g.setFont(fs);
-        g.drawString("2", 12, favY + (favH - fs.getHeight()) / 2, Graphics.TOP | Graphics.LEFT);
+        g.drawString(numNav ? "3" : "2", 12, favY + (favH - fs.getHeight()) / 2, Graphics.TOP | Graphics.LEFT);
 
         // phần chữ cuộn
         int viewH = h - textY - barH;
@@ -219,16 +219,26 @@ final class DetailCanvas extends BaseCanvas {
         }
     }
 
+    protected void showNotify() {
+        app.detailShown();
+    }
+
+    protected void hideNotify() {
+        app.detailHidden();
+    }
+
     protected void keyPressed(int code) {
-        if (code == Canvas.KEY_NUM1) {
+        int d = digit(code);
+        if (d == 1) {
             install();
             return;
         }
-        if (code == Canvas.KEY_NUM2) {
+        // phím yêu thích: 3 khi 2/4/6/8 dùng để di chuyển, 2 khi tắt chế độ đó
+        if (d == (numNav ? 3 : 2)) {
             app.detailFav(this);
             return;
         }
-        if (code == Canvas.KEY_STAR || code == 's' || code == 'S') {
+        if (isStar(code)) {
             app.listSearch();
             return;
         }
@@ -247,7 +257,8 @@ final class DetailCanvas extends BaseCanvas {
                 return;
             }
         }
-        if (isFire(code)) {
+        int ga = dir(code);
+        if (isFire(code) || ga == Canvas.FIRE) {
             if (canInstall) {
                 install();
             } else {
@@ -255,7 +266,6 @@ final class DetailCanvas extends BaseCanvas {
             }
             return;
         }
-        int ga = gameAction(code);
         int step = Theme.body().getHeight() * 2;
         if (ga == Canvas.DOWN) {
             scroll = Math.min(maxScroll(getHeight()), scroll + step);
@@ -267,7 +277,7 @@ final class DetailCanvas extends BaseCanvas {
     }
 
     protected void keyRepeated(int code) {
-        int ga = gameAction(code);
+        int ga = dir(code);
         if (ga == Canvas.UP || ga == Canvas.DOWN) {
             keyPressed(code);
         }

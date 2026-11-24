@@ -511,12 +511,13 @@ final class Panel extends BaseCanvas {
             inputKey(code);
             return;
         }
-        if (code == Canvas.KEY_STAR) {
+        if (isStar(code)) {
             app.panelAction(this, A_SEARCH, selected());
             return;
         }
-        if (kind == MENU && code >= Canvas.KEY_NUM1 && code <= Canvas.KEY_NUM9) {
-            int i = code - Canvas.KEY_NUM1;
+        int dg = digit(code);
+        if (kind == MENU && !numNav && dg >= 1) {
+            int i = dg - 1;
             if (i < rows.size()) {
                 sel = i;
                 repaint();
@@ -539,7 +540,8 @@ final class Panel extends BaseCanvas {
             app.panelAction(this, A_RIGHT, selected());
             return;
         }
-        if (isFire(code)) {
+        int ga = dir(code);
+        if (isFire(code) || ga == Canvas.FIRE) {
             if (kind == TEXT) {
                 app.panelAction(this, left != null ? A_LEFT : A_RIGHT, 0);
             } else {
@@ -547,7 +549,6 @@ final class Panel extends BaseCanvas {
             }
             return;
         }
-        int ga = gameAction(code);
         if (ga == Canvas.UP) {
             move(-1);
         } else if (ga == Canvas.DOWN) {
@@ -560,7 +561,7 @@ final class Panel extends BaseCanvas {
     }
 
     protected void keyRepeated(int code) {
-        int ga = gameAction(code);
+        int ga = kind == INPUT ? 0 : dir(code);
         if (kind != INPUT && (ga == Canvas.UP || ga == Canvas.DOWN)) {
             move(ga == Canvas.UP ? -1 : 1);
         } else if (kind == INPUT && (code == -8 || code == 8)) {

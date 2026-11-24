@@ -62,6 +62,9 @@ final class HomeCanvas extends BaseCanvas {
     private int promoIdx;
     private Timer timer;
 
+    /** Khung hướng dẫn lần đầu (null = không hiện). */
+    private String[] tip;
+
     private Image headImg;
     private int headW;
     private int headH;
@@ -184,6 +187,9 @@ final class HomeCanvas extends BaseCanvas {
             y += rowH;
         }
         paintBar(g, w, h);
+        if (tip != null) {
+            paintTip(g, w, h);
+        }
     }
 
     private void paintPromo(Graphics g, int w, int y) {
@@ -424,17 +430,23 @@ final class HomeCanvas extends BaseCanvas {
     // ---------- phím ----------
 
     protected void keyPressed(int code) {
-        if (code >= Canvas.KEY_NUM1 && code <= Canvas.KEY_NUM5) {
-            sel = code - Canvas.KEY_NUM1;
+        if (tip != null) {
+            // thông báo hướng dẫn: phím đầu tiên chỉ tắt thông báo
+            setTip(null);
+            return;
+        }
+        int d = digit(code);
+        if (!numNav && d >= 1 && d <= 5) {
+            sel = d - 1;
             repaint();
             app.homeAction(ACT_OPEN, sel);
             return;
         }
-        if (code == Canvas.KEY_NUM0 && promoH > 0) {
+        if (d == 0 && promoH > 0) {
             app.homeAction(ACT_PROMO, PROMO);
             return;
         }
-        if (code == Canvas.KEY_STAR || code == 's' || code == 'S') {
+        if (isStar(code)) {
             app.homeAction(ACT_SEARCH, sel);
             return;
         }
@@ -449,11 +461,11 @@ final class HomeCanvas extends BaseCanvas {
                 return;
             }
         }
-        if (isFire(code)) {
+        int ga = dir(code);
+        if (isFire(code) || ga == Canvas.FIRE) {
             activate();
             return;
         }
-        int ga = gameAction(code);
         if (ga == Canvas.UP) {
             sel = (sel + focusCount() - 1) % focusCount();
             repaint();
@@ -464,15 +476,64 @@ final class HomeCanvas extends BaseCanvas {
     }
 
     protected void keyRepeated(int code) {
-        int ga = gameAction(code);
-        if (ga == Canvas.UP || ga == Canvas.DOWN) {
+        int ga = dir(code);
+        if (tip == null && (ga == Canvas.UP || ga == Canvas.DOWN)) {
             keyPressed(code);
         }
+    }
+
+    // ---------- thông báo hướng dẫn lần đầu ----------
+
+    /** Hiện (hoặc tắt khi null) khung hướng dẫn nhỏ phía dưới; phím hoặc chạm bất kỳ sẽ tắt. */
+    void setTip(String[] lines) {
+        tip = lines;
+        repaint();
+    }
+
+    private void paintTip(Graphics g, int w, int h) {
+        Font f = Theme.small();
+        Font fb = Theme.smallBold();
+        int pad = 6;
+        int lh = f.getHeight();
+        java.util.Vector wrapped = new java.util.Vector();
+        for (int i = 0; i < tip.length; i++) {
+            String[] part = wrap(i == 0 ? fb : f, tip[i], w - 2 * pad - 12);
+            for (int j = 0; j < part.length; j++) {
+                wrapped.addElement(new Object[] {part[j], i == 0 ? Boolean.TRUE : Boolean.FALSE});
+            }
+        }
+        int bh = wrapped.size() * lh + 2 * pad + lh;
+        int bw = w - 12;
+        int bx = 6;
+        int by = h - barH - bh - 6;
+        if (by < 4) {
+            by = 4;
+        }
+        g.setColor(Theme.ORANGE);
+        g.fillRoundRect(bx - 1, by - 1, bw + 2, bh + 2, 12, 12);
+        g.setColor(Theme.BAR_BG);
+        g.fillRoundRect(bx, by, bw, bh, 12, 12);
+        int y = by + pad;
+        for (int i = 0; i < wrapped.size(); i++) {
+            Object[] ln = (Object[]) wrapped.elementAt(i);
+            boolean head = ln[1] == Boolean.TRUE;
+            g.setFont(head ? fb : f);
+            g.setColor(head ? Theme.ORANGE : Theme.TEXT);
+            g.drawString((String) ln[0], bx + 8, y, Graphics.TOP | Graphics.LEFT);
+            y += lh;
+        }
+        g.setFont(f);
+        g.setColor(Theme.DIM);
+        g.drawString(Vi.tr("Nhấn phím bất kỳ để đóng"), bx + bw / 2, y + 2, Graphics.TOP | Graphics.HCENTER);
     }
 
     // ---------- cảm ứng ----------
 
     protected void pointerPressed(int x, int y) {
+        if (tip != null) {
+            setTip(null);
+            return;
+        }
         int w = getWidth();
         int h = getHeight();
         layout(w, h);

@@ -175,6 +175,18 @@ pre.mk-meta{display:none}
 .ft a{text-decoration:underline}
 .ft .widget{margin:0}
 .ft .widget li{text-align:center;background:none;border:0;justify-content:center;padding:2px}
+/* thong bao ung ho (hien sau khi tai 2 game): man nho la khoi dat o dau trang, PC la lop phu giua man hinh */
+.mkd{background:#1b0a38;border-bottom:3px solid #ff7a1a;padding:14px 12px 18px}
+.mkd-in{max-width:460px;margin:0 auto;text-align:center}
+.mkd h2{font-size:21px;line-height:1.25;margin:0 0 8px;color:#ff7a1a}
+.mkd p{margin:0 0 10px;color:#f3ecff}
+.mkd .mkd-hint{font-size:12px;color:#cdbfe8;margin:0 0 12px}
+.mkd .mkd-qr{display:block;margin:6px auto 12px;padding:8px;background:#fff;border-radius:8px;width:230px;max-width:90%;height:auto}
+.mkd .mkd-acc{margin:0 0 4px;padding:10px;background:#290f4f;border:1px solid #3a1a66;border-radius:6px}
+.mkd .mkd-acc label{display:block;font-size:12px;color:#cdbfe8;margin-bottom:4px}
+.mkd .mkd-acc input{display:block;width:100%;padding:8px;margin:0 0 8px;border:1px solid #4a2a7a;border-radius:4px;background:#1f0b3d;color:#fff;font:700 20px/1.2 monospace;text-align:center;letter-spacing:1px}
+.mkd .mkd-btn{display:block;width:100%;padding:11px 8px;border:0;border-radius:6px;background:#cc580c;background:linear-gradient(#cc580c,#b44606);color:#fff;font:700 15px/1.2 inherit;font-family:inherit;text-align:center;cursor:pointer}
+.mkd a.mkd-x{display:block;margin:16px 0 0;padding:12px 8px;border-radius:6px;background:#3a1a66;border:1px solid #6a3aa0;color:#fff;font-weight:700;text-align:center;cursor:pointer}
 /* tablet: 3 o moi hang */
 @media (min-width:600px){
 .cols{padding:12px}
@@ -216,6 +228,9 @@ pre.mk-meta{display:none}
 .it{padding:18px}
 .pt{font-size:26px}
 .pb a.dlbtn{display:inline-block;padding:12px 28px}
+.mkd{position:fixed;left:0;right:0;top:0;bottom:0;z-index:99;overflow:auto;background:#140729;background:rgba(14,4,30,.88);border:0;padding:30px 12px}
+.mkd-in{background:#1b0a38;border:1px solid #4a2a7a;border-radius:10px;padding:20px 22px}
+.mkd .mkd-hint{display:none}
 }
 @media (min-width:1060px){
 .by{display:block}
@@ -708,6 +723,49 @@ if(slots.length){
    var h=el(b.href?'a':'div');if(b.href){h.href=b.href;h.rel='nofollow'}
    h.appendChild(img);s.appendChild(h);s.className+=' on';
    if(/\bbn-top\b/.test(s.className)){var hd=d.querySelector('.hd');if(hd)hd.className+=' hb'}})})}
+/* thong bao ung ho: dem luot bam nut tai (cookie mkd=<so luot>.<luot da nhac>.<cho hien>), hien o luot 2, roi moi 5 luot.
+   Web khong biet luc nao tai xong that, nen hien sau 2,5 giay hoac khi nguoi dung quay lai trang. Doi so trong due() de chinh nhip nhac */
+(function(){
+var CK='mkd',STK='9021870093495',QR='data:image/png;base64,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',S={n:0,s:0,p:0};
+function rc(){var m=new RegExp('(?:^|; )'+CK+'=([^;]*)').exec(d.cookie||''),a=m?m[1].split('.'):[];S.n=parseInt(a[0],10)||S.n;S.s=parseInt(a[1],10)||S.s;S.p=a[2]==='1'?1:0}
+function wc(){try{d.cookie=CK+'='+S.n+'.'+S.s+'.'+S.p+';path=/;max-age=31536000'}catch(e){}}
+function due(n){return n>=2&&(n===2||(n-2)%5===0)&&n>S.s}
+function isDl(a){var h=a.getAttribute('href')||'';return /(^|\s)dlbtn(\s|$)/.test(a.className||'')||/\/v1\/(j|f)\/|\.(jar|jad|zip)([?#]|$)/i.test(h)}
+function show(){
+ if(d.getElementById('mkd'))return;
+ S.p=0;S.s=S.n;wc();
+ var box=el('div','mkd'),in_=el('div','mkd-in'),qr=el('img','mkd-qr'),acc=el('div','mkd-acc'),lb=el('label','','Số tài khoản (ngân hàng Timo)'),
+  inp=el('input'),cp=el('button','mkd-btn','Sao chép số tài khoản'),x=el('a','mkd-x','Đóng thông báo');
+ box.id='mkd';
+ in_.appendChild(el('h2','','Giữ Monika luôn miễn phí'));
+ in_.appendChild(el('p','mkd-hint','Kéo xuống dưới cùng có nút Đóng thông báo'));
+ in_.appendChild(el('p','','Monika cố gắng cung cấp ứng dụng miễn phí nhất có thể, nhưng chúng mình cũng phải duy trì hệ thống ổn định. Đóng góp của bạn sẽ giúp Monika ngày càng tốt hơn <3'));
+ in_.appendChild(el('p','','Donate bằng cách dùng smartphone của bạn, quét mã QR sau, hoặc donate tới địa chỉ '+STK+', ngân hàng Timo'));
+ qr.alt='Mã QR chuyển khoản VietQR';qr.width=270;qr.height=312;qr.onerror=function(){del(qr)};qr.src=QR;in_.appendChild(qr);
+ inp.type='text';inp.value=STK;inp.readOnly=true;inp.onfocus=function(){try{inp.select()}catch(e){}};
+ acc.appendChild(lb);acc.appendChild(inp);acc.appendChild(cp);in_.appendChild(acc);
+ function done(ok){cp.textContent=ok?'Đã sao chép':'Chạm giữ vào số để chép';try{inp.focus();inp.select()}catch(e){}}
+ function legacy(){var ok=false;try{inp.focus();inp.select();if(inp.setSelectionRange)inp.setSelectionRange(0,STK.length);ok=!!(d.execCommand&&d.execCommand('copy'))}catch(e){}done(ok)}
+ cp.type='button';
+ cp.onclick=function(){
+  if(navigator.clipboard&&navigator.clipboard.writeText){try{navigator.clipboard.writeText(STK).then(function(){done(1)},legacy);return}catch(e){}}
+  legacy()};
+ x.href='#';x.onclick=function(){del(box);return false};
+ in_.appendChild(x);box.appendChild(in_);
+ d.body.insertBefore(box,d.body.firstChild);
+ try{window.scrollTo(0,0)}catch(e){}}
+rc();
+if(S.p&&due(S.n))show();
+function back(){rc();if(S.p&&due(S.n))show()}
+if(window.addEventListener){window.addEventListener('pageshow',back,false);window.addEventListener('focus',back,false)}
+function onClick(e){
+ e=e||window.event;var t=e.target||e.srcElement;
+ while(t&&t!==d&&String(t.tagName).toUpperCase()!=='A')t=t.parentNode;
+ if(!t||t===d||!isDl(t))return;
+ rc();S.n++;
+ if(due(S.n)){S.p=1;wc();setTimeout(function(){if(S.p&&due(S.n))show()},2500)}else wc()}
+if(d.addEventListener)d.addEventListener('click',onClick,false);else if(d.attachEvent)d.attachEvent('onclick',onClick);
+})();
 })();
 //]]>
 </script>
