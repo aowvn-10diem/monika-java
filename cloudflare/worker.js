@@ -318,6 +318,11 @@ async function shot(env, id, w, h) {
   if (!it || !it.img) return text("not found", 404);
   const pn = picName(env, it.img);
   if (pn) return await pic(env, pn);
+  // Ảnh đã chuyển về Pixeldrain (/v1/pi/<ID>/<tên>) của chính API: gọi thẳng hàm phát ảnh. Worker tự fetch tên miền của chính nó sẽ treo ~20 giây rồi 502 (ô ảnh trống, trang tải chậm).
+  const pi = /^https?:\/\/([^/]+)\/v1\/pi\/([A-Za-z0-9_-]{4,40})\/([A-Za-z0-9._-]{1,80})$/.exec(it.img);
+  if (pi && pi[1].toLowerCase() === String(env.API_HOST || "").toLowerCase()) {
+    return await pdImage(env, new Request(`https://${env.API_HOST}/v1/sc/${id}`), pi[2], pi[3], text);
+  }
   const urls = [...new Set([resizeShot(it.img, w, h), it.img])];
   for (const u of urls) {
     const r = await fetch(u, { headers: { "user-agent": "MonikaImg/1" }, cf: { cacheTtl: 86400, cacheEverything: true } });
