@@ -1,5 +1,6 @@
 package vn.aowvn.monika;
 
+import java.io.IOException;
 import java.util.Hashtable;
 import java.util.Vector;
 import javax.microedition.io.ConnectionNotFoundException;
@@ -26,7 +27,7 @@ import javax.microedition.midlet.MIDletStateChangeException;
  *   Monika-Fullscreen 0 = chế độ thường (giữ thanh trạng thái); mặc định toàn màn hình, tự vẽ phím mềm
  */
 public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.Callback {
-    static final String VERSION = "0.6.1";
+    static final String VERSION = "0.7.0";
 
     private static final int LIST_APPS = 0;
     private static final int LIST_GAMES = 1;
@@ -80,6 +81,7 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     private static final int P_EDIT = 7;
     private static final int P_NET = 8;
     private static final int P_NETHELP = 9;
+    private static final int P_FB = 10;
 
     /** Ô nhập gốc của máy, chỉ dùng khi chạm vào ô nhập (máy cảm ứng, bàn phím ảo). */
     private TextBox nbox;
@@ -952,6 +954,138 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         d.setFav(store.toggleFavorite(d.info));
     }
 
+    // ---------- góp ý / báo lỗi ----------
+
+    /** Ô của form góp ý: 0 = game, 1 = loại, 2 = nội dung, 3 = liên hệ, 4 = phép tính. */
+    private int fbItem;
+    private String fbToken = "";
+    private boolean fbBusy;
+
+    void detailReport(DetailCanvas d) {
+        openFeedback(d.info.id, d.info.name);
+    }
+
+    private void openFeedback(int itemId, String itemName) {
+        if (!repo.online()) {
+            alert("Góp ý", "Chưa cấu hình máy chủ nên chưa gửi được góp ý.", display.getCurrent());
+            return;
+        }
+        Panel p = newPanel(Panel.FORM, P_FB, "Góp ý / báo lỗi", "Gửi", "Hủy");
+        p.addInfo(Vi.tr("Về"), itemName == null ? Vi.tr("Chung (cả Monika)") : itemName);
+        p.addChoice(Vi.tr("Loại"), new String[] {Vi.tr("Báo lỗi game"), Vi.tr("Góp ý"), Vi.tr("Khác")},
+            itemId > 0 ? 0 : 1);
+        p.addText(Vi.tr("Nội dung"), "");
+        p.addText(Vi.tr("Liên hệ (không bắt buộc)"), "");
+        p.addText(Vi.tr("Phép tính"), "");
+        p.addPara(Vi.tr("Mô tả lỗi (game nào, lỗi gì, máy gì). Để lại email hoặc số điện thoại nếu muốn được trả lời. Trả lời phép tính để chống spam."));
+        fbItem = itemId;
+        fbToken = "";
+        show(p);
+        loadChallenge(p, false);
+    }
+
+    private void editFeedback(Panel p, int sel) {
+        Panel.Row r = p.row(sel);
+        boolean calc = sel == 4;
+        Panel e = newPanel(Panel.INPUT, P_EDIT, sel == 2 ? "Nội dung góp ý" : sel == 3 ? "Liên hệ" : "Phép tính", "OK", "Hủy");
+        e.maxLen = sel == 2 ? Feedback.MSG_MAX : sel == 3 ? Feedback.CONTACT_MAX : 3;
+        e.setInput(r.value, Vi.tr(calc ? "Gõ kết quả: " + fbQuestion(p) : sel == 2 ? "Mô tả lỗi hoặc góp ý (tối thiểu 5 ký tự)" : "Email hoặc số điện thoại"));
+        e.setDirect(calc);
+        editFor = p;
+        editRow = sel;
+        show(e);
+    }
+
+    private static String fbQuestion(Panel p) {
+        String l = p.row(4).label;
+        int i = l.indexOf(':');
+        return i < 0 ? "" : l.substring(i + 1).trim();
+    }
+
+    /** Lấy câu hỏi phép tính mới; again = true khi máy chủ báo token đã dùng/hết hạn (xóa đáp án cũ). */
+    private void loadChallenge(final Panel p, final boolean again) {
+        final String agent = ua;
+        final String base = repo.base();
+        final String sfx = repo.suffix();
+        p.row(4).label = Vi.tr("Phép tính: đang tải...");
+        if (again) {
+            p.row(4).value = "";
+        }
+        p.repaint();
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    String[] c = Feedback.challenge(base, sfx, agent);
+                    fbToken = c[1];
+                    p.row(4).label = Vi.tr("Phép tính: ") + c[0];
+                } catch (IOException e) {
+                    fbToken = "";
+                    p.row(4).label = Vi.tr("Phép tính: chưa tải được, bấm Gửi để thử lại");
+                } catch (RuntimeException e) {
+                    fbToken = "";
+                    p.row(4).label = Vi.tr("Phép tính: chưa tải được, bấm Gửi để thử lại");
+                }
+                p.repaint();
+            }
+        }).start();
+    }
+
+    private void sendFeedback(final Panel p) {
+        if (fbBusy) {
+            return;
+        }
+        final String msg = p.row(2).value == null ? "" : p.row(2).value.trim();
+        final String contact = p.row(3).value == null ? "" : p.row(3).value.trim();
+        final String ans = p.row(4).value == null ? "" : p.row(4).value.trim();
+        if (msg.length() < Feedback.MSG_MIN) {
+            alert("Góp ý", "Nội dung quá ngắn. Bấm vào ô Nội dung để gõ (tối thiểu 5 ký tự).", p);
+            return;
+        }
+        if (fbToken.length() == 0) {
+            alert("Góp ý", "Chưa có phép tính. Đang tải lại, đợi vài giây rồi bấm Gửi.", p);
+            loadChallenge(p, true);
+            return;
+        }
+        if (ans.length() == 0) {
+            alert("Góp ý", "Hãy trả lời phép tính ở ô cuối cùng.", p);
+            return;
+        }
+        fbBusy = true;
+        final int kind = p.row(1).idx;
+        final String agent = ua;
+        final String base = repo.base();
+        final String sfx = repo.suffix();
+        final String token = fbToken;
+        final int item = fbItem;
+        final String dev = store.deviceId;
+        p.row(4).label = Vi.tr("Đang gửi...");
+        p.repaint();
+        new Thread(new Runnable() {
+            public void run() {
+                String r = Feedback.send(base, sfx, agent, kind, item, dev, msg, contact, token, ans);
+                fbBusy = false;
+                if ("ok".equals(r)) {
+                    fbToken = "";
+                    Displayable prev = home;
+                    int n = stack.size();
+                    if (n > 0) {
+                        prev = (Displayable) stack.elementAt(n - 1);
+                        stack.removeElementAt(n - 1);
+                    }
+                    alert("Góp ý", Feedback.describe(r), prev);
+                    return;
+                }
+                if (Feedback.needsNewChallenge(r)) {
+                    loadChallenge(p, true);
+                } else {
+                    p.row(4).label = Vi.tr("Phép tính: ") + fbQuestion(p);
+                    p.repaint();
+                }
+                alert("Góp ý", Feedback.describe(r), p);
+            }
+        }).start();
+    }
+
     // ---------- tìm kiếm ----------
 
     void openSearch() {
@@ -987,8 +1121,9 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
         p.addItem(Vi.tr(mi(5, "Giới thiệu")));
         p.addItem(Vi.tr(mi(6, "Kiểm tra mạng")));
         p.addItem(Vi.tr(mi(7, "Kiểm tra phím")));
+        p.addItem(Vi.tr(mi(8, "Góp ý / báo lỗi")));
         if (updateUrl.length() > 0) {
-            p.addItem(Vi.tr(mi(8, "Cập nhật Monika " + updateVer)));
+            p.addItem(Vi.tr(mi(9, "Cập nhật Monika " + updateVer)));
         }
         show(p);
     }
@@ -1102,6 +1237,15 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
                     show(e);
                 }
                 break;
+            case P_FB:
+                if (act == Panel.A_LEFT) {
+                    sendFeedback(p);
+                } else if (act == Panel.A_RIGHT) {
+                    back();
+                } else if (act == Panel.A_EDIT) {
+                    editFeedback(p, sel);
+                }
+                break;
             case P_EDIT:
                 if (act == Panel.A_LEFT && editFor != null) {
                     editFor.row(editRow).value = p.inputText().trim();
@@ -1152,7 +1296,9 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
             openNetTest();
         } else if (i == 6) {
             openKeyTest();
-        } else if (hasUpdate && i == 7) {
+        } else if (i == 7) {
+            openFeedback(0, null);
+        } else if (hasUpdate && i == 8) {
             installUpdate();
         }
     }
@@ -1203,7 +1349,8 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
     private void nativeInput(Panel p) {
         nowner = p;
         nbox = new TextBox(p.id == P_SEARCH ? Vi.tr("Tìm ứng dụng") : Vi.tr("Nhập"),
-            p.inputText(), 80, p.id == P_EDIT ? TextField.URL : TextField.ANY);
+            p.inputText(), Math.max(80, p.maxLen), p.numeric ? TextField.NUMERIC
+            : p.id == P_EDIT ? TextField.URL : TextField.ANY);
         cNbOk = new Command(Vi.tr("OK"), Command.OK, 1);
         nbox.addCommand(cNbOk);
         nbox.addCommand(new Command(Vi.tr("Quay lại"), Command.BACK, 2));
@@ -1291,6 +1438,8 @@ public final class MonikaMidlet extends MIDlet implements CommandListener, Repo.
                 detailFav(dc);
             } else if (c == dc.cmdSearch) {
                 openSearch();
+            } else if (c == dc.cmdReport) {
+                detailReport(dc);
             } else {
                 back();
             }

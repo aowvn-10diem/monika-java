@@ -136,3 +136,16 @@ Phân trang số cho danh sách bài của Blogger (trang chủ, nhãn, tìm ki�
 - `flags` thêm bit 64 (bài viết: truyện, thủ thuật, không có lượt tải, nút Mở chuyển tới trang bài) và 128 (giao diện, âm thanh: nút mở trang chọn bản). App cũ bỏ qua bit lạ.
 - Trang chọn bản của Worker (`/v1/j/<id>.jad` cho bài link-only) nay là bảng thật: Máy/màn hình, Dung lượng, Tải về (số cột link theo dòng nhiều link nhất).
 - Lượt tải luôn hiển thị (kể cả 0): web (lưới, bài, bảng xếp hạng) và app (ô lưới, trang chi tiết). Bài viết, giao diện, âm thanh không hiện.
+
+## v4: góp ý / báo lỗi game
+
+Mọi tin lưu D1 (bảng `feedback`, `fb_rl`, Worker tự tạo ở lần nhận đầu tiên). Cron 5 phút gom tin chưa gửi thành một email gửi `FB_TO` (tối thiểu 30 phút một email, hoặc ngay khi có từ 20 tin; lỗi gửi thì thử lại sau 15 phút, tin vẫn nằm trong D1).
+
+- `GET /v1/fb/c.bin`: câu hỏi phép tính cho app. Hai chuỗi UTF (ushort độ dài + byte): câu hỏi (`7 + 5 = ?`, phép + - x với số nhỏ) và token `<iat>.<nonce>.<chữ ký>`. Token ký HMAC-SHA256 theo đáp án, không lưu server; hợp lệ từ 3 giây đến 30 phút sau khi phát, mỗi token dùng được một lần (UNIQUE nonce).
+- `POST /v1/fb` (`application/x-www-form-urlencoded`, UTF-8): `o=t` (app: trả văn bản `ok` hoặc `err:<mã>`; không có `o=t` là web: trả HTML), `s=app|web`, `k=bug|idea|other`, `g=<id mục API>` (tùy chọn), `v=<phiên bản app>`, `d=<mã thiết bị>`, `q=<token>`, `a=<đáp án>`, `m=<nội dung 5..400 ký tự>`, `c=<liên hệ, tối đa 60>`, `w=<ô bẫy, phải trống>`. Mã lỗi: `short` (400), `bad_captcha` (400), `expired` (400, hết hạn hoặc token đã dùng), `too_fast` (400), `slow` (429), `full` (429), `big` (413). Ô bẫy có chữ, tin có từ 2 liên kết trở lên, tin trùng nội dung trong 24 giờ: trả `ok` giả và bỏ.
+- `GET /fb[?g=<id>|p=<mã bài Blogger>]`: trang form HTML thuần (không JavaScript, bảng, chạy trên Opera Mini và trình duyệt Nokia cũ) kèm câu hỏi mới. Template Blogspot trỏ tới đây (chân trang và cuối bài).
+- `GET /v1/admin/feedback?limit=50` (Bearer `UP_TOKEN`): xem tin trong D1, số tin chưa gửi, lỗi gửi email gần nhất, kênh gửi đang có.
+
+Chống spam, theo thứ tự rẻ trước (lỗi captcha và vượt giới hạn **không ghi D1**, giữ hạn mức 100.000 hàng ghi/ngày của gói Free): ô bẫy, phép tính ký HMAC, binding `RL_FB` (3 lần/phút/IP), độ dài, trần 8 tin/ngày/máy (IP băm có muối; Opera Mini dùng `X-Forwarded-For` vì cả nước đi chung vài IP Singapore), trần 300 tin/ngày toàn site, chống trùng. Mỗi tin nhận thật tốn 5 hàng ghi D1. Không lưu IP thô.
+
+Gửi email: binding `send_email` (`EMAIL`, Cloudflare Email Service, gửi tới địa chỉ đã xác minh trong Email Routing, miễn phí gói Free) hoặc dự phòng secret `RESEND_KEY` (Resend, 100 email/ngày miễn phí). Biến `FB_TO`, `FB_FROM` trong `wrangler.jsonc`.

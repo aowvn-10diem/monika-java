@@ -91,6 +91,11 @@ final class Repo {
         return base;
     }
 
+    /** Hậu tố kết nối (BlackBerry), dùng cho các lệnh gọi mạng ngoài Repo. */
+    String suffix() {
+        return suffix;
+    }
+
     /** Địa chỉ tuyệt đối cho một đường dẫn của máy chủ. */
     String url(String path) {
         if (path.startsWith("http")) {

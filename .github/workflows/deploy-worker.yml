@@ -72,6 +72,7 @@ jobs:
           node cloudflare/test/shot-pi.test.mjs
           node cloudflare/test/store.test.mjs
           node cloudflare/test/r2guard.test.mjs
+          node cloudflare/test/feedback.test.mjs
       - name: Deploy Worker
         if: ${{ inputs.mode != 'seed-pic' }}
         working-directory: cloudflare

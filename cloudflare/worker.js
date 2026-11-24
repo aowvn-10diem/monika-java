@@ -7,6 +7,7 @@ import { serveFile } from "./store.js";
 import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson } from "./rank.js";
 import { pagerJson } from "./pager.js";
 import { r2Allow, r2Note, r2Tick, ecoOn, PLACEHOLDER_JPG } from "./r2guard.js";
+import { submit as fbSubmit, formPage as fbForm, challengeBin as fbChallenge, adminList as fbAdmin, flush as fbFlush } from "./feedback.js";
 
 const PAGE = 15;
 const FEED_PAGE = 40;
@@ -511,6 +512,10 @@ export default {
         return await pdImage(env, req, m[1], decodeURIComponent(m[2]), text);
       }
       if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
+      if (p === "/v1/fb/c.bin") return await fbChallenge(env);
+      if (p === "/v1/fb" && req.method === "POST") return await fbSubmit(env, req);
+      if ((p === "/fb" || p === "/fb/") && (req.method === "GET" || req.method === "HEAD")) return await fbForm(env, u.searchParams.get("g"), u.searchParams.get("p"));
+      if (p === "/v1/admin/feedback") return await fbAdmin(env, req, u);
       if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
       if (p === "/v1/up" && req.method === "POST") return await handleUpload(env, ctx, req, u);
       if (p.startsWith("/v1/admin/")) return await admin(env, req, u);
@@ -538,6 +543,7 @@ export default {
     const g = await r2Tick(env);
     const slot = Math.floor(Date.now() / 300000);
     if (!g.econ || slot % 4 === 0) ctx.waitUntil(syncStep(env));
+    ctx.waitUntil(fbFlush(env).catch(() => {})); // gom góp ý gửi email: 1 lượt đọc D1 mỗi 5 phút khi không có tin, chạy cả khi tiết kiệm D1
     if (g.econ) return;
     ctx.waitUntil(backfillIcons(env));
     if (Math.floor(Date.now() / 60000) % 15 < 5) ctx.waitUntil(recompute(env)); // 15 phút một lần (cron chạy 5 phút)

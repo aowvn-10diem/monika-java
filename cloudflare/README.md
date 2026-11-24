@@ -56,3 +56,9 @@ Hạn mức free chính thức (docs Cloudflare R2 pricing, kiểm 2026-11-24): 
 - D1 ghi >= 90% hạn mức ngày: **chế độ tiết kiệm D1** (đồng bộ Blogger 20 phút/lần, tạm dừng tính Hot, bù icon, đếm lượt tải). Lượt gọi Worker >= 90% chỉ cảnh báo.
 - Số thật (gồm cả `wrangler r2 object put`, D1, Worker) cần `CF_ACCOUNT_ID` + secret `CF_API_TOKEN` (Account Analytics:Read, Workers R2 Storage:Read). Không có thì chỉ biết phần đi qua Worker.
 - Công tắc tay (cần UP_TOKEN): `POST /v1/admin/r2?lock=1|0|auto`, chỉnh `ext_bytes=N`, `ext_a=N`, `sync=1`. Xem: `GET /v1/admin/r2`.
+
+## Góp ý / báo lỗi game (v4)
+
+`feedback.js`: nhận góp ý từ app (`POST /v1/fb`) và web (`/fb`), lưu D1, cron gom lại gửi email cho `FB_TO` (`vuminh2612@gmail.com`). Chống spam bằng phép tính ký HMAC, giới hạn tần suất, trần theo máy và toàn site, ô bẫy; không dùng Turnstile vì máy cũ không chạy được. Chi tiết: `docs/api-contract.md` mục v4. Test: `node cloudflare/test/feedback.test.mjs`.
+
+**Bật gửi email (làm một lần, tài khoản Cloudflare của Monika Java):** (1) Email Service > Email Routing > Destination addresses: thêm `vuminh2612@gmail.com` rồi bấm liên kết xác minh trong email Cloudflare gửi tới; (2) Email Service > Email Sending > Onboard Domain: chọn `justmonika.top` (bản ghi DNS chỉ thêm vào subdomain `cf-bounce`, không đụng MX và SPF của Oxmail ở gốc miền); (3) deploy Worker (binding `EMAIL` có sẵn trong `wrangler.jsonc`). Chưa làm bước 1-2 thì tin vẫn nằm trong D1, xem bằng `GET /v1/admin/feedback` (Bearer `UP_TOKEN`).
