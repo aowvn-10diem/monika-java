@@ -12,7 +12,7 @@ Nó dùng **danh mục mẫu** đóng gói sẵn trong JAR, chưa có máy chủ
 | Danh sách Ứng dụng, Trò chơi, Danh mục, Cập nhật, Yêu thích | Có (dữ liệu mẫu) |
 | Chi tiết app, nút Cài đặt (`platformRequest` tới JAD), Yêu thích lưu RMS | Có (nút Cài chỉ hiện khi mục có đường dẫn JAD) |
 | Tìm kiếm bỏ dấu (gõ "lich" ra "Lịch âm") | Có |
-| Lần chạy đầu hỏi "Bạn đọc được dòng này không?", chọn có dấu hoặc không dấu | Có |
+| Menu Tùy chọn, tìm kiếm, cài đặt, thông tin tự vẽ cùng giao diện; phím * mở tìm kiếm ở mọi màn hình (từ 0.5.0 không còn hỏi kiểm tra font lần đầu, mặc định có dấu, đổi ở Cài đặt) | Có |
 | Cài đặt, Thông tin máy (nền tảng, heap, màn hình, id thiết bị ngẫu nhiên), Giới thiệu | Có |
 | Lớp mạng `Net`: luồng riêng, thử lại 2 lần, mã lỗi E12/E13/E17, hậu tố BlackBerry | Có, chưa thử với máy chủ thật |
 | Định dạng catalog nhị phân MKA1, cache RMS, rơi về danh mục mẫu khi mất mạng | Có |
@@ -61,7 +61,7 @@ Cờ: 1 mới, 2 có cập nhật, 4 cần mạng.
 ## Đã kiểm tra thế nào
 
 - Build sạch, JAR có StackMap, MIDlet-Jar-Size khớp file thật.
-- Chạy bản JAR đã làm rối + preverify trong MicroEmulator 2.0.4: font test, màn chính, danh sách, chi tiết,
+- Chạy bản JAR đã làm rối + preverify trong MicroEmulator 2.0.4: màn chính, danh sách, chi tiết,
   yêu thích, tìm kiếm không dấu, danh mục, cài đặt, thông tin máy, giới thiệu.
 - Chụp màn chính ở 320x240, 240x320, 360x640, 176x208, 128x160, 320x200, cả chế độ thường và toàn màn hình.
 - **Chưa thử trên máy thật nào.** Emulator không kiểm được preverify kiểu máy thật, quyền Java, phím mềm của E72/E52.

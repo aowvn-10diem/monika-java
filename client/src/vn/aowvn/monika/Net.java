@@ -10,10 +10,13 @@ import javax.microedition.io.HttpConnection;
  * Lớp mạng duy nhất: hậu tố kết nối (BlackBerry), thử lại 2 lần, mã lỗi ngắn.
  * Chỉ HTTP cổng 80. Phải gọi trên luồng riêng, không gọi trên luồng giao diện.
  *
- * Mã lỗi: E12 không vào được mạng, E13 máy chủ trả mã khác 200 (404 không thử lại), E17 file quá lớn.
+ * Mã lỗi: E12 không vào được mạng, E20 máy chặn quyền mạng (SecurityException), E13 máy chủ trả mã khác 200 (404 không thử lại), E17 file quá lớn.
  */
 final class Net {
     static final int TRIES = 3;
+
+    /** Chi tiết lỗi mạng gần nhất (loại ngoại lệ, thông điệp, đích), hiện ở Thông tin máy để chẩn đoán. */
+    static String lastDiag = "";
 
     private Net() {
     }
@@ -55,9 +58,11 @@ final class Net {
                     // 404: thử lại vô ích (máy chủ chưa có endpoint này), báo E13 ngay
                     throw new IOException("E13");
                 }
+                diag(e, url);
                 last = "E13".equals(m) ? e : new IOException("E12");
             } catch (SecurityException e) {
-                throw new IOException("E12");
+                diag(e, url);
+                throw new IOException("E20");
             } finally {
                 if (in != null) {
                     try {
@@ -81,6 +86,44 @@ final class Net {
             }
         }
         throw last;
+    }
+
+    /** Một lần thử kết nối để chẩn đoán: trả về "OK mã (ms)" hoặc tên lỗi, không thử lại. */
+    static String probe(String url, String ua) {
+        long t = System.currentTimeMillis();
+        HttpConnection c = null;
+        try {
+            c = (HttpConnection) Connector.open(url);
+            c.setRequestProperty("User-Agent", ua);
+            int rc = c.getResponseCode();
+            return "OK " + rc + " (" + (System.currentTimeMillis() - t) + " ms)";
+        } catch (IOException e) {
+            diag(e, url);
+            return "LOI " + lastDiag.substring(0, lastDiag.indexOf(" @") < 0 ? lastDiag.length() : lastDiag.indexOf(" @"))
+                + " (" + (System.currentTimeMillis() - t) + " ms)";
+        } catch (SecurityException e) {
+            return "LOI bi chan quyen mang (E20)";
+        } finally {
+            if (c != null) {
+                try {
+                    c.close();
+                } catch (IOException ignore) {
+                    // bỏ qua
+                }
+            }
+        }
+    }
+
+    private static void diag(Throwable e, String url) {
+        String n = e.getClass().getName();
+        int dot = n.lastIndexOf('.');
+        String m = e.getMessage();
+        if (m != null && m.length() > 60) {
+            m = m.substring(0, 60);
+        }
+        int slash = url.indexOf('/', 8);
+        lastDiag = (dot >= 0 ? n.substring(dot + 1) : n) + (m == null ? "" : ": " + m) + " @"
+            + (slash > 0 ? url.substring(0, slash) : url);
     }
 
     static byte[] readAll(InputStream in, int maxBytes) throws IOException {

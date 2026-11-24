@@ -41,21 +41,39 @@ desc: Mô tả ngắn hiện trong app (không bắt buộc)
 
 Icon nhỏ gắn vào góc ô là icon trích từ JAR (bài đăng bằng trang up file thì có sẵn, xem mục 6). Bài chưa có ảnh minh họa thì ô hiện nền gradient + icon lớn (hoặc chữ cái đầu).
 
-## 1b. Nhãn nên gắn và thể loại chuẩn
+## 1b. Nhóm, loại bài, nhãn và danh mục chuẩn (v3)
 
-Mỗi bài game/app nên có:
+Mỗi bài thuộc một **nhóm** (menu trên web và trong app). Meta `type:` và nhãn nhóm quyết định bài vào đâu:
 
-1. **Loại**: `Game` hoặc `App` (menu "Game" / "App" và nhãn gốc dựa vào đây).
-2. **Một thể loại chuẩn** (đúng chính tả, có dấu), lấy từ danh sách dưới. Menu thả xuống trên web tự dựng từ thể loại đang có bài, mỗi mục là link `/search/label/<tên>`.
-3. **Thẻ** nếu đúng: `VH` (Việt hóa), `MOD`, `3D`, `VN` (game Việt). Nhãn trùng tên thẻ tự hiện huy hiệu vàng ngay cả khi tắt JavaScript. Các thẻ khác (`TOUCH`, `MP`, `NET`, `GỐC`) khai ở dòng `tags:`.
+| Nhóm (menu) | `type:` | Nhãn nhóm | Dùng cho |
+| --- | --- | --- | --- |
+| Game | `game` | `Game` | game Java/Symbian (không nhận game online, mod/hack game online) |
+| Phần mềm | `app` | `App` | ứng dụng, tiện ích, giả lập |
+| Hình nền & Theme | `media` | `Giao diện` | hình nền, theme, ảnh, icon |
+| Nhạc & Video | `media` | `Âm thanh` | nhạc chuông, nhạc, video, flash |
+| Truyện & Mẹo | `post` | `Bài viết` | truyện, thủ thuật, tin nhắn hay, tin Monika |
 
-Game: `Hành động`, `Phiêu lưu`, `Nhập vai`, `Chiến thuật`, `Đua xe`, `Thể thao`, `Bắn súng`, `Đối kháng`, `Giải đố & trí tuệ`, `Arcade & chạy nhảy`, `Mô phỏng & quản lý`, `Cờ & bài`, `Trẻ em & vui nhộn`, `Khác`
+Mỗi bài có: (1) nhãn nhóm, (2) **một danh mục chuẩn** ghi trong `cat:` và làm nhãn Blogger (đúng chính tả, tên không dấu cũng nhận), (3) thẻ `VH` (Việt hóa), `MOD`, `3D`, `VN` (game Việt) nếu đúng, ghi `tags: vh, 3d`; nhãn trùng tên thẻ hiện huy hiệu vàng cả khi tắt JavaScript. Bài không khai `type` mà có nhãn nhóm (Giao diện, Âm thanh, Bài viết) hoặc nhãn là tên danh mục của nhóm 3, 4, 5 vẫn được nhận; bài game/app cần `type:` hoặc nhãn `Game`/`App`.
 
-App: `Mạng & trình duyệt`, `Chat & mạng xã hội`, `Đọc sách & truyện`, `Nhạc & video`, `Văn phòng & học tập`, `Công cụ hệ thống`, `Bản đồ & GPS`, `Đời sống`, `Giao diện & hình nền`, `Khác`
+Danh mục chuẩn:
 
-Bài viết (không phải game/app, chỉ dùng nhãn trên web): `Thủ thuật`, `Truyện & giải trí`, `Tin Monika`
+Game: `Hành động`, `Phiêu lưu`, `Nhập vai`, `Kiếm hiệp & võ hiệp`, `Chiến thuật`, `Thủ thành`, `Đua xe`, `Thể thao`, `Bắn súng`, `Đối kháng`, `Giải đố & trí tuệ`, `Arcade & chạy nhảy`, `Mô phỏng & quản lý`, `Cờ & bài`, `Sinh tồn & kinh dị`, `Trẻ em & vui nhộn`, `Khác`
 
-Lưu ý: `Khác` có ở cả Game và App; hai mục "Khác" trong menu cùng trỏ tới nhãn `Khác`. Nên đặt thêm nhãn `Game` hoặc `App` để phân biệt (menu hiện kết quả theo nhãn, không lọc chéo).
+App: `Mạng & trình duyệt`, `Chat & mạng xã hội`, `Đọc sách & truyện`, `Trình phát nhạc & video`, `Văn phòng & học tập`, `Công cụ hệ thống`, `Bản đồ & GPS`, `Đời sống`, `Tùy biến máy`, `Ảnh & camera`, `Giả lập & chạy game`, `Khác`
+
+Giao diện: `Hình nền điện thoại`, `Hình nền anime & artist`, `Theme Symbian & Nokia`, `Ảnh đẹp & ảnh vui`, `Icon & biểu tượng`, `Khác`
+
+Âm thanh: `Nhạc chuông`, `Nhạc & album`, `Video & Flash`, `Khác`
+
+Bài viết: `Thủ thuật & mẹo`, `Truyện cười & tiếu lâm`, `Truyện tình yêu & ngôn tình`, `Truyện kiếm hiệp & tiên hiệp`, `Truyện tranh & manga`, `Truyện ngắn & khác`, `Tin nhắn & câu nói hay`, `Tử vi & đời sống`, `Tin Monika`
+
+Bài `media` ở nguồn ngoài (không có file trong kho) khai link bằng dòng `v1`, `v2`...: `cỡ-hoặc-nhãn|KB|NHÃN=URL`, ví dụ `v1: 240x320|90|JPG=http://...` hoặc `v1: Nokia S60v3|300|Theme=http://...`. Nút Tải mở trang liệt kê các bản. Bài `post` (truyện, thủ thuật) không có nút tải: nút Mở trong app chuyển tới trang bài.
+
+Lưu ý: `Khác` có ở mỗi nhóm; nhãn `Khác` đơn lẻ không phân biệt được nhóm, nên luôn đặt kèm nhãn nhóm. Tên danh mục lạ rơi vào `Khác` của nhóm và được ghi lại để duyệt.
+
+## 1c. Trang chủ web
+
+Trang chủ có sẵn: **Đề xuất hôm nay** (Worker chọn game, đổi mỗi ngày giờ Việt Nam; 2 ô trên điện thoại, 4 ô trên máy rộng), **Top tải nhiều** (tab Hôm nay, Tuần, Mọi lúc; 10 hạng ở cột bên trên PC, 5 hạng dưới Đề xuất trên điện thoại) và **phân trang số** `1 2 3 4 5 6 … cuối` dưới danh sách (trang chủ, nhãn, tìm kiếm). Không cần cài gì thêm ngoài dán template mới. Muốn loại một game khỏi Đề xuất và Top: `UPDATE items SET hold=1 WHERE n=?`. Nhóm chưa có bài nào tự ẩn khỏi menu.
 
 ## 2. Bài banner
 
@@ -128,3 +146,8 @@ Mở `https://api.justmonika.top/up`, nhập token một lần (trình duyệt n
 Dòng `file: <hash10>` trong `mk-meta` là khóa nối bài với file và icon. Web và app lấy icon qua `/v1/fi/<hash10>-64.png`, `/v1/ic/<id>-32.png`; bài không có `file:` vẫn được thử khớp icon theo link `jar`.
 
 Biến môi trường Worker liên quan: `UP_TOKEN` (bắt buộc), `R2` (binding), `GH_TOKEN` + `GH_REPO` (GitHub dự phòng; `GH_BRANCH` mặc định `files`, `GH_DIR` mặc định `jars`), `R2_LIMIT`, `GH_LIMIT`, `KV_LIMIT`.
+
+## 1d. Bảng link tải, lượt tải, ưu tiên màn hình (0.6.0)
+- Bài có các dòng `v1..vN` trong `mk-meta` hiện **bảng 3 cột** (Máy / màn hình, Dung lượng, Tải về), dùng bảng HTML thường nên máy cũ vẫn thẳng cột. Dòng khớp màn hình máy đang xem được xếp đầu và gắn "Hợp máy bạn".
+- Lượt tải luôn hiện kể cả 0. Bài viết (truyện, thủ thuật) không có lượt tải.
+- "Đề xuất hôm nay" tự ưu tiên game đúng cỡ màn hình (240x320 thì game 240x320; máy lớn, Android, iPhone thì bản smartphone). Danh sách bài do Blogger dựng sẵn không đổi thứ tự được.

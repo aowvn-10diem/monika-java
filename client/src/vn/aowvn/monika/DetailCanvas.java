@@ -48,7 +48,7 @@ final class DetailCanvas extends BaseCanvas {
         sb.append(Vi.tr("Dung lượng: ")).append(a.sizeKb).append(" KB\n");
         sb.append(Vi.tr("Giá: ")).append(Vi.tr(a.isFree() ? "Miễn phí" : MonikaMidlet.money(a.price))).append('\n');
         String dl = AppInfo.dlText(a.dl);
-        if (dl.length() > 0) {
+        if (dl.length() > 0 && !a.has(AppInfo.F_POST | AppInfo.F_MEDIA)) {
             sb.append(Vi.tr("Lượt tải: ")).append(dl).append('\n');
         }
         String[] tg = a.tagBadges(6);
@@ -69,7 +69,7 @@ final class DetailCanvas extends BaseCanvas {
             sb.append('\n').append(note);
         }
         body = sb.toString();
-        cmdInstall = new Command(Vi.tr("Tải về"), Command.OK, 1);
+        cmdInstall = new Command(Vi.tr(a.has(AppInfo.F_POST) ? "Mở bài" : a.has(AppInfo.F_MEDIA) ? "Mở trang tải" : "Tải về"), Command.OK, 1);
         cmdFav = new Command(Vi.tr("Yêu thích"), Command.ITEM, 2);
         cmdSearch = new Command(Vi.tr("Tìm ứng dụng"), Command.SCREEN, 3);
         cmdBack = new Command(Vi.tr("Quay lại"), Command.BACK, 1);
@@ -150,7 +150,7 @@ final class DetailCanvas extends BaseCanvas {
             g.setColor(Theme.DIM);
         }
         g.setFont(fb);
-        String bt = canInstall ? Vi.tr("Tải về (JAR)") : Vi.tr("Chưa có file cài");
+        String bt = canInstall ? Vi.tr(info.has(AppInfo.F_POST) ? "Mở bài viết" : info.has(AppInfo.F_MEDIA) ? "Mở trang tải" : "Tải về (JAR)") : Vi.tr("Chưa có file cài");
         g.drawString(bt, w / 2, btnY + (btnH - fb.getHeight()) / 2, Graphics.TOP | Graphics.HCENTER);
         if (canInstall) {
             g.setFont(fs);
@@ -207,7 +207,7 @@ final class DetailCanvas extends BaseCanvas {
             g.setFont(fb);
             g.setColor(Theme.TEXT);
             int ty = h - barH + (barH - fb.getHeight()) / 2;
-            g.drawString(canInstall ? Vi.tr("Tải về") : Vi.tr("Yêu thích"), 4, ty,
+            g.drawString(canInstall ? Vi.tr(info.has(AppInfo.F_POST) ? "Mở bài" : info.has(AppInfo.F_MEDIA) ? "Mở trang tải" : "Tải về") : Vi.tr("Yêu thích"), 4, ty,
                 Graphics.TOP | Graphics.LEFT);
             g.drawString(Vi.tr("Quay lại"), w - 4, ty, Graphics.TOP | Graphics.RIGHT);
         }

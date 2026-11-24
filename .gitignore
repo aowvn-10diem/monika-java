@@ -1,3 +1,4 @@
 .build/
 *.class
 dist/*.zip
+__pycache__/

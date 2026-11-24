@@ -36,6 +36,13 @@ for i in range(len(APP_NAMES)):
     ITEMS.append(dict(id=100 + i, cat=[0, 3, 2][i % 3], flags=(4 if i % 3 == 2 else 0) | (2 if i % 4 == 0 else 0),
                       price=0 if i != 5 else 20000, ver="2.%d" % (i % 5), name=APP_NAMES[i], kb=20 + i * 7,
                       desc="Ứng dụng %s chạy trên Java S60." % APP_NAMES[i]))
+EXTRA = [(300, 61, "Hình nền 240x320 số %d", 128), (310, 62, "Theme Nokia S60v3 số %d", 128),
+         (320, 66, "Nhạc chuông MP3 số %d", 128), (330, 56, "Truyện kiếm hiệp chương %d", 64),
+         (340, 54, "Mẹo cài game Java số %d", 64)]
+for base, cat, nm, fl in EXTRA:
+    for j in range(3):
+        ITEMS.append(dict(id=base + j, cat=cat, cat2=cat, flags=fl | (1 if j == 0 else 0), kb=0 if fl == 64 else 90 + j,
+                          price=0, ver="", name=nm % (j + 1), desc="Nội dung mẫu loại %d." % cat))
 for it in ITEMS:
     it["path"] = "/v1/j/%d.jad" % it["id"]
     if it["id"] % 2 == 0:
@@ -45,6 +52,7 @@ for it in ITEMS:
 
 
 # ---- v2: danh mục chuẩn (rút gọn từ catalog/taxonomy.json), dl, tags, plat, độ phân giải ----
+CATS3 = [(60, 4, "Hình nền"), (61, 4, "Hình nền 240x320"), (62, 4, "Theme"), (66, 5, "Nhạc chuông"), (54, 3, "Thủ thuật & mẹo"), (56, 3, "Truyện kiếm hiệp")]
 CATS2 = [(10, 1, "Hành động"), (11, 1, "Phiêu lưu"), (12, 1, "Nhập vai"), (14, 1, "Đua xe"), (15, 1, "Thể thao"),
          (16, 1, "Bắn súng"), (18, 1, "Giải đố & trí tuệ"), (19, 1, "Arcade & chạy nhảy"), (21, 1, "Cờ & bài"),
          (23, 1, "Khác"), (30, 2, "Mạng & trình duyệt"), (31, 2, "Chat & mạng xã hội"), (32, 2, "Đọc sách & truyện"),
@@ -56,8 +64,9 @@ TAGS = [1, 2, 4, 2 | 8, 4 | 16, 1 | 128, 2 | 4 | 8, 32, 64 | 16, 8, 2 | 32 | 64,
 RES = [["240x320"], ["240x320", "320x240"], [], ["176x208", "128x160"]]
 for n, it in enumerate(ITEMS):
     k = it["id"]
-    it["cat2"] = GAME_CATS[n % len(GAME_CATS)] if it["cat"] == 1 else APP_CATS[n % len(APP_CATS)]
-    it["dl"] = DLS[(k * 7) % len(DLS)]
+    if "cat2" not in it:
+        it["cat2"] = GAME_CATS[n % len(GAME_CATS)] if it["cat"] == 1 else APP_CATS[n % len(APP_CATS)]
+    it["dl"] = DLS[(k * 7) % len(DLS)] if not it["flags"] & 192 else 0
     if it["dl"] >= 5:
         it["dl"] += k % 7 * 37
     it["d1"] = (k * 37) % 23
@@ -78,18 +87,22 @@ def select2(key):
     """Khóa v2: base + mod (.new .upd .hot .dl .top1 .top7 .p<bit> .r<WxH> .t<bit>), xem docs/api-contract.md."""
     parts = key.split(".")
     base, mods = parts[0], parts[1:]
-    items = list(ITEMS)
+    screen = None
+    items = [i for i in ITEMS if not i["flags"] & 192]
     sort = "new"
-    if base in ("new", "upd", "hot", "dl", "top1", "top7"):
+    if base == "pick":
+        items = [i for i in items if i["cat"] == 1]
+        sort = "pick"
+    elif base in ("new", "upd", "hot", "dl", "top1", "top7"):
         sort = base
     elif base == "app":
         items = [i for i in items if i["cat"] != 1]
     elif base == "game":
         items = [i for i in items if i["cat"] == 1]
     elif base[:1] == "c" and base[1:].isdigit():
-        items = [i for i in items if i["cat2"] == int(base[1:])]
+        items = [i for i in ITEMS if i["cat2"] == int(base[1:])]
     elif base[:1] == "i" and base[1:].isdigit():
-        return [i for i in items if i["id"] == int(base[1:])]
+        return [i for i in ITEMS if i["id"] == int(base[1:])]
     else:
         return None
     for m in mods:
@@ -101,6 +114,8 @@ def select2(key):
         elif m[:1] == "t" and m[1:].isdigit():
             bit = int(m[1:])
             items = [i for i in items if i["tags"] & bit]
+        elif m[:1] == "s" and "x" in m[1:]:
+            screen = m[1:]
         elif m[:1] == "r" and "x" in m[1:]:
             items = [i for i in items if not i["res"] or m[1:] in i["res"]]
         else:
@@ -113,8 +128,12 @@ def select2(key):
         items.sort(key=lambda i: -i["d7"])
     elif sort == "dl":
         items.sort(key=lambda i: -i["dl"])
+    elif sort == "pick":
+        items.sort(key=lambda i: (i["id"] * 1103515245 + 7) % 2147483647)
     else:
         items.sort(key=lambda i: -i["seq"])
+    if screen and sort not in ("hot", "top1", "top7", "dl"):
+        items.sort(key=lambda i: 0 if screen in i["res"] else (1 if not i["res"] else 2))  # sort ổn định: giữ thứ tự cũ trong từng nhóm
     return items
 
 
@@ -123,11 +142,13 @@ def page_bytes2(items, page):
     return (struct.pack(">IBHHB", 0x4D4B4C32, 2, len(items), page, len(sl)) + b"".join(item_bytes2(i) for i in sl))
 
 
-def home2_bytes():
-    new = len([i for i in ITEMS if i["flags"] & 3])
-    cats = [(cid, kind, name, len([i for i in ITEMS if i["cat2"] == cid])) for cid, kind, name in CATS2]
+def home2_bytes(v3=False):
+    new = len([i for i in ITEMS if i["flags"] & 3 and not i["flags"] & 192])
+    cats = [(cid, kind, name, len([i for i in ITEMS if i["cat2"] == cid])) for cid, kind, name in CATS2 + (CATS3 if v3 else [])]
     cats = [c for c in cats if c[3] > 0]
-    out = struct.pack(">IBH", 0x4D4B4832, 2, new) + utf("0.4.0") + utf("") + struct.pack(">B", len(cats))
+    if v3:
+        cats.sort(key=lambda c: [1, 2, 4, 5, 3].index(c[1]))
+    out = struct.pack(">IBH", 0x4D4B4833 if v3 else 0x4D4B4832, 3 if v3 else 2, new) + utf("0.4.0") + utf("") + struct.pack(">B", len(cats))
     for cid, kind, name, cnt in cats:
         out += struct.pack(">BB", cid, kind) + utf(name) + struct.pack(">H", cnt)
     banners = [(1, "Monika - kho game Java", "l:hot"), (2, "Game mới mỗi ngày", "g:200")]
@@ -236,7 +257,9 @@ class H(BaseHTTPRequestHandler):
         p = urllib.parse.urlparse(self.path).path
         body, ctype = None, "application/octet-stream"
         v2ok = not os.environ.get("MOCK_V1_ONLY")
-        if p == "/v1/home2.bin" and v2ok:
+        if p == "/v1/home3.bin" and v2ok and not os.environ.get("MOCK_V2_ONLY"):
+            body = home2_bytes(True)
+        elif p == "/v1/home2.bin" and v2ok:
             body = home2_bytes()
         elif p.startswith("/v1/l2/") and p.endswith(".bin") and v2ok:
             key, pg = p[7:-4].split("/")
