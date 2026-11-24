@@ -136,6 +136,7 @@ async function syncStep(env) {
   const feed = (await r.json()).feed || {};
   const entries = feed.entry || [];
   const st = [];
+  const pdst = []; // ánh xạ Pixeldrain: batch riêng, lỗi (chưa chạy migration 006) không làm hỏng đồng bộ chính
   let n = 0;
   for (const e of entries) {
     const p = parseEntry(e);
@@ -148,7 +149,7 @@ async function syncStep(env) {
       ).bind(p.src, (p.meta.slot || "top").toLowerCase(), p.img, p.meta.link || "", p.meta.alt || p.title, p.updated, sweep));
       continue;
     }
-    for (const id of p.pds || []) st.push(db.prepare("INSERT INTO pd_links(pd,src) VALUES(?,?) ON CONFLICT(pd) DO UPDATE SET src=excluded.src").bind(id, p.src));
+    for (const id of p.pds || []) pdst.push(db.prepare("INSERT INTO pd_links(pd,src) VALUES(?,?) ON CONFLICT(pd) DO UPDATE SET src=excluded.src").bind(id, p.src));
     if (p.catUnknown) st.push(db.prepare("INSERT OR IGNORE INTO meta(k,v) VALUES(?,?)").bind("unk:" + p.catUnknown.slice(0, 60), p.alt || p.src));
     st.push(db.prepare(
       `INSERT INTO items(src,type,title,norm,cat_n,ver,size_kb,price,jar,descr,url,flags,published,updated,sweep,img,file_h,tags,plat,res)
@@ -171,7 +172,7 @@ async function syncStep(env) {
       st.push(db.prepare("DELETE FROM items WHERE sweep < ?").bind(sweep));
       st.push(db.prepare("DELETE FROM items WHERE src LIKE 'up-%' AND file_h IN (SELECT file_h FROM items WHERE src NOT LIKE 'up-%' AND file_h IS NOT NULL)"));
       st.push(db.prepare("DELETE FROM banners WHERE sweep < ?").bind(sweep));
-      st.push(db.prepare("DELETE FROM pd_links WHERE src NOT IN (SELECT src FROM items)"));
+      pdst.push(db.prepare("DELETE FROM pd_links WHERE src NOT IN (SELECT src FROM items)"));
       st.push(setMetaStmt(db, "sweep", sweep + 1));
     }
     st.push(setMetaStmt(db, "cursor", 1));
@@ -180,6 +181,7 @@ async function syncStep(env) {
     st.push(setMetaStmt(db, "cursor", cursor + FEED_PAGE));
   }
   if (st.length) await db.batch(st);
+  if (pdst.length) { try { await db.batch(pdst); } catch (_) {} }
   return { cursor, entries: entries.length, parsed: n, done };
 }
 

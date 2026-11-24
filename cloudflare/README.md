@@ -42,3 +42,5 @@ Workflow `.github/workflows/deploy-worker.yml` chạy test rồi `wrangler deplo
 - Loại bài mới `media` (giao diện, âm thanh) và `post` (truyện, thủ thuật) cùng bảng `items`; Mới/Hot/Tải nhiều/Đề xuất và `home.bin`/`home2.bin` chỉ xét game và app.
 - Endpoint mới: `/v1/menu.json`, `/v1/home3.bin`, `/v1/pager.json`, khóa `pick`/`k3`/`k4`/`k5` (xem `docs/api-contract.md`, mục v3).
 - Test mới: `node cloudflare/test/v3.test.mjs` (migration 005, phân giải danh mục, đồng bộ bài media/post, đề xuất đổi theo ngày giờ Việt Nam, phân trang số).
+
+- **Pixeldrain (migration 006, `pd_links`)**: dòng `v1..vN` chứa `…/v1/p/<ID>/…` được đồng bộ vào bảng `pd_links(pd, src)`; route `/v1/p/<ID>/<tên>.jar` tra ra mục của bài rồi `countDownload` (mọi độ phân giải cộng vào cùng một mục). Chưa chạy migration thì route vẫn phát file, chỉ không đếm. Thử: `node cloudflare/test/rank.test.mjs`, `node cloudflare/test/pd.test.mjs`.
