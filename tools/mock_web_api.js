@@ -159,9 +159,20 @@ async function setup(ctx, opts) {
     const LL = [];
     let { ctx, pg } = await open(vp, '/', { listLog: LL });
     ok(LL.indexOf('pick.s' + vp[1] + 'x' + vp[2]) >= 0 || (n === '1280' && LL.indexOf('pick.s1280x800') >= 0), n + ' Đề xuất gửi khóa màn hình ' + LL);
-    const dl = await pg.$$eval('.gc .dlc', e => e.map(x => x.textContent));
+    const dl = await pg.$$eval('.gc .dlc', e => e.map(x => x.textContent.replace(/^↓ /, '')));
     ok(dl.indexOf('1,2k') >= 0 && dl.indexOf('12,3k') >= 0 && dl.indexOf('87') >= 0 && dl.indexOf('999') >= 0 && dl.indexOf('1k') >= 0, n + ' home dl ' + dl);
     ok(dl.indexOf('0') >= 0 && dl.indexOf('3') >= 0 && dl.indexOf('4') >= 0, n + ' home luot tai luon hien ke ca 0-4 ' + dl);
+    /* khoi Ung ho co dinh: tieu de, so tai khoan, QR an cho toi khi bam */
+    ok(await pg.$eval('#dn .st', e => e.textContent === 'Ủng hộ Monika'), n + ' khoi ung ho co tieu de');
+    ok(await pg.$eval('#dn input', e => e.value === '9021870093495' && e.readOnly), n + ' khoi ung ho co so tai khoan');
+    ok(await pg.$eval('#dn .dnqr', e => getComputedStyle(e).display === 'none'), n + ' QR an luc dau');
+    await pg.click('#dn a.dnq');
+    ok(await pg.$eval('#dn .dnqr', e => getComputedStyle(e).display === 'block' && /^data:image\/png/.test(e.getAttribute('src'))), n + ' bam hien QR');
+    await pg.click('#dn a.dnq');
+    ok(await pg.$eval('#dn .dnqr', e => getComputedStyle(e).display === 'none'), n + ' bam lan nua an QR');
+    ok(await pg.$eval('#dn', e => { const r = e.getBoundingClientRect(), m = document.querySelector('.side, .main').getBoundingClientRect(); return r.width > 150 && r.right <= document.documentElement.clientWidth + 1; }), n + ' khoi ung ho vua man hinh');
+    ok(await pg.$$eval('.gc .dlc', e => e.length > 0 && e.every(x => /^↓ /.test(x.textContent) && /lượt tải$/.test(x.title))), n + ' o game hien mui ten + luot tai');
+    await shot(pg, `donate-${n}`);
     const tgs = await pg.$$eval('.gc .tg', e => e.map(x => x.textContent));
     ok(tgs.indexOf('VH') >= 0 && tgs.indexOf('MOD') >= 0 && tgs.indexOf('3D') >= 0 && tgs.indexOf('VN') >= 0, n + ' home tags ' + tgs);
     ok(!(await pg.$$eval('.gc .chips .tg', e => e.some(x => x.textContent === 'VH' && x.parentNode.querySelectorAll('.tg').length > 4))), n + ' tag trung');
@@ -227,7 +238,7 @@ async function setup(ctx, opts) {
     /* doi tab/loc */
     await pg.click('#rk .tabs a:nth-child(3)'); await pg.waitForTimeout(250);
     const d1 = await pg.$$eval('#rk .dlc', e => e.slice(0, 2).map(x => x.textContent));
-    ok(d1[0] === '12,3k', n + ' tab dl sap theo dl ' + d1);
+    ok(d1[0].replace(/^↓ /, '') === '12,3k', n + ' tab dl sap theo dl ' + d1);
     await pg.click('#rk .fb:text-is("Game")'); await pg.waitForTimeout(250);
     ok(await pg.$$eval('#rk .fl', (e, k) => e[1].querySelectorAll('.fb').length === k + 1, tax.cats.filter(c => c.kind === 1).length), n + ' chip the loai game + Moi the loai');
     await pg.click('#rk .fb:text-is("Nhập vai")'); await pg.waitForTimeout(250);
