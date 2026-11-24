@@ -130,3 +130,9 @@ Cùng bố cục `home2.bin`, magic `0x4D4B4833`, `ubyte ver=3`, nhưng liệt k
 
 ### `GET /v1/pager.json?scope=&n=16&cur=1&w=6`
 Phân trang số cho danh sách bài của Blogger (trang chủ, nhãn, tìm kiếm). `scope`: rỗng (trang chủ), `label:<tên nhãn>`, `q:<từ khóa>`; `n` số bài mỗi trang (4–40); `cur` trang hiện tại; `w` số trang quanh trang hiện tại (3–8). Trả `{"total":200,"n":16,"pages":13,"cur":1,"items":[{"p":1},{"p":2,"m":"2026-11-23T00:52:00-08:00"},…,{"p":13,"m":"…"}]}` (đã gồm trang 1 và trang cuối; `m` là `updated-max` của trang `p`). Trang `p` mở bằng `<đường dẫn>?updated-max=<m>&max-results=<n>&start=<(p-1)*n>&by-date=false` (dạng Blogger tự sinh cho liên kết "Cũ hơn"; đã đối chiếu trên blog thật). Worker tra mốc bằng tối đa w+1 lần đọc feed `max-results=1`, cache biên 120 giây. Lỗi feed thì 502 và template giữ liên kết Mới hơn/Cũ hơn.
+
+### Bổ sung 0.6.0: ưu tiên màn hình, cờ loại bài, lượt tải
+- Modifier `.s<W>x<H>` (ví dụ `pick.s240x320`, `new.s360x800`): **ưu tiên mềm**, không loại mục nào (khác `.r` loại hẳn). Thứ tự: cỡ khớp đúng lên đầu; máy lớn (cạnh ngắn ≥ 480, hoặc ≥ 360 và cạnh dài ≥ 800) coi là smartphone nên bản có nền tảng Android (bit 32) đứng tiếp; rồi mục không khai cỡ; rồi cùng bề rộng; rồi còn lại, mỗi nhóm giữ thứ tự gốc. Bảng xếp hạng (`dl`, `top1`, `top7`, `hot`) bỏ qua `.s`, vẫn xếp theo lượt tải.
+- `flags` thêm bit 64 (bài viết: truyện, thủ thuật, không có lượt tải, nút Mở chuyển tới trang bài) và 128 (giao diện, âm thanh: nút mở trang chọn bản). App cũ bỏ qua bit lạ.
+- Trang chọn bản của Worker (`/v1/j/<id>.jad` cho bài link-only) nay là bảng thật: Máy/màn hình, Dung lượng, Tải về (số cột link theo dòng nhiều link nhất).
+- Lượt tải luôn hiển thị (kể cả 0): web (lưới, bài, bảng xếp hạng) và app (ô lưới, trang chi tiết). Bài viết, giao diện, âm thanh không hiện.

@@ -156,6 +156,12 @@ h1,h2,h3{margin:0}
 .info td{padding:3px 0}
 .pb a.dlbtn{display:block;text-align:center;padding:12px;border-radius:6px;background:#cc580c;background:linear-gradient(#cc580c,#b44606);color:#fff;font-weight:700;font-size:16px;text-decoration:none}
 .pb a.dlbtn:hover{filter:brightness(1.15)}
+.vtb{border-collapse:collapse;width:100%;margin-top:10px}
+.vtb th{text-align:left;color:#cdbfe8;font-weight:400;padding:4px 6px;border-bottom:1px solid #3a1a66}
+.vtb td{padding:5px 6px;border-bottom:1px solid #3a1a66;vertical-align:top}
+.vtb a{margin-right:8px;white-space:nowrap}
+.vtb i.fit{color:#ffb35c;font-size:11px;font-style:normal}
+.vtb tr.fitr td{background:#3a1a66}
 .nojs pre.mk-meta{display:block;white-space:pre-wrap;font:12px monospace;background:#1f0b3d;padding:8px;border-radius:4px}
 pre.mk-meta{display:none}
 /* widgets, footer */
@@ -388,6 +394,14 @@ var d=document,vw=d.documentElement.clientWidth||window.innerWidth||320,
 d.documentElement.className=d.documentElement.className.replace('nojs','js');
 function $$(s,r){return Array.prototype.slice.call((r||d).querySelectorAll(s))}
 function el(t,c,x){var e=d.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+/* man hinh may: SC.w x SC.h (nhu trinh duyet bao), SC.k = hau to khoa API ".s<W>x<H>" de Worker uu tien game dung co; man lon / Android / iPhone = smartphone (gui 480x800) */
+var SC=(function(){var w=parseInt(window.screen&&screen.width,10)||0,h=parseInt(window.screen&&screen.height,10)||0,mn,mx,ua=navigator.userAgent||'',
+ o={w:w,h:h,k:'',smart:false};
+ if(!w||!h)return o;
+ mn=Math.min(w,h);mx=Math.max(w,h);
+ o.smart=mn>=480||(mn>=360&&mx>=800)||/Android|iPhone|iPad|iPod|Windows Phone/i.test(ua);
+ o.k='.s'+(o.smart&&!(mn>=480||(mn>=360&&mx>=800))?'480x800':w+'x'+h);
+ return o})();
 function del(e){if(e&&e.parentNode)e.parentNode.removeChild(e)}
 function clr(e){while(e.firstChild)e.removeChild(e.firstChild)}
 /* GET JSON bang XHR (Opera Mini 6 khong co fetch). API cho phep CORS */
@@ -414,8 +428,8 @@ function meta(pre){
 function sz(k){k=parseInt(k,10);if(!k)return'';return k>=1024?(k/1024).toFixed(1)+' MB':k+' KB'}
 function pad(n){return('0'+n).slice(-2)}
 function fd(t){var x=new Date(t);return isNaN(x.getTime())?'':pad(x.getDate())+'/'+pad(x.getMonth()+1)+'/'+x.getFullYear()}
-/* luot tai: <5 an, <1000 so that, tu 1000 dang 1,2k */
-function fdl(n){n=parseInt(n,10)||0;if(n<5)return'';if(n<1000)return''+n;var k=Math.floor(n/100)/10;return String(k).replace('.',',')+'k'}
+/* luot tai: luon hien (0 cung hien), <1000 so that, tu 1000 dang 1,2k; chua biet (undefined) thi an */
+function fdl(n){if(n===undefined||n===null||n==='')return'';n=parseInt(n,10)||0;if(n<1000)return''+n;var k=Math.floor(n/100)/10;return String(k).replace('.',',')+'k'}
 /* the: slug taxonomy hoac nhan ngan -> huy hieu */
 var TG={vh:'VH','viet-hoa':'VH',mod:'MOD','3d':'3D',vn:'VN','game-viet':'VN',touch:'TOUCH','cam-ung':'TOUCH',mp:'MP','nhieu-nguoi':'MP',net:'NET','can-mang':'NET'};
 var PL={j2me:'Java J2ME',s60v2:'Symbian S60 v1/v2',s60v3:'Symbian S60 v3',s60v5:'Symbian S60 v5',s3:'Symbian^3 / Belle'};
@@ -549,8 +563,25 @@ $$('.pb pre.mk-meta').forEach(function(pre){
  if(fk){var gi=el('img','gic');gi.alt='';gi.width=64;gi.height=64;gi.src=API+'/v1/fi/'+fk+'-64.png';gi.onerror=function(){del(gi)};box.appendChild(gi)}
  box.appendChild(tb);
  if(m.jar&&/^https?:\/\//i.test(m.jar)){var a=el('a','dlbtn','Tải về (JAR)');a.href=lo(m.jar);a.rel='nofollow noopener';box.appendChild(a)}
+ /* bang link tai (dong v1..vN: "co|KB|NHAN=URL|NHAN=URL"): bang that, cot Man hinh / Dung luong / Tai ve; dong hop man hinh may xep dau + danh dau */
+ var vr=[],vk,vi;for(vk in m){if(/^v\d*$/.test(vk)&&m[vk])vr.push(m[vk].split('|'))}
+ if(vr.length){
+  var vt=el('table','vtb'),vh=el('tr');['Máy / màn hình','Dung lượng','Tải về'].forEach(function(x){vh.appendChild(el('th','',x))});vt.appendChild(vh);
+  var mine=SC.w+'x'+SC.h,mine2=SC.h+'x'+SC.w,rows=[],ex=false;
+  vr.forEach(function(p){if((p[0]||'').replace(/\s+/g,'')===mine)ex=true});
+  vr.forEach(function(p){
+   var tr=el('tr'),c0=el('td'),c2=el('td'),ls=p.slice(2),ok=false,j;
+   c0.appendChild(el('b','',(p[0]||'').replace(/^\s+|\s+$/g,'')));
+   var k0=(p[0]||'').replace(/\s+/g,'');
+   if(SC.w&&(k0===mine||(!ex&&k0===mine2))){ok=true;c0.appendChild(el('i','fit',' Hợp máy bạn'))}
+   tr.appendChild(c0);tr.appendChild(el('td','',/^\d+$/.test((p[1]||'').replace(/\s+/g,''))?sz(p[1].replace(/\s+/g,'')):''));
+   for(j=0;j<ls.length;j++){var mm=/^\s*([^=<>"]{1,20})=(https?:\/\/\S+)\s*$/.exec(ls[j]);if(mm){var la=el('a','',mm[1]);la.href=lo(mm[2]);la.rel='nofollow noopener';c2.appendChild(la);c2.appendChild(d.createTextNode(' '))}}
+   tr.appendChild(c2);if(c2.firstChild){if(ok)tr.className='fitr';rows.push({tr:tr,ok:ok})}});
+  rows.sort(function(a,b){return(b.ok?1:0)-(a.ok?1:0)});
+  rows.forEach(function(x){vt.appendChild(x.tr)});
+  if(rows.length)box.appendChild(vt)}
  pre.parentNode.insertBefore(box,pre);del(pre);
- fillDl([{path:location.pathname,set:function(n){var t=fdl(n);if(t){dlt.textContent=t;tr.style.display=''}}}])});
+ fillDl([{path:location.pathname,set:function(n){var t=fdl(n);if(t){dlt.textContent=t+' lượt';tr.style.display=''}}}])});
 /* trang Xep hang (/p/xep-hang.html, trang tinh Blogger de trong): tab + loc + luoi tu list.json */
 if(/\/p\/xep-hang\.html$/.test(location.pathname)){(function(){
  var rk=d.getElementById('rk'),art=d.querySelector('.it');
@@ -618,7 +649,7 @@ if(/^\/(index\.html)?$/.test(location.pathname)&&!/[?&](q|updated-max|start)=/.t
  var pbox=el('div'),tbox=el('div','tp'),big=vw>=900;
  hm.appendChild(pbox);(big&&tp?tp:hm).appendChild(tbox);
  /* De xuat hom nay: Worker chon cho ca ngay (doi luc nua dem gio Viet Nam) */
- get(API+'/v1/list.json?key=pick&page=0',function(R){
+ get(API+'/v1/list.json?key=pick'+SC.k+'&page=0',function(R){
   var L=(R&&R.items)||[];if(!L.length)return;
   L=L.slice(0,vw<600?2:4);
   var h=el('h2','st','Đề xuất hôm nay'),gl=el('div','gl'),t=new Date();

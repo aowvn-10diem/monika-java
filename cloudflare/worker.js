@@ -202,6 +202,8 @@ const flagsOf = (r, now) => {
   if (r.hot) f |= 8;
   if (r.hasic) f |= 16; // có icon: app gọi /v1/ic/{id}-32.png
   if (r.hasimg) f |= 32; // có ảnh minh họa: app gọi /v1/sc/{id}-{w}x{h}.jpg
+  if (r.type === "post") f |= 64; // bài viết (truyện, thủ thuật): nút Mở chuyển tới trang bài, không có lượt tải
+  else if (r.type === "media") f |= 128; // giao diện, âm thanh: nút Tải mở trang chọn bản
   return f;
 };
 const bin = (u8, ttl = 60) => new Response(u8, { headers: { "content-type": "application/octet-stream", "cache-control": `public, max-age=${ttl}`, "access-control-allow-origin": "*" } });
@@ -262,7 +264,7 @@ async function listJson(env, key, page) {
   const q = parseKey(key);
   if (!q) return jsonResp({ error: "bad key" }, 400);
   const now = Date.now();
-  const { total, rows } = await fetchRows(env, q.where, q.binds, page, await orderFor(env, q.sort), PAGE, q.types);
+  const { total, rows } = await fetchRows(env, q.where, q.binds, page, await orderFor(env, q.sort, q.screen), PAGE, q.types);
   return jsonResp({ total, page, items: rows.map((r, i) => jsonItem(r, i, flagsOf(r, now))) });
 }
 const jsonResp = (o, status = 200, ttl = 60) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": `public, max-age=${ttl}`, "access-control-allow-origin": "*" } });
@@ -335,17 +337,29 @@ async function countFile(env, req, fname) {
 const hesc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export function chooserHtml(title, lines, blog) {
   const rows = [];
+  let nlink = 0;
   for (const l of lines.slice(0, 40)) {
     const p = l.split("|").map((x) => x.trim());
     const links = p.slice(2).map((x) => /^([^=<>"]{1,20})=(https?:\/\/[^\s<>"]+)$/i.exec(x)).filter(Boolean)
       .map((x) => `<a href="${hesc(x[2])}">${hesc(x[1])}</a>`);
+    nlink = Math.max(nlink, links.length);
     // trường đầu: độ phân giải (game, hình nền) hoặc nhãn ngắn (theme, nhạc chuông, video: "Nokia S60v3", "MP3 128k")
     if (!/^(\d{2,3}x\d{2,3}|[\p{L}\p{N} ._+()-]{1,24})$/u.test(p[0] || "") || !links.length) continue;
-    rows.push(`<p><b>${hesc(p[0])}</b>${p[1] && /^\d+$/.test(p[1]) ? " · " + p[1] + " KB" : ""} · ${links.join(" · ")}</p>`);
+    rows.push(`<tr><td><b>${hesc(p[0])}</b></td><td>${p[1] && /^\d+$/.test(p[1]) ? p[1] + " KB" : "&nbsp;"}</td>` +
+      Array.from({ length: nlink || links.length }, (_, i) => `<td>${links[i] || "&nbsp;"}</td>`).join("") + "</tr>");
+  }
+  // bảng thật (không float, không CSS mới) để Opera Mini, Nokia S40/S60 cũ vẫn thẳng cột; số cột link theo dòng nhiều link nhất
+  if (rows.length) {
+    const cols = nlink;
+    for (let i = 0; i < rows.length; i++) {
+      const have = (rows[i].match(/<td>/g) || []).length - 2;
+      if (have < cols) rows[i] = rows[i].replace("</tr>", "<td>&nbsp;</td>".repeat(cols - have) + "</tr>");
+    }
   }
   if (!rows.length) return "";
   return `<html><head><meta charset="utf-8"><title>${hesc(title)}</title></head><body><h3>${hesc(title)}</h3>` +
-    `<p>Chọn dòng đúng với máy bạn (độ phân giải màn hình hoặc loại máy). Tệp tải từ trang nguồn.</p>${rows.join("")}` +
+    `<p>Chọn dòng đúng với máy bạn (độ phân giải màn hình hoặc loại máy). Tệp tải từ trang nguồn.</p>` +
+    `<table border="1" cellpadding="4" cellspacing="0" width="100%"><tr><th align="left">Máy / màn hình</th><th align="left">Dung lượng</th><th align="left" colspan="${Math.max(nlink, 1)}">Tải về</th></tr>${rows.join("")}</table>` +
     `<p><a href="${hesc(blog || "/")}">Monika</a></p></body></html>`;
 }
 async function chooser(env, it) {
@@ -440,7 +454,7 @@ export default {
       if ((m = /^\/v1\/(l|l2)\/([a-z0-9.]+)\/(\d+)\.bin$/.exec(p))) {
         const page = Math.min(parseInt(m[3], 10), 4000), q = parseKey(m[2]);
         if (!q) return text("bad key", 404);
-        return await (m[1] === "l2" ? list2 : list)(env, q.where, q.binds, q.where.startsWith("i.n=?") ? 0 : page, await orderFor(env, q.sort), q.types);
+        return await (m[1] === "l2" ? list2 : list)(env, q.where, q.binds, q.where.startsWith("i.n=?") ? 0 : page, await orderFor(env, q.sort, q.screen), q.types);
       }
       if (p === "/v1/list.json") return await listJson(env, u.searchParams.get("key") || "new", Math.min(Math.max(parseInt(u.searchParams.get("page") || "0", 10) || 0, 0), 4000));
       if (p === "/v1/stats.json") return jsonResp(await statsJson(env, u.searchParams.get("ids"), u.searchParams.get("paths")));

@@ -44,7 +44,14 @@ fetch_libs() {
     if [ ! -f "$f" ]; then
       url="$CENTRAL/$(echo "$g" | tr . /)/$a/$v/$a-$v.jar"
       echo "Tải $a-$v.jar"
-      curl -fsSL --retry 6 --retry-delay 3 --retry-all-errors -o "$f" "$url"
+      # Maven Central trả 429 khi nhiều máy chung IP (CI, proxy): thử lại với thời gian chờ tăng dần (tối đa khoảng 5 phút mỗi thư viện)
+      n=0
+      until curl -fsSL --retry 2 --retry-delay 3 --retry-all-errors -o "$f" "$url"; do
+        n=$((n + 1))
+        [ "$n" -lt 8 ] || { echo "Không tải được $a-$v.jar sau $n lần" >&2; exit 1; }
+        echo "Thử lại sau $((n * 10)) giây ($n/8)" >&2
+        sleep $((n * 10))
+      done
     fi
     want="$(grep " $a-$v.jar\$" "$ROOT/tools/libs.sha256" | cut -d' ' -f1)"
     got="$(sha256sum "$f" | cut -d' ' -f1)"
