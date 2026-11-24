@@ -26,14 +26,14 @@ export function upstream(env, url, init = {}) {
   return fetch(url, init);
 }
 
-// GET /v1/p/<ID>/<tên>.jar: phát lại file Pixeldrain (JAR đã lọc waptai-*) cho máy cũ qua HTTP; hỗ trợ Range. Tên file chỉ để hiển thị khi tải.
+// GET /v1/p/<ID>/<tên>.jar: phát lại file Pixeldrain (JAR đã làm sạch: waptai-*, qnw-*, gt321-*, wvip-*) cho máy cũ qua HTTP; hỗ trợ Range. Tên file chỉ để hiển thị khi tải.
 export async function pdServe(env, req, id, name, text) {
   if (!env.PD_KEY) return text("pixeldrain chua cau hinh", 503);
   const info = await upstream(env, `https://pixeldrain.com/api/file/${id}/info`, { cf: { cacheTtl: 3600, cacheEverything: true } });
   if (!info.ok) return text("not found", 404);
   const meta = await info.json();
   // chỉ phát JAR đã làm sạch của dự án, không biến Worker thành proxy cho cả thư viện Pixeldrain
-  if (!/^waptai-\d+-.+\.jar$/i.test(meta.name || "")) return text("not found", 404);
+  if (!/^(waptai|qnw|gt321|wvip)-\d+-.+\.jar$/i.test(meta.name || "")) return text("not found", 404);
   const h = {};
   const rg = req.headers.get("range"); if (rg) h.range = rg;
   const r = await upstream(env, `https://pixeldrain.com/api/file/${id}`, { headers: { ...h, "user-agent": "MonikaDl/1" } });
