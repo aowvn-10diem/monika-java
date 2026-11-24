@@ -44,3 +44,15 @@ Workflow `.github/workflows/deploy-worker.yml` chạy test rồi `wrangler deplo
 - Test mới: `node cloudflare/test/v3.test.mjs` (migration 005, phân giải danh mục, đồng bộ bài media/post, đề xuất đổi theo ngày giờ Việt Nam, phân trang số).
 
 - **Pixeldrain (migration 006, `pd_links`)**: dòng `v1..vN` chứa `…/v1/p/<ID>/…` được đồng bộ vào bảng `pd_links(pd, src)`; route `/v1/p/<ID>/<tên>.jar` tra ra mục của bài rồi `countDownload` (mọi độ phân giải cộng vào cùng một mục). Chưa chạy migration thì route vẫn phát file, chỉ không đếm. Thử: `node cloudflare/test/rank.test.mjs`, `node cloudflare/test/pd.test.mjs`.
+
+## Chốt chặn hạn mức free (R2, D1, Worker)
+
+Hạn mức free chính thức (docs Cloudflare R2 pricing, kiểm 2026-11-24): R2 Standard **10 GB-tháng lưu trữ, 1 triệu thao tác Class A (ghi/list), 10 triệu Class B (đọc) mỗi tháng**, egress miễn phí; vượt thì **tính tiền, không tự khóa**. Free tier không áp cho Infrequent Access. D1 free 100k hàng ghi/ngày, Workers Free 100k lượt gọi/ngày (reset 00:00 UTC).
+
+`r2guard.js` (test: `node cloudflare/test/r2guard.test.mjs`):
+- Đếm Class A/B theo tháng UTC trong bảng `meta` (không cần migration; gom 20 thao tác mới ghi D1 một lần). Lưu trữ = tổng `files.size` của kho r2 + `meta r2x:bytes` (phần ảnh seed ngoài Worker) hoặc số thật từ Cloudflare.
+- **>= 80%**: trạng thái `warn` + cảnh báo (webhook `ALERT_URL`, dòng trạng thái trên trang `/up`, `GET /v1/admin/r2`). **>= 90%**: `lock`.
+- Khóa ghi (lưu trữ hoặc Class A): `/up` tự rơi xuống GitHub rồi KV. Khóa đọc (Class B): `/v1/pic` chuyển hướng tới ảnh gốc nếu `meta` có `pic:<tên>` = URL nguồn, không thì trả ảnh giữ chỗ (header `x-monika-fallback`); JAR trong R2 trả 503 kèm Retry-After. Ảnh đã có trong cache biên không tốn lượt đọc.
+- D1 ghi >= 90% hạn mức ngày: **chế độ tiết kiệm D1** (đồng bộ Blogger 20 phút/lần, tạm dừng tính Hot, bù icon, đếm lượt tải). Lượt gọi Worker >= 90% chỉ cảnh báo.
+- Số thật (gồm cả `wrangler r2 object put`, D1, Worker) cần `CF_ACCOUNT_ID` + secret `CF_API_TOKEN` (Account Analytics:Read, Workers R2 Storage:Read). Không có thì chỉ biết phần đi qua Worker.
+- Công tắc tay (cần UP_TOKEN): `POST /v1/admin/r2?lock=1|0|auto`, chỉnh `ext_bytes=N`, `ext_a=N`, `sync=1`. Xem: `GET /v1/admin/r2`.

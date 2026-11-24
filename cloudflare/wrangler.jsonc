@@ -5,7 +5,8 @@
   "compatibility_date": "2025-09-01",
   "triggers": { "crons": ["*/5 * * * *"] },
   "vars": { "API_HOST": "api.justmonika.top", "BLOG_URL": "https://m.justmonika.top",
-            "GH_REPO": "aowvn-10diem/monika-java", "GH_BRANCH": "files", "GH_DIR": "jars" },
+            "GH_REPO": "aowvn-10diem/monika-java", "GH_BRANCH": "files", "GH_DIR": "jars",
+            "CF_ACCOUNT_ID": "7e8158c75c09fedc35134996ada34204" },
   "d1_databases": [{ "binding": "DB", "database_name": "monika", "database_id": "bc819f19-65b8-4528-938b-2e17833ba180" }],
   // R2: kho file chính (JAR) và ảnh minh họa (khóa pic/<tên>.jpg, phát qua /v1/pic/<tên>.jpg). PHẢI tạo bucket monika-files trước khi deploy, nếu không deploy báo lỗi.
   "r2_buckets": [{ "binding": "R2", "bucket_name": "monika-files" }],
@@ -16,6 +17,9 @@
     { "name": "RL_DL", "namespace_id": "1001", "simple": { "limit": 6, "period": 60 } },
     { "name": "RL_SEARCH", "namespace_id": "1002", "simple": { "limit": 60, "period": 60 } }
   ]
+  // Chốt chặn hạn mức free (r2guard.js). Mặc định: lưu trữ 10GB, Class A 1 triệu/tháng, Class B 10 triệu/tháng, D1 100k hàng ghi/ngày, Worker 100k lượt/ngày; cảnh báo 80%, khóa 90%.
+  // Biến tùy chọn: R2_STORAGE_LIMIT, R2_A_LIMIT, R2_B_LIMIT, D1_WRITE_LIMIT, REQ_LIMIT (số), R2_WARN_PCT, R2_LOCK_PCT; ALERT_URL (secret hoặc biến, webhook Discord/Telegram nhận JSON {text, content});
+  // CF_ACCOUNT_ID + secret CF_API_TOKEN (quyền Account Analytics:Read và Workers R2 Storage:Read) để lấy số thật từ Cloudflare mỗi 25 phút. Không có thì chỉ đếm trong Worker (D1/Worker không có số).
   // Secret: SYNC_TOKEN, UP_TOKEN, GH_TOKEN (tùy chọn, quyền Contents: write), DL_SALT (tùy chọn, muối băm khóa đếm lượt tải; mặc định lấy UP_TOKEN)
   // Biến tùy chọn: REF_OK = danh sách host được phép trỏ link tải (ngoài host của mình), cách nhau bằng dấu phẩy
 }
