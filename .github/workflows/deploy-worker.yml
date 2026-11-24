@@ -1,0 +1,77 @@
+name: deploy-worker
+
+# Đưa Worker api.justmonika.top (thư mục cloudflare/) lên Cloudflare.
+# Cần 2 secret của repo: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (tài khoản Cloudflare RIÊNG của Monika Java).
+# Secret của Worker (PD_KEY, SYNC_TOKEN, UP_TOKEN, ...) giữ nguyên, workflow không đụng tới.
+# Chạy tay: tab Actions > deploy-worker > Run workflow. Chạy tự động khi merge vào main có sửa cloudflare/.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "seed-pic = chỉ up ảnh trong cloudflare/r2-seed vào R2 (không deploy); deploy = test + deploy Worker (kèm up ảnh nếu có)"
+        type: choice
+        options: [deploy, seed-pic]
+        default: deploy
+  push:
+    branches: [main]
+    paths:
+      - "cloudflare/**"
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Up ảnh vào R2 (cloudflare/r2-seed/** → bucket monika-files)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -d r2-seed || { echo "Không có r2-seed, bỏ qua"; exit 0; }
+          cd r2-seed
+          n=0
+          find . -type f | sed 's|^\./||' | sort | while read -r f; do
+            ct=image/jpeg; case "$f" in *.png) ct=image/png;; esac
+            npx --yes wrangler@4 r2 object put "monika-files/$f" --file "$f" --content-type "$ct" --remote || exit 1
+          done
+          echo "Đã up xong ảnh vào R2"
+      - name: Test (node:sqlite làm D1 giả)
+        if: ${{ inputs.mode != 'seed-pic' }}
+        run: |
+          node tools/gen-taxonomy.mjs --check
+          node cloudflare/test/rank.test.mjs
+          node cloudflare/test/v3.test.mjs
+          node cloudflare/test/ext.test.mjs
+          node cloudflare/test/shot.test.mjs
+      - name: Deploy Worker
+        if: ${{ inputs.mode != 'seed-pic' }}
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Thiếu secret CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          npx --yes wrangler@4 deploy
+      - name: Kiểm tra endpoint sau deploy
+        if: ${{ inputs.mode != 'seed-pic' }}
+        run: |
+          sleep 10
+          fail=0
+          for p in "v1/cats.json" "v1/menu.json" "v1/home2.bin" "v1/home3.bin" "v1/list.json?key=pick" "v1/list.json?key=top7" "v1/stats.json" "v1/l/new/0.bin"; do
+            code=$(curl -s -m 20 -o /dev/null -w "%{http_code}" "https://api.justmonika.top/$p")
+            echo "$p -> $code"
+            [ "$code" = "200" ] || fail=1
+          done
+          exit $fail

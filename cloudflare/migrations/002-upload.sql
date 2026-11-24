@@ -1,0 +1,13 @@
+-- Chạy một lần trên DB đã có (D1 không hỗ trợ ADD COLUMN IF NOT EXISTS).
+ALTER TABLE items ADD COLUMN file_h TEXT;
+ALTER TABLE items ADD COLUMN ic32 TEXT;
+ALTER TABLE items ADD COLUMN ic64 TEXT;
+ALTER TABLE items ADD COLUMN icon_state INTEGER;
+CREATE TABLE IF NOT EXISTS files (
+  k TEXT PRIMARY KEY, h TEXT UNIQUE NOT NULL, fname TEXT UNIQUE NOT NULL,
+  name TEXT, vendor TEXT, ver TEXT, descr TEXT,
+  size INTEGER NOT NULL, store TEXT NOT NULL, skey TEXT NOT NULL,
+  mf TEXT, ic32 TEXT, ic64 TEXT, has_icon INTEGER DEFAULT 0, orig TEXT, created INTEGER
+);
+CREATE INDEX IF NOT EXISTS files_name ON files(name);
+CREATE INDEX IF NOT EXISTS items_file ON items(file_h);
