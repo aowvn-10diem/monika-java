@@ -1,6 +1,6 @@
 // Thử nguồn Pixeldrain: đổi link, thêm khóa, /v1/p chỉ phát tệp waptai-<số>-*.jar. Chạy: node cloudflare/test/pd.test.mjs
 import assert from "node:assert/strict";
-import { pdDirect, upstream, pdServe } from "../pd.js";
+import { pdDirect, upstream, pdServe, pdImage } from "../pd.js";
 
 assert.equal(pdDirect("https://pixeldrain.com/u/AbC123xy"), "https://pixeldrain.com/api/file/AbC123xy");
 assert.equal(pdDirect("https://pixeldrain.com/api/file/AbC123xy?download"), "https://pixeldrain.com/api/file/AbC123xy");
@@ -34,6 +34,22 @@ assert.equal(r.status, 503);
 
 await upstream({}, "https://pixeldrain.com/api/file/X", {});
 assert.equal(calls.at(-1).auth, null);
+
+globalThis.fetch = async (u, i = {}) => {
+  if (u.endsWith("/info")) return new Response(JSON.stringify({ name: u.includes("IMG1") ? "waptai-img-0123456789ab.jpg" : "other.jpg" }), { status: 200 });
+  return new Response("IMGDATA", { status: 200, headers: { "content-length": "7" } });
+};
+const ireq = new Request("http://x/v1/pi/IMG12345/waptai-img-0123456789ab.jpg");
+r = await pdImage({ PD_KEY: "k" }, ireq, "IMG12345", "waptai-img-0123456789ab.jpg", text);
+assert.equal(r.status, 200);
+assert.equal(r.headers.get("content-type"), "image/jpeg");
+assert.match(r.headers.get("cache-control"), /immutable/);
+r = await pdImage({ PD_KEY: "k" }, ireq, "OTHER123", "waptai-img-0123456789ab.jpg", text);
+assert.equal(r.status, 404); // tên trên Pixeldrain không khớp
+r = await pdImage({ PD_KEY: "k" }, ireq, "IMG12345", "evil.jar", text);
+assert.equal(r.status, 404);
+r = await pdImage({}, ireq, "IMG12345", "waptai-img-0123456789ab.jpg", text);
+assert.equal(r.status, 503);
 console.log("pd.test OK");
 
 import { pdIds } from "../pd.js";

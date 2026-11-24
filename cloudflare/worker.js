@@ -1,7 +1,7 @@
 // Monika API (Cloudflare Worker + D1). Contract: memory "monika-api-contract".
 // Nguồn dữ liệu: feed Blogger (BLOG_URL). Cron quét từng trang 40 bài, xóa mục mất khỏi blog sau mỗi vòng quét.
 
-import { pdDirect, upstream, pdServe, pdIds } from "./pd.js";
+import { pdDirect, upstream, pdServe, pdImage, pdIds } from "./pd.js";
 import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, iconOfFile, iconsJson, ingestExternal, backfillIcons, admin } from "./up.js";
 import { serveFile } from "./store.js";
 import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson } from "./rank.js";
@@ -486,6 +486,9 @@ export default {
           if (row) ctx.waitUntil(countDownload(env, req, row.n));
         } catch (_) {}
         return await pdServe(env, req, m[1], decodeURIComponent(m[2]), text);
+      }
+      if ((m = /^\/v1\/pi\/([A-Za-z0-9]{6,12})\/([^/]{1,60})$/.exec(p)) && (req.method === "GET" || req.method === "HEAD")) {
+        return await pdImage(env, req, m[1], decodeURIComponent(m[2]), text);
       }
       if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type,x-token,x-filename", "access-control-allow-methods": "GET,POST,OPTIONS" } });
       if (p === "/up") return new Response(UP_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });

@@ -43,3 +43,25 @@ export async function pdServe(env, req, id, name, text) {
   for (const k of ["content-length", "content-range"]) if (r.headers.get(k)) hd.set(k, r.headers.get(k));
   return new Response(r.body, { status: r.status, headers: hd });
 }
+
+// GET /v1/pi/<ID>/waptai-img-<sha12>.<jpg|png|gif|webp>: phát ảnh minh họa/trang truyện đã chuyển về kho Pixeldrain. Tên theo nội dung nên cache vĩnh viễn ở edge.
+const IMG_NAME = /^waptai-img-[0-9a-f]{12}\.(jpg|png|gif|webp)$/;
+const IMG_TYPE = { jpg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
+export async function pdImage(env, req, id, name, text) {
+  const m = IMG_NAME.exec(name || "");
+  if (!m) return text("not found", 404);
+  if (!env.PD_KEY) return text("pixeldrain chua cau hinh", 503);
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  const key = new Request(new URL(req.url).origin + `/v1/pi/${id}/${name}`);
+  if (cache) { const hit = await cache.match(key); if (hit) return hit; }
+  const info = await upstream(env, `https://pixeldrain.com/api/file/${id}/info`, { cf: { cacheTtl: 3600, cacheEverything: true } });
+  if (!info.ok) return text("not found", 404);
+  const meta = await info.json();
+  if (meta.name !== name) return text("not found", 404); // chỉ phát ảnh đúng tên đã đăng ký, không phải kho Pixeldrain bất kỳ
+  const r = await upstream(env, `https://pixeldrain.com/api/file/${id}`, { headers: { "user-agent": "MonikaDl/1" } });
+  if (!r.ok) return text("upstream " + r.status, 502);
+  const res = new Response(r.body, { status: 200, headers: { "content-type": IMG_TYPE[m[1]], "cache-control": "public, max-age=31536000, immutable",
+    "access-control-allow-origin": "*", ...(r.headers.get("content-length") ? { "content-length": r.headers.get("content-length") } : {}) } });
+  if (cache) { try { await cache.put(key, res.clone()); } catch (_) {} }
+  return res;
+}
