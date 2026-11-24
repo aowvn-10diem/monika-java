@@ -10,7 +10,10 @@ const calls = [];
 globalThis.fetch = async (u, i = {}) => {
   const h = new Headers(i.headers || {});
   calls.push({ u, auth: h.get("authorization"), range: h.get("range") });
-  if (u.endsWith("/info")) return new Response(JSON.stringify({ name: u.includes("GOOD") ? "waptai-12-game.jar" : "Other.jar" }), { status: 200 });
+  if (u.endsWith("/info")) {
+    const nm = u.includes("GOOD") ? "waptai-12-game.jar" : u.includes("QNW") ? "qnw-3-game.jar" : u.includes("GT3") ? "gt321-7-game.jar" : u.includes("WVIP") ? "wvip-9-game.jar" : "Other.jar";
+    return new Response(JSON.stringify({ name: nm }), { status: 200 });
+  }
   return new Response("JARDATA", { status: i.headers && h.get("range") ? 206 : 200, headers: { "content-length": "7" } });
 };
 const text = (t, s) => new Response(t, { status: s });
@@ -25,6 +28,11 @@ assert.match(r.headers.get("content-disposition"), /game\.jar/);
 r = await pdServe({ PD_KEY: "k" }, req("bytes=0-3"), "GOOD1234", "game.jar", text);
 assert.equal(r.status, 206);
 assert.equal(calls.at(-1).range, "bytes=0-3");
+
+for (const id of ["QNW12345", "GT312345", "WVIP1234"]) {
+  r = await pdServe({ PD_KEY: "k" }, req(), id, "game.jar", text);
+  assert.equal(r.status, 200, id); // tiền tố qnw-/gt321-/wvip- cũng được phát
+}
 
 r = await pdServe({ PD_KEY: "k" }, req(), "BAD12345", "x.jar", text);
 assert.equal(r.status, 404); // tên không bắt đầu bằng waptai-<số>-: không phát
