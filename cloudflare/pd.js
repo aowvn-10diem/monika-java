@@ -27,18 +27,21 @@ export function upstream(env, url, init = {}) {
 }
 
 // GET /v1/p/<ID>/<tên>.jar: phát lại file Pixeldrain (JAR đã làm sạch: waptai-*, qnw-*, gt321-*, wvip-*, bdk-*) cho máy cũ qua HTTP; hỗ trợ Range. Tên file chỉ để hiển thị khi tải.
+// Tệp S60 (.sis/.sisx), theme Nokia (.nth), nhạc chuông (.mp3) dùng chung đường /v1/p/<ID>/<tên> với JAR.
+export const FILE_TYPE = { jar: "application/java-archive", sis: "application/vnd.symbian.install", sisx: "x-epoc/x-sisx-app", nth: "application/vnd.nok-s40theme", mp3: "audio/mpeg" };
 export async function pdServe(env, req, id, name, text) {
   if (!env.PD_KEY) return text("pixeldrain chua cau hinh", 503);
   const info = await upstream(env, `https://pixeldrain.com/api/file/${id}/info`, { cf: { cacheTtl: 3600, cacheEverything: true } });
   if (!info.ok) return text("not found", 404);
   const meta = await info.json();
   // chỉ phát JAR đã làm sạch của dự án, không biến Worker thành proxy cho cả thư viện Pixeldrain
-  if (!/^(waptai|qnw|gt321|wvip|bdk)-\d+-.+\.jar$/i.test(meta.name || "")) return text("not found", 404);
+  const em = /^(waptai|qnw|gt321|wvip|bdk)-\d+-.+\.(jar|sis|sisx|nth|mp3)$/i.exec(meta.name || "");
+  if (!em) return text("not found", 404);
   const h = {};
   const rg = req.headers.get("range"); if (rg) h.range = rg;
   const r = await upstream(env, `https://pixeldrain.com/api/file/${id}`, { headers: { ...h, "user-agent": "MonikaDl/1" } });
   if (!r.ok && r.status !== 206) return text("upstream " + r.status, 502);
-  const hd = new Headers({ "content-type": "application/java-archive", "cache-control": "public, max-age=300", "accept-ranges": "bytes",
+  const hd = new Headers({ "content-type": FILE_TYPE[em[2].toLowerCase()], "cache-control": "public, max-age=300", "accept-ranges": "bytes",
     "content-disposition": `attachment; filename="${String(name).replace(/[^\w.-]/g, "_")}"` });
   for (const k of ["content-length", "content-range"]) if (r.headers.get(k)) hd.set(k, r.headers.get(k));
   return new Response(r.body, { status: r.status, headers: hd });
