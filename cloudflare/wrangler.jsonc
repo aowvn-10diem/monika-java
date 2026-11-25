@@ -23,7 +23,7 @@
   "send_email": [{ "name": "EMAIL", "destination_address": "vuminh2612@gmail.com" }]
   // Chốt chặn hạn mức free (r2guard.js). Mặc định: lưu trữ 10GB, Class A 1 triệu/tháng, Class B 10 triệu/tháng, D1 100k hàng ghi/ngày, Worker 100k lượt/ngày; cảnh báo 80%, khóa 90%.
   // Biến tùy chọn: R2_STORAGE_LIMIT, R2_A_LIMIT, R2_B_LIMIT, D1_WRITE_LIMIT, REQ_LIMIT (số), R2_WARN_PCT, R2_LOCK_PCT; ALERT_URL (secret hoặc biến, webhook Discord/Telegram nhận JSON {text, content});
-  // CF_ACCOUNT_ID + secret CF_API_TOKEN (quyền Account Analytics:Read và Workers R2 Storage:Read) để lấy số thật từ Cloudflare mỗi 25 phút. Không có thì chỉ đếm trong Worker (D1/Worker không có số).
+  // D1/Worker/R2 được đo ngay trong Worker, không cần token. Tùy chọn: CF_ACCOUNT_ID + secret CF_API_TOKEN (Account Analytics:Read, Workers R2 Storage:Read) để đối chiếu số thật mỗi 25 phút.
   // Secret: FB_SECRET (tùy chọn, khóa ký captcha góp ý; mặc định UP_TOKEN), RESEND_KEY (tùy chọn, kênh gửi email dự phòng), SYNC_TOKEN, UP_TOKEN, GH_TOKEN (tùy chọn, quyền Contents: write), DL_SALT (tùy chọn, muối băm khóa đếm lượt tải; mặc định lấy UP_TOKEN)
   // Biến tùy chọn: REF_OK = danh sách host được phép trỏ link tải (ngoài host của mình), cách nhau bằng dấu phẩy
 }
