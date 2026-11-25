@@ -498,7 +498,7 @@ export default {
       if ((m = /^\/v1\/sc\/(\d+)-(\d+)x(\d+)\.jpg$/.exec(p))) return await shot(env, parseInt(m[1], 10), Math.min(Math.max(parseInt(m[2], 10), 40), 320), Math.min(Math.max(parseInt(m[3], 10), 30), 320));
       if ((m = /^\/v1\/pic\/([A-Za-z0-9_-]{1,60}\.jpg)$/.exec(p))) return await pic(env, m[1]);
       if ((m = /^\/v1\/j\/(\d+)\.(jad|jar)$/.exec(p))) return await download(env, ctx, req, parseInt(m[1], 10), m[2]);
-      if ((m = /^\/v1\/p\/([A-Za-z0-9]{6,12})\/([^/]{1,120}\.jar)$/.exec(p))) {
+      if ((m = /^\/v1\/p\/([A-Za-z0-9]{6,12})\/([^/]{1,120}\.(?:jar|sis|sisx|nth|mp3))$/.exec(p))) {
         if (hotlinked(env, req)) return Response.redirect(env.BLOG_URL || `http://${env.API_HOST}/`, 302);
         if (await tooFast(env, req, "RL_DL")) return tooMany();
         // đếm lượt vào đúng mục nếu ID đã có trong pd_links (chưa có bảng/ánh xạ thì chỉ phục vụ, không đếm)

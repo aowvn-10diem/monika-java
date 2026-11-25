@@ -34,6 +34,20 @@ for (const id of ["QNW12345", "GT312345", "WVIP1234", "BDK12345"]) {
   assert.equal(r.status, 200, id); // tiền tố qnw-/gt321-/wvip- cũng được phát
 }
 
+// tệp S60, theme, nhạc chuông: tên Pixeldrain đúng quy tắc + đuôi mới thì phát, đúng content-type
+{
+  const old = globalThis.fetch;
+  for (const [nm, ct] of [["wvip-5-game.sisx", "x-epoc/x-sisx-app"], ["qnw-8-app.sis", "application/vnd.symbian.install"], ["gt321-2-a.nth", "application/vnd.nok-s40theme"], ["wvip-3-b.mp3", "audio/mpeg"]]) {
+    globalThis.fetch = async (u) => u.endsWith("/info") ? new Response(JSON.stringify({ name: nm }), { status: 200 }) : new Response("X", { status: 200 });
+    const rr = await pdServe({ PD_KEY: "k" }, req(), "EXT12345", nm, text);
+    assert.equal(rr.status, 200, nm);
+    assert.equal(rr.headers.get("content-type"), ct, nm);
+  }
+  globalThis.fetch = async (u) => u.endsWith("/info") ? new Response(JSON.stringify({ name: "other-1-x.sis" }), { status: 200 }) : new Response("X", { status: 200 });
+  assert.equal((await pdServe({ PD_KEY: "k" }, req(), "EXT12345", "x.sis", text)).status, 404); // tiền tố lạ vẫn bị chặn
+  globalThis.fetch = old;
+}
+
 r = await pdServe({ PD_KEY: "k" }, req(), "BAD12345", "x.jar", text);
 assert.equal(r.status, 404); // tên không bắt đầu bằng waptai-<số>-: không phát
 
