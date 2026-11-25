@@ -6,7 +6,7 @@ import { UP_PAGE, handleUpload, fileDownload, fileJad, itemFile, iconOfItem, ico
 import { serveFile } from "./store.js";
 import { resolveCat, typeFromLabels, isTypeLabel, ITEM_TYPES, parseTags, parsePlat, parseRes, guessTags, parseKey, orderFor, fetchRows, jsonItem, countDownload, tooFast, hotlinked, recompute, statsJson, catsJson, menuJson, resBits } from "./rank.js";
 import { pagerJson } from "./pager.js";
-import { r2Allow, r2Note, r2Tick, ecoOn, PLACEHOLDER_JPG } from "./r2guard.js";
+import { r2Allow, r2Note, r2Tick, r2Flush, r2Hit, withGuard, tierEvery, ecoOn, PLACEHOLDER_JPG } from "./r2guard.js";
 import { submit as fbSubmit, formPage as fbForm, challengeBin as fbChallenge, adminList as fbAdmin, flush as fbFlush } from "./feedback.js";
 
 const PAGE = 15;
@@ -319,7 +319,7 @@ async function shot(env, id, w, h) {
   const it = await env.DB.prepare("SELECT img FROM items WHERE n=?").bind(id).first();
   if (!it || !it.img) return text("not found", 404);
   const pn = picName(env, it.img);
-  if (pn) return await pic(env, pn);
+  if (pn) return await pic(env, pn, true);
   // Ảnh đã chuyển về Pixeldrain (/v1/pi/<ID>/<tên>) của chính API: gọi thẳng hàm phát ảnh. Worker tự fetch tên miền của chính nó sẽ treo ~20 giây rồi 502 (ô ảnh trống, trang tải chậm).
   const pi = /^https?:\/\/([^/]+)\/v1\/pi\/([A-Za-z0-9_-]{4,40})\/([A-Za-z0-9._-]{1,80})$/.exec(it.img);
   if (pi && pi[1].toLowerCase() === String(env.API_HOST || "").toLowerCase()) {
@@ -390,17 +390,20 @@ async function chooser(env, it) {
 }
 
 // Ảnh minh họa lưu trong R2 (khóa pic/<tên>.jpg), phát qua /v1/pic/<tên>.jpg. Không có R2 thì 404.
-// Chốt chặn hạn mức (r2guard.js): R2 khóa đọc thì chuyển hướng sang ảnh gốc (nếu meta có `pic:<tên>` = URL nguồn), không thì trả ảnh giữ chỗ.
-async function pic(env, name) {
+// Chốt chặn hạn mức (r2guard.js): R2 khóa đọc (hoặc thiếu object) thì lấy ảnh gốc: trình duyệt (web) được chuyển hướng 302, app (qua /v1/sc) được Worker tải hộ từ nguồn gốc;
+// không có nguồn gốc thì trả ảnh giữ chỗ. Nguồn gốc = meta `pic:<tên>` hoặc bảng sinh sẵn pic-src.js (tools/gen_pic_src.py).
+async function pic(env, name, app = false) {
   if (!env.R2) return text("no r2", 404);
   // Cache biên: ảnh đã đọc một lần thì các lần sau không tốn lượt đọc R2 (hạn mức Class B). Tên không có cũng cache 60 giây.
   const cache = typeof caches !== "undefined" ? caches.default : null;
   const key = new Request(`https://${env.API_HOST || "api"}/v1/pic/${name}`);
   if (cache) { const hit = await cache.match(key); if (hit) return hit; }
-  if (!(await r2Allow(env, "read")).ok) return await picFallback(env, name);
+  if (!(await r2Allow(env, "read")).ok) return await picFallback(env, name, app, true);
   await r2Note(env, "b");
   const o = await env.R2.get("pic/" + name);
   if (!o) {
+    const alt = await picOrigin(env, name);
+    if (alt) return await picFallback(env, name, app, false);
     const nf = new Response("not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=60" } });
     if (cache) { try { await cache.put(key, nf.clone()); } catch (_) {} }
     return nf;
@@ -409,12 +412,30 @@ async function pic(env, name) {
   if (cache) { try { await cache.put(key, res.clone()); } catch (_) {} }
   return res;
 }
-async function picFallback(env, name) {
+let picMap = null;
+async function picOrigin(env, name) {
   try {
     const row = await env.DB.prepare("SELECT v FROM meta WHERE k=?").bind("pic:" + name).first();
-    if (row && /^https?:\/\//i.test(row.v || "")) return new Response(null, { status: 302, headers: { location: row.v, "cache-control": "public, max-age=300", "access-control-allow-origin": "*" } });
+    if (row && /^https?:\/\//i.test(row.v || "")) return row.v;
   } catch (_) {}
-  return new Response(PLACEHOLDER_JPG, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=300", "access-control-allow-origin": "*", "x-monika-fallback": "r2-locked" } });
+  try {
+    if (!picMap) { const m = await import("./pic-src.js"); picMap = new Map(m.DATA.split("\n").map((l) => { const t = l.indexOf("\t"); return [l.slice(0, t), l.slice(t + 1)]; })); picMap.base = m.BASE; }
+    const u = picMap.get(name);
+    return u ? (/^https?:\/\//i.test(u) ? u : picMap.base + u) : "";
+  } catch (_) { return ""; }
+}
+async function picFallback(env, name, app, locked) {
+  const origin = await picOrigin(env, name);
+  const hd = { "cache-control": "public, max-age=300", "access-control-allow-origin": "*", "x-monika-fallback": locked ? "r2-locked" : "r2-missing" };
+  if (origin && !app) return new Response(null, { status: 302, headers: { ...hd, location: origin } });
+  if (origin) {
+    try {
+      const r = await fetch(origin, { headers: { "user-agent": "MonikaImg/1" }, cf: { cacheTtl: 86400, cacheEverything: true } });
+      const ct = r.headers.get("content-type") || "";
+      if (r.ok && /^image\//.test(ct)) return new Response(r.body, { headers: { ...hd, "content-type": ct, "cache-control": "public, max-age=86400" } });
+    } catch (_) {}
+  }
+  return new Response(PLACEHOLDER_JPG, { headers: { ...hd, "content-type": "image/jpeg" } });
 }
 const picName = (env, u) => { const m = /^https?:\/\/([^/]+)\/v1\/pic\/([A-Za-z0-9_-]{1,60}\.jpg)$/.exec(u || ""); return m && m[1].toLowerCase() === String(env.API_HOST || "").toLowerCase() ? m[2] : ""; };
 
@@ -469,6 +490,8 @@ async function bannersJson(env, slot) {
 
 export default {
   async fetch(req, env, ctx) {
+    env = withGuard(env); // đo hàng D1 đã ghi và lượt gọi Worker trong ngày (r2guard.js)
+    r2Hit(env, ctx);
     try {
       const u = new URL(req.url);
       const p = u.pathname;
@@ -542,13 +565,17 @@ export default {
     }
   },
   async scheduled(ev, env, ctx) {
-    // Chốt chặn hạn mức free (r2guard.js): đếm, cảnh báo 80%, khóa 90%. Chế độ tiết kiệm D1: đồng bộ 20 phút/lần, bỏ bù icon và tính Hot.
+    env = withGuard(env);
+    // Chốt chặn hạn mức free (r2guard.js): D1 ghi theo bậc 0-3 thì đồng bộ Blogger thưa dần (mỗi 1/2/4/12 lượt cron 5 phút); bậc >= 2 thôi bù icon và tính Hot.
     const g = await r2Tick(env);
-    const slot = Math.floor(Date.now() / 300000);
-    if (!g.econ || slot % 4 === 0) ctx.waitUntil(syncStep(env));
-    ctx.waitUntil(fbFlush(env).catch(() => {})); // gom góp ý gửi email: 1 lượt đọc D1 mỗi 5 phút khi không có tin, chạy cả khi tiết kiệm D1
-    if (g.econ) return;
-    ctx.waitUntil(backfillIcons(env));
-    if (Math.floor(Date.now() / 60000) % 15 < 5) ctx.waitUntil(recompute(env)); // 15 phút một lần (cron chạy 5 phút)
+    const slot = Math.floor(Date.now() / 300000), run = [];
+    if (slot % tierEvery(g.tier || 0) === 0) run.push(syncStep(env));
+    run.push(fbFlush(env).catch(() => {})); // gom góp ý gửi email: 1 lượt đọc D1 mỗi 5 phút khi không có tin, chạy cả khi tiết kiệm D1
+    if ((g.tier || 0) < 2) {
+      run.push(backfillIcons(env));
+      if (Math.floor(Date.now() / 60000) % 15 < 5) run.push(recompute(env)); // 15 phút một lần (cron chạy 5 phút)
+    }
+    ctx.waitUntil(Promise.allSettled(run).then(() => r2Flush(env)));
   },
 };
+

@@ -49,16 +49,10 @@ Workflow `.github/workflows/deploy-worker.yml` chạy test rồi `wrangler deplo
 
 Hạn mức free chính thức (docs Cloudflare R2 pricing, kiểm 2026-11-24): R2 Standard **10 GB-tháng lưu trữ, 1 triệu thao tác Class A (ghi/list), 10 triệu Class B (đọc) mỗi tháng**, egress miễn phí; vượt thì **tính tiền, không tự khóa**. Free tier không áp cho Infrequent Access. D1 free 100k hàng ghi/ngày, Workers Free 100k lượt gọi/ngày (reset 00:00 UTC).
 
-`r2guard.js` (test: `node cloudflare/test/r2guard.test.mjs`):
-- Đếm Class A/B theo tháng UTC trong bảng `meta` (không cần migration; gom 20 thao tác mới ghi D1 một lần). Lưu trữ = tổng `files.size` của kho r2 + `meta r2x:bytes` (phần ảnh seed ngoài Worker) hoặc số thật từ Cloudflare.
-- **>= 80%**: trạng thái `warn` + cảnh báo (webhook `ALERT_URL`, dòng trạng thái trên trang `/up`, `GET /v1/admin/r2`). **>= 90%**: `lock`.
-- Khóa ghi (lưu trữ hoặc Class A): `/up` tự rơi xuống GitHub rồi KV. Khóa đọc (Class B): `/v1/pic` chuyển hướng tới ảnh gốc nếu `meta` có `pic:<tên>` = URL nguồn, không thì trả ảnh giữ chỗ (header `x-monika-fallback`); JAR trong R2 trả 503 kèm Retry-After. Ảnh đã có trong cache biên không tốn lượt đọc.
-- D1 ghi >= 90% hạn mức ngày: **chế độ tiết kiệm D1** (đồng bộ Blogger 20 phút/lần, tạm dừng tính Hot, bù icon, đếm lượt tải). Lượt gọi Worker >= 90% chỉ cảnh báo.
-- Số thật (gồm cả `wrangler r2 object put`, D1, Worker) cần `CF_ACCOUNT_ID` + secret `CF_API_TOKEN` (Account Analytics:Read, Workers R2 Storage:Read). Không có thì chỉ biết phần đi qua Worker.
-- Công tắc tay (cần UP_TOKEN): `POST /v1/admin/r2?lock=1|0|auto`, chỉnh `ext_bytes=N`, `ext_a=N`, `sync=1`. Xem: `GET /v1/admin/r2`.
-
-## Góp ý / báo lỗi game (v4)
-
-`feedback.js`: nhận góp ý từ app (`POST /v1/fb`) và web (`/fb`), lưu D1, cron gom lại gửi email cho `FB_TO` (`vuminh2612@gmail.com`). Chống spam bằng phép tính ký HMAC, giới hạn tần suất, trần theo máy và toàn site, ô bẫy; không dùng Turnstile vì máy cũ không chạy được. Chi tiết: `docs/api-contract.md` mục v4. Test: `node cloudflare/test/feedback.test.mjs`.
-
-**Bật gửi email (làm một lần, tài khoản Cloudflare của Monika Java):** (1) Email Service > Email Routing > Destination addresses: thêm `vuminh2612@gmail.com` rồi bấm liên kết xác minh trong email Cloudflare gửi tới; (2) Email Service > Email Sending > Onboard Domain: chọn `justmonika.top` (bản ghi DNS chỉ thêm vào subdomain `cf-bounce`, không đụng MX và SPF của Oxmail ở gốc miền); (3) deploy Worker (binding `EMAIL` có sẵn trong `wrangler.jsonc`). Chưa làm bước 1-2 thì tin vẫn nằm trong D1, xem bằng `GET /v1/admin/feedback` (Bearer `UP_TOKEN`).
+`r2guard.js` tự canh, tự đổi luồng, **không cần báo người dùng** (test: `node cloudflare/test/r2guard.test.mjs`):
+- Đếm Class A/B theo tháng UTC trong bảng `meta` (không cần migration; gom 20 thao tác mới ghi D1 một lần). Lưu trữ = tổng `files.size` của kho r2 + `meta r2x:bytes` (phần ảnh seed ngoài Worker).
+- **D1 và Worker đo ngay trong Worker**, không cần token: `meterDb` bọc `env.DB` cộng `meta.rows_written` của mọi lệnh ghi, `r2Hit` đếm lượt gọi; mỗi isolate đẩy số đếm lên `meta r2w:<ngày>`, `r2q:<ngày>` tối đa 5 phút một lần. Có `CF_API_TOKEN` (Account Analytics:Read, Workers R2 Storage:Read) thì lấy số thật từ Cloudflare đối chiếu (lấy số lớn hơn), không bắt buộc.
+- **R2 >= 90%**: khóa. Khóa ghi (lưu trữ hoặc Class A): `/up` tự rơi xuống GitHub rồi KV. Khóa đọc (Class B): `/v1/pic` chuyển hướng 302 sang ảnh gốc (`pic-src.js`, 4.971 ảnh dedomil, sinh bằng `tools/gen_pic_src.py`; hoặc `meta pic:<tên>`), app (`/v1/sc`) được Worker tải hộ ảnh gốc, không có nguồn thì ảnh giữ chỗ (header `x-monika-fallback`). Object thiếu trong R2 mà có ảnh gốc cũng lấy ảnh gốc. JAR trong R2 trả 503 kèm Retry-After. Ảnh đã có trong cache biên không tốn lượt đọc.
+- **D1 ghi trong ngày theo bậc**: <60% bậc 0 (đồng bộ Blogger 5 phút/lần); 60-80% bậc 1 (10 phút); 80-90% bậc 2 (20 phút, thôi bù icon và tính Hot); >=90% bậc 3 (60 phút, thôi đếm lượt tải). Sang ngày mới tự về bậc 0. Lượt gọi Worker >= 90% chỉ ghi nhật ký.
+- Mọi lần đổi trạng thái/bậc ghi vào `meta r2:log` (20 dòng cuối), xem ở `GET /v1/admin/r2` (cần UP_TOKEN) hoặc trang `/up`. `ALERT_URL` (webhook) chỉ là tùy chọn.
+- Công tắc tay (cần UP_TOKEN): `POST /v1/admin/r2?lock=1|0|auto`, chỉnh `ext_bytes=N`, `ext_a=N`, `sync=1`.

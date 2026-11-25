@@ -6,7 +6,10 @@
 //    khóa ĐỌC R2 khi Class B chạm ngưỡng (ảnh chuyển sang nguồn gốc/ảnh giữ chỗ, JAR trả 503);
 //  - có CF_API_TOKEN + CF_ACCOUNT_ID thì cron mỗi giờ lấy số thật từ Cloudflare (gồm cả thao tác ngoài Worker như wrangler r2 object put).
 // Cùng bộ đếm canh thêm hai hạn mức NGÀY (reset 00:00 UTC) dễ chạm trần nhất: D1 100k hàng ghi/ngày và Worker 100k lượt gọi/ngày (số thật từ Cloudflare, cần CF_API_TOKEN).
-// D1 >= LOCK_PCT thì vào "chế độ tiết kiệm D1": cron đồng bộ Blogger thưa đi (20 phút/lần), tạm dừng tính Hot, bù icon và đếm lượt tải. Lượt gọi Worker chỉ cảnh báo (vượt thì Cloudflare tự từ chối, Worker không cứu được).
+// D1 và Worker được đo NGAY TRONG Worker (không cần token): bọc env.DB (meterDb) cộng meta.rows_written của mọi lệnh ghi, và đếm mỗi lượt gọi (r2Hit). Có CF_API_TOKEN thì lấy số thật làm đối chiếu (lấy số lớn hơn).
+// D1 tăng dần theo bậc (tier): <60% bình thường; 60-80% đồng bộ Blogger 10 phút/lần; 80-90% 20 phút/lần và tắt bù icon + tính Hot; >=90% 60 phút/lần và thôi đếm lượt tải. Tự xuống bậc khi sang ngày mới (00:00 UTC).
+// Lượt gọi Worker >= 90% chỉ ghi nhật ký (vượt thì Cloudflare tự từ chối, Worker không cứu được).
+// Mọi lần đổi trạng thái được ghi vào meta `r2:log` (20 dòng cuối). Không cần báo người dùng: ALERT_URL chỉ là tùy chọn.
 // Công tắc tay: POST /v1/admin/r2?lock=1|0|auto.
 const GB = 1e9;
 const lim = (v, d) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : d; };
@@ -25,8 +28,9 @@ const CLASS_A = new Set(["ListBuckets", "PutBucket", "ListObjects", "PutObject",
 const CLASS_B = new Set(["HeadBucket", "HeadObject", "GetObject", "UsageSummary", "GetBucketEncryption", "GetBucketLocation", "GetBucketCors", "GetBucketLifecycleConfiguration"]);
 
 // Bộ đếm chờ ghi (mỗi isolate một bộ). Gom lại để không tốn một hàng ghi D1 cho mỗi lượt đọc (D1 free: 100k hàng ghi/ngày).
-let pend = { a: 0, b: 0 }, lastFlush = 0, snap = null, snapAt = 0;
-const FLUSH_N = 20, FLUSH_MS = 20000, SNAP_MS = 30000;
+let pend = { a: 0, b: 0, w: 0, q: 0 }, lastFlush = 0, snap = null, snapAt = 0; // w = hàng D1 đã ghi, q = lượt gọi Worker
+const FLUSH_N = 20, FLUSH_MS = 20000, SNAP_MS = 30000, FLUSH_IDLE = 300000;
+const TIER_EVERY = [1, 2, 4, 12]; // cron 5 phút: chạy đồng bộ Blogger mỗi N lượt theo bậc D1
 
 async function metaGet(env, keys) {
   const q = keys.map(() => "?").join(",");
@@ -37,21 +41,43 @@ async function metaGet(env, keys) {
 const metaSet = (env, k, v) => env.DB.prepare("INSERT INTO meta(k,v) VALUES(?1,?2) ON CONFLICT(k) DO UPDATE SET v=?2").bind(k, String(v)).run();
 
 export async function r2Flush(env) {
-  const a = pend.a, b = pend.b;
-  if (!a && !b) return;
-  pend = { a: 0, b: 0 }; lastFlush = Date.now();
-  const ym = ymOf();
+  const { a, b, w, q } = pend;
+  if (!a && !b && !w && !q) return;
+  pend = { a: 0, b: 0, w: 0, q: 0 }; lastFlush = Date.now();
+  const ym = ymOf(), day = dayOf();
   try {
-    const st = (k, n) => n ? env.DB.prepare("INSERT INTO meta(k,v) VALUES(?1,?2) ON CONFLICT(k) DO UPDATE SET v=CAST(v AS INTEGER)+?2").bind(k + ym, n) : null;
-    await env.DB.batch([st("r2a:", a), st("r2b:", b)].filter(Boolean));
+    const st = (k, n) => n ? env.DB.prepare("INSERT INTO meta(k,v) VALUES(?1,?2) ON CONFLICT(k) DO UPDATE SET v=CAST(v AS INTEGER)+CAST(?2 AS INTEGER)").bind(k, String(n)) : null;
+    await env.DB.batch([st("r2a:" + ym, a), st("r2b:" + ym, b), st("r2w:" + day, w), st("r2q:" + day, q)].filter(Boolean));
     snap = null;
-  } catch (_) { pend.a += a; pend.b += b; } // lỗi D1: giữ lại đếm tiếp lần sau
+  } catch (_) { pend.a += a; pend.b += b; pend.w += w; pend.q += q; } // lỗi D1: giữ lại đếm tiếp lần sau
 }
+
+// Gọi đầu mỗi request: đếm một lượt gọi Worker; mỗi isolate tự đẩy số đếm lên D1 tối đa 5 phút một lần.
+export function r2Hit(env, ctx) {
+  pend.q++;
+  if (Date.now() - lastFlush > FLUSH_IDLE && ctx && ctx.waitUntil) ctx.waitUntil(r2Flush(env));
+}
+
+// Bọc D1: cộng meta.rows_written của mọi lệnh ghi (run/all/batch) vào bộ đếm ngày. Đọc không tốn.
+const noteW = (r) => { const n = r && r.meta && Number(r.meta.rows_written); if (n > 0) pend.w += n; };
+export function meterDb(db) {
+  if (!db || db.__metered) return db;
+  const wrap = (st) => ({
+    __raw: st, bind: (...a) => wrap(st.bind(...a)), first: (...a) => st.first(...a), raw: (...a) => st.raw(...a),
+    run: async (...a) => { const r = await st.run(...a); noteW(r); return r; },
+    all: async (...a) => { const r = await st.all(...a); noteW(r); return r; },
+  });
+  return {
+    __metered: true, __raw: db, prepare: (sql) => wrap(db.prepare(sql)), exec: (...a) => db.exec(...a),
+    batch: async (list) => { const r = await db.batch(list.map((x) => x.__raw || x)); for (const x of r || []) noteW(x); return r; },
+  };
+}
+export const withGuard = (env) => (env && env.DB && !env.DB.__metered ? { ...env, DB: meterDb(env.DB) } : env);
 
 // Ghi nhận n thao tác lớp cls ("a" | "b"). Chỉ chạm D1 khi gom đủ.
 export async function r2Note(env, cls, n = 1) {
   pend[cls] += n;
-  if (pend.a + pend.b >= FLUSH_N || Date.now() - lastFlush > FLUSH_MS) await r2Flush(env);
+  if (pend.a + pend.b >= FLUSH_N || (pend.a + pend.b > 0 && Date.now() - lastFlush > FLUSH_MS)) await r2Flush(env);
 }
 
 // Tình trạng hiện tại. Lỗi D1 thì trả null (nơi gọi tự quyết định mở hay đóng).
@@ -60,7 +86,7 @@ export async function r2Status(env, fresh = false) {
   try {
     const ym = ymOf(), L = r2Limits(env);
     const day = dayOf();
-    const m = await metaGet(env, ["r2a:" + ym, "r2b:" + ym, "r2x:bytes", "r2x:a:" + ym, "r2api:bytes", "r2api:at", "r2api:a:" + ym, "r2api:b:" + ym, "r2api:d1w:" + day, "r2api:req:" + day, "r2:force", "r2:state", "r2:note"]);
+    const m = await metaGet(env, ["r2a:" + ym, "r2b:" + ym, "r2x:bytes", "r2x:a:" + ym, "r2api:bytes", "r2api:at", "r2api:a:" + ym, "r2api:b:" + ym, "r2api:d1w:" + day, "r2api:req:" + day, "r2w:" + day, "r2q:" + day, "r2:force", "r2:state", "r2:note"]);
     const fs = (await env.DB.prepare("SELECT COALESCE(SUM(size),0) s FROM files WHERE store='r2'").first());
     const n = (k) => Number(m[k]) || 0;
     const apiFresh = n("r2api:at") && Date.now() - n("r2api:at") < 6 * 3600e3;
@@ -69,8 +95,8 @@ export async function r2Status(env, fresh = false) {
       bytes: apiFresh ? n("r2api:bytes") : (fs ? Number(fs.s) || 0 : 0) + n("r2x:bytes"),
       a: Math.max(n("r2a:" + ym) + n("r2x:a:" + ym), apiFresh ? n("r2api:a:" + ym) : 0),
       b: Math.max(n("r2b:" + ym), apiFresh ? n("r2api:b:" + ym) : 0),
-      src: apiFresh ? "cloudflare" : "worker",
-      d1w: apiFresh ? n("r2api:d1w:" + day) : 0, req: apiFresh ? n("r2api:req:" + day) : 0, // chỉ có khi đồng bộ được số thật
+      src: apiFresh ? "cloudflare+worker" : "worker",
+      d1w: Math.max(n("r2w:" + day), apiFresh ? n("r2api:d1w:" + day) : 0), req: Math.max(n("r2q:" + day), apiFresh ? n("r2api:req:" + day) : 0),
     };
     snapAt = Date.now();
     return withPend(snap);
@@ -78,7 +104,7 @@ export async function r2Status(env, fresh = false) {
 }
 
 function withPend(s) {
-  const o = { ...s, a: s.a + pend.a, b: s.b + pend.b };
+  const o = { ...s, a: s.a + pend.a, b: s.b + pend.b, d1w: s.d1w + pend.w, req: s.req + pend.q };
   const L = s.L;
   const pct = { storage: o.bytes / L.bytes, a: o.a / L.a, b: o.b / L.b, d1w: o.d1w / L.d1w, req: o.req / L.req };
   const top = Math.max(pct.storage, pct.a, pct.b, pct.d1w, pct.req);
@@ -87,13 +113,14 @@ function withPend(s) {
   if (pct.storage >= L.lock) reasons.push("lưu trữ " + Math.round(pct.storage * 100) + "%");
   if (pct.a >= L.lock) reasons.push("Class A " + Math.round(pct.a * 100) + "%");
   if (pct.b >= L.lock) reasons.push("Class B " + Math.round(pct.b * 100) + "%");
-  const econ = pct.d1w >= L.lock; // chế độ tiết kiệm D1
-  if (econ) reasons.push("D1 ghi " + Math.round(pct.d1w * 100) + "% hạn mức ngày");
+  const tier = pct.d1w >= L.lock ? 3 : pct.d1w >= L.warn ? 2 : pct.d1w >= 0.6 ? 1 : 0; // bậc tiết kiệm D1
+  const econ = tier >= 3, lite = tier >= 2;
+  if (tier) reasons.push("D1 ghi " + Math.round(pct.d1w * 100) + "% hạn mức ngày (bậc " + tier + ")");
   if (pct.req >= L.lock) reasons.push("Worker " + Math.round(pct.req * 100) + "% lượt gọi ngày (chỉ cảnh báo)");
   if (o.force === "1") { writeLock = readLock = true; reasons.push("khóa tay"); }
   else if (o.force === "0") { writeLock = readLock = false; }
   const state = writeLock || readLock || econ || pct.req >= L.lock ? "lock" : top >= L.warn ? "warn" : "ok";
-  return { ...o, pct, writeLock, readLock, econ, state, reasons };
+  return { ...o, pct, writeLock, readLock, econ, lite, tier, state, reasons };
 }
 
 // Được phép dùng R2 không? kind: "write" (kèm size byte sắp ghi) | "read".
@@ -140,8 +167,8 @@ const pctTxt = (x) => Math.round(x * 100) + "%";
 export function r2Summary(s) {
   const mb = (n) => (n / 1e6).toFixed(1) + " MB";
   return `R2 ${s.state.toUpperCase()}: lưu trữ ${mb(s.bytes)}/${(s.L.bytes / 1e9).toFixed(0)} GB (${pctTxt(s.pct.storage)}), Class A ${s.a}/${s.L.a} (${pctTxt(s.pct.a)}), Class B ${s.b}/${s.L.b} (${pctTxt(s.pct.b)}) tháng ${s.ym}` +
-    (s.src === "cloudflare" ? `; hôm nay D1 ghi ${s.d1w}/${s.L.d1w} (${pctTxt(s.pct.d1w)}), Worker ${s.req}/${s.L.req} (${pctTxt(s.pct.req)})` : "; D1/Worker chưa có số (cần CF_API_TOKEN)") +
-    (s.reasons.length ? ` — ${s.reasons.join(", ")}` : "") + (s.writeLock || s.readLock || s.econ ? ` [khóa: ${[s.writeLock && "R2 ghi", s.readLock && "R2 đọc", s.econ && "tiết kiệm D1"].filter(Boolean).join("+")}]` : "");
+    `; hôm nay D1 ghi ${s.d1w}/${s.L.d1w} (${pctTxt(s.pct.d1w)}, bậc ${s.tier}), Worker ${s.req}/${s.L.req} (${pctTxt(s.pct.req)})` +
+    (s.reasons.length ? ` — ${s.reasons.join(", ")}` : "") + (s.writeLock || s.readLock || s.tier ? ` [khóa: ${[s.writeLock && "R2 ghi", s.readLock && "R2 đọc", s.tier && "tiết kiệm D1 bậc " + s.tier].filter(Boolean).join("+")}]` : "");
 }
 
 // Gọi từ cron (5 phút một lần): ghi đếm còn chờ, đồng bộ số thật mỗi giờ, đổi trạng thái thì cảnh báo (ALERT_URL = webhook nhận JSON {text, content}).
@@ -153,16 +180,19 @@ export async function r2Tick(env) {
     if (env.CF_API_TOKEN && Date.now() - (Number(old["r2api:at"]) || 0) > 25 * 60e3) out.sync = await r2SyncApi(env).catch((e) => ({ error: String(e.message).slice(0, 120) }));
     const s = await r2Status(env, true);
     if (!s) return { error: "không đọc được trạng thái" };
-    const prev = (await metaGet(env, ["r2:state"]))["r2:state"] || "ok";
-    if (prev !== s.state) {
-      await metaSet(env, "r2:state", s.state);
-      await metaSet(env, "r2:note", r2Summary(s));
+    const pv = await metaGet(env, ["r2:state", "r2:tier", "r2:log"]);
+    const prev = pv["r2:state"] || "ok", prevTier = Number(pv["r2:tier"]) || 0;
+    if (prev !== s.state || prevTier !== s.tier) {
+      const text = (s.state === "ok" ? "Về mức an toàn. " : s.state === "warn" ? "Cảnh báo sớm (>=80% hạn mức free). " : "Chạm ngưỡng khóa (>=90%), đã tự đổi luồng/dừng luồng chính. ") + r2Summary(s);
+      let log = []; try { log = JSON.parse(pv["r2:log"] || "[]"); } catch (_) {}
+      log.push({ t: new Date().toISOString(), state: s.state, tier: s.tier, text }); log = log.slice(-20);
+      await metaSet(env, "r2:state", s.state); await metaSet(env, "r2:tier", s.tier);
+      await metaSet(env, "r2:note", r2Summary(s)); await metaSet(env, "r2:log", JSON.stringify(log));
       snap = null;
-      const text = (s.state === "ok" ? "R2 đã về mức an toàn. " : s.state === "warn" ? "Cảnh báo sớm (>=80% hạn mức free). " : "CHẠM NGƯỠNG KHÓA (>=90% hạn mức free), đã bật chặn/dự phòng. ") + r2Summary(s);
       console.warn(text);
       if (env.ALERT_URL) { try { await fetch(env.ALERT_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, content: text }) }); out.alert = "sent"; } catch (e) { out.alert = "fail"; } }
     }
-    out.state = s.state; out.econ = s.econ;
+    out.state = s.state; out.econ = s.econ; out.tier = s.tier; out.every = TIER_EVERY[s.tier] || 1;
   } catch (e) { out.error = String(e && e.message).slice(0, 160); }
   return out;
 }
@@ -182,7 +212,8 @@ export async function r2Admin(env, u, post) {
   }
   await r2Flush(env);
   const s = await r2Status(env, true);
-  return s ? { ok: true, summary: r2Summary(s), state: s.state, writeLock: s.writeLock, readLock: s.readLock, econ: s.econ, force: s.force, month: s.ym, source: s.src, apiAt: s.apiAt,
+  let log = []; try { const r = await env.DB.prepare("SELECT v FROM meta WHERE k='r2:log'").first(); log = JSON.parse((r && r.v) || "[]"); } catch (_) {}
+  return s ? { log, ok: true, summary: r2Summary(s), state: s.state, writeLock: s.writeLock, readLock: s.readLock, econ: s.econ, tier: s.tier, force: s.force, month: s.ym, source: s.src, apiAt: s.apiAt,
     storage: { bytes: s.bytes, limit: s.L.bytes, pct: s.pct.storage }, classA: { n: s.a, limit: s.L.a, pct: s.pct.a }, classB: { n: s.b, limit: s.L.b, pct: s.pct.b },
     d1WritesToday: { n: s.d1w, limit: s.L.d1w, pct: s.pct.d1w }, workerRequestsToday: { n: s.req, limit: s.L.req, pct: s.pct.req },
     warnPct: s.L.warn, lockPct: s.L.lock } : { ok: false, error: "không đọc được D1" };
@@ -192,7 +223,8 @@ export async function r2Admin(env, u, post) {
 export const PLACEHOLDER_JPG = Uint8Array.from(atob("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEP/aAAgBAQAAPwD0/9k="), (c) => c.charCodeAt(0));
 
 // Đang ở chế độ tiết kiệm D1? (dùng để bỏ qua việc ghi D1 không thiết yếu). Lỗi/thiếu số thì coi là không.
+export const tierEvery = (tier) => TIER_EVERY[tier] || 1;
 export async function ecoOn(env) { const s = await r2Status(env); return !!(s && s.econ); }
 
 // Chỉ cho test: xóa bộ nhớ đệm trong isolate.
-export function r2Reset() { snap = null; pend = { a: 0, b: 0 }; lastFlush = Date.now(); }
+export function r2Reset() { snap = null; pend = { a: 0, b: 0, w: 0, q: 0 }; lastFlush = Date.now(); }
